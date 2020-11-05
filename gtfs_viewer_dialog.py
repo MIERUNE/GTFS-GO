@@ -25,6 +25,7 @@
 import os
 
 from qgis.PyQt import QtGui, QtWidgets, uic
+from qgis.core import QgsProject, QgsVectorLayer
 
 from .gtfs_viewer_datalist import DATALIST
 from .gtfs_viewer_loader import GTFSViewerLoader
@@ -58,7 +59,23 @@ class GTFSViewerDialog(QtWidgets.QDialog):
     def execution(self):
         loader = GTFSViewerLoader(
             self.get_source(), self.outputDirFileWidget.filePath())
+        loader.geojsonWritingFinished.connect(self.show_geojson)
         loader.show()
+
+    def show_geojson(self, geojson_dir: str):
+        interpolated_stops_geojson = os.path.join(geojson_dir,
+                                                  'interpolated_stops.geojson')
+        stops_geojson = os.path.join(geojson_dir, 'stops.geojson')
+        routes_geojson = os.path.join(geojson_dir, 'routes.geojson')
+
+        interpolated_stops_vlayer = QgsVectorLayer(interpolated_stops_geojson,
+                                                   'interpolated_stops', 'ogr')
+        stops_vlayer = QgsVectorLayer(stops_geojson, 'stops', 'ogr')
+        routes_vlayer = QgsVectorLayer(routes_geojson, 'routes', 'ogr')
+
+        QgsProject.instance().addMapLayers([interpolated_stops_vlayer,
+                                            stops_vlayer,
+                                            routes_vlayer])
 
     def get_source(self):
         if self.ui.comboBox.currentData():

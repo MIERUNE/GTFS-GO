@@ -41,6 +41,8 @@ TEMPDIR = os.path.join(tempfile.gettempdir(), 'gtfsviewer')
 
 class GTFSViewerLoader(QtWidgets.QDialog):
 
+    geojsonWritingFinished = pyqtSignal(str)
+
     def __init__(self, zipfile: str, output_dir: str):
         """Constructor."""
         super().__init__()
@@ -74,9 +76,11 @@ class GTFSViewerLoader(QtWidgets.QDialog):
         self.extractor.start()
         self.extractor.progressChanged.connect(self.ui.progressBar.setValue)
         self.extractor.processFinished.connect(
-            lambda: self.finished(self.extractor.routes, self.extractor.stops))
+            lambda: self.finished(self.extractor.routes,
+                                  self.extractor.stops,
+                                  self.extractor.interpolated_stops))
 
-    def finished(self, routes, stops):
+    def finished(self, routes, stops, interpolated_stops):
         routes_geojson = {
             'type': 'FeatureCollection',
             'features': routes
@@ -85,10 +89,19 @@ class GTFSViewerLoader(QtWidgets.QDialog):
             'type': 'FeatureCollection',
             'features': stops
         }
+        interpolated_stops = {
+            'type': 'FeatureCollection',
+            'features': interpolated_stops
+        }
         with open(os.path.join(self.output_dir, 'routes.geojson'), mode='w') as f:
             json.dump(routes_geojson, f)
         with open(os.path.join(self.output_dir, 'stops.geojson'), mode='w') as f:
             json.dump(stops_geojson, f)
+        with open(os.path.join(self.output_dir, 'interpolated_stops.geojson'), mode='w') as f:
+            json.dump(stops_geojson, f)
+
+        self.geojsonWritingFinished.emit(self.output_dir)
+        self.close()
 
     def canceled(self):
         if self.downloader.isRunning():
@@ -135,6 +148,7 @@ class Extractor(QThread):
         self.zipfile_path = zipfile_path
         self.routes = None
         self.stops = None
+        self.interpolated_stops = None
 
     def run(self):
         extracted_path = os.path.join(TEMPDIR, 'extract')
@@ -144,4 +158,5 @@ class Extractor(QThread):
         gtfs_jp = GTFS_JP(extracted_path)
         self.routes = gtfs_jp.read_routes()
         self.stops = gtfs_jp.read_stops(no_diagrams=True)
+        self.interpolated_stops = gtfs_jp.read_interpolated_stops()
         self.processFinished.emit()
