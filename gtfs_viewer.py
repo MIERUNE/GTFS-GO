@@ -28,7 +28,7 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
 
 # Import the code for the DockWidget
-from .gtfs_viewer_dockwidget import GTFSViewerDockWidget
+from .gtfs_viewer_dialog import GTFSViewerDialog
 
 from .gtfs_jp_parser import GTFS_JP
 
@@ -72,7 +72,7 @@ class GTFSViewer:
         # print "** INITIALIZING GTFSViewer"
 
         self.pluginIsActive = False
-        self.dockwidget = None
+        self.dialog = None
 
     # noinspection PyMethodMayBeStatic
 
@@ -210,24 +210,5 @@ class GTFSViewer:
     def run(self):
         """Run method that loads and starts the plugin"""
 
-        if not self.pluginIsActive:
-            self.pluginIsActive = True
-
-            # print "** STARTING GTFSViewer"
-
-            # dockwidget may not exist if:
-            #    first run of plugin
-            #    removed on close (see self.onClosePlugin method)
-            if self.dockwidget == None:
-                # Create the dockwidget (after translation) and keep reference
-                self.dockwidget = GTFSViewerDockWidget()
-
-            # connect to provide cleanup on closing of dockwidget
-            self.dockwidget.closingPlugin.connect(self.onClosePlugin)
-
-            # show the dockwidget
-            # TODO: fix to allow choice of dock location
-            self.iface.addDockWidget(Qt.TopDockWidgetArea, self.dockwidget)
-            self.dockwidget.show()
-
-            print(GTFS_JP)
+        self.dialog = GTFSViewerDialog()
+        self.dialog.show()
