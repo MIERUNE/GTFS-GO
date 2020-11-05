@@ -24,12 +24,18 @@
 
 import os
 import tempfile
+import urllib
+import time
+import zipfile
+import shutil
 
 from qgis.PyQt import QtWidgets, uic
 from qgis.PyQt.QtCore import QThread, pyqtSignal
 from qgis.core import QgsProject, QgsVectorLayer, QgsDataProvider
 
-from .gtfs_viewer_constants import DATAS_DIR
+from .gtfs_jp_parser.__main__ import GTFS_JP
+
+TEMPDIR = os.path.join(tempfile.gettempdir(), 'gtfsviewer')
 
 
 class GTFSViewerLoader(QtWidgets.QDialog):
@@ -42,20 +48,35 @@ class GTFSViewerLoader(QtWidgets.QDialog):
 
         self.zipfile = zipfile
 
-    def start(self):
-        if self.zipfile.startsWith('http'):
-            downloader = Downloader(self.zipfile)
-            downloader.run()
-            downloader.processFinished.connect(
-                lambda: self.extract(downloader.output_dir))
-        else:
-            self.extract(self.zipfile)
+        self.start()
 
-    def extract(self, zipfile_path):
-        extractor = Extractor(self.zipfile_path)
-        extractor.run()
-        extractor.progressChanged(self.ui.progressBar.setValue)
-        extractor.processFinished(self.close)
+    def start(self):
+        shutil.rmtree(TEMPDIR)
+        os.makedirs(TEMPDIR, exist_ok=True)
+
+        if self.zipfile.startswith('http'):
+            downloader = Downloader(self.zipfile)
+            downloader.start()
+            downloader.processFinished.connect(
+                lambda: self.load_zip(downloader.download_path))
+        else:
+            self.load_zip(self.zipfile)
+
+    def load_zip(self, zipfile_path):
+        extracted_path = os.path.join(TEMPDIR, 'extract')
+        os.makedirs(extracted_path, exist_ok=True)
+        with zipfile.ZipFile(zipfile_path) as z:
+            z.extractall(extracted_path)
+        extractor = Extractor(extracted_path)
+        extractor.start()
+        extractor.progressChanged.connect(self.ui.progressBar.setValue)
+        extractor.processFinished.connect(lambda: self.finished(extractor))
+
+    def finished(self, extractor):
+        routes_geojson = extractor.routes
+        stops_geojson = extractor.stops
+        print(routes_geojson)
+        print(stops_geojson)
 
 
 class Downloader(QThread):
@@ -67,13 +88,19 @@ class Downloader(QThread):
 
         self.output_dir = output_dir
         if self.output_dir is None:
-            self.output_dir = DATAS_DIR
+            self.output_dir = TEMPDIR
 
         if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
+            os.makedirs(self.output_dir, exist_ok=True)
+
+        self.download_path = os.path.join(
+            self.output_dir, f'{int(time.time())}.zip')
 
     def run(self):
-        pass
+        data = urllib.request.urlopen(self.zipfile_url).read()
+        with open(self.download_path, mode='wb') as f:
+            f.write(data)
+        self.processFinished.emit()
 
 
 class Extractor(QThread):
@@ -83,6 +110,11 @@ class Extractor(QThread):
     def __init__(self, zipfile_path: str):
         super().__init__()
         self.zipfile_path = zipfile_path
+        self.routes = None
+        self.stops = None
 
     def run(self):
-        pass
+        gtfs_jp = GTFS_JP(self.zipfile_path)
+        self.routes = gtfs_jp.read_routes()
+        self.stops = gtfs_jp.read_stops(no_diagrams=True)
+        self.processFinished.emit()
