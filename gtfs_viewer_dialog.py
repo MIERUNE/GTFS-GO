@@ -32,6 +32,8 @@ from .gtfs_viewer_loader import GTFSViewerLoader
 
 class GTFSViewerDialog(QtWidgets.QDialog):
 
+    combobox_zip_text = '---zipファイルから読み込み---'
+
     def __init__(self):
         """Constructor."""
         super().__init__()
@@ -42,29 +44,33 @@ class GTFSViewerDialog(QtWidgets.QDialog):
 
     def init_gui(self):
         self.ui.comboBox.addItem('---読み込むデータを選択---', None)
+        self.ui.comboBox.addItem(self.combobox_zip_text, None)
         for data in DATALIST:
             self.ui.comboBox.addItem(
                 f'[{data["pref"]}] {data["name"]}', data['url'])
-        self.ui.comboBox.addItem('zipファイルから読み込み', None)
         self.ui.comboBox.currentIndexChanged.connect(self.refresh)
-        self.ui.mQgsFileWidget.fileChanged.connect(self.refresh)
+        self.ui.zipFileWidget.fileChanged.connect(self.refresh)
+        self.ui.outputDirFileWidget.fileChanged.connect(self.refresh)
         self.refresh()
 
         self.ui.pushButton.clicked.connect(self.execution)
 
     def execution(self):
-        loader = GTFSViewerLoader(self.get_source())
+        loader = GTFSViewerLoader(
+            self.get_source(), self.outputDirFileWidget.filePath())
         loader.show()
 
     def get_source(self):
         if self.ui.comboBox.currentData():
             return self.ui.comboBox.currentData()
-        elif self.ui.comboBox.currentData() is None and self.ui.mQgsFileWidget.filePath():
-            return self.ui.mQgsFileWidget.filePath()
+        elif self.ui.comboBox.currentData() is None and self.ui.zipFileWidget.filePath():
+            return self.ui.zipFileWidget.filePath()
         else:
             return None
 
     def refresh(self):
-        self.ui.mQgsFileWidget.setEnabled(
-            self.ui.comboBox.currentText() == 'zipファイルから読み込み')
-        self.ui.pushButton.setEnabled(self.get_source() is not None)
+        print(self.ui.outputDirFileWidget.filePath())
+        self.ui.zipFileWidget.setEnabled(
+            self.ui.comboBox.currentText() == self.combobox_zip_text)
+        self.ui.pushButton.setEnabled((self.get_source() is not None) and
+                                      (not self.ui.outputDirFileWidget.filePath() == ''))
