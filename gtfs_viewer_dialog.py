@@ -86,7 +86,6 @@ class GTFSViewerDialog(QtWidgets.QDialog):
             return None
 
     def refresh(self):
-        print(self.ui.outputDirFileWidget.filePath())
         self.ui.zipFileWidget.setEnabled(
             self.ui.comboBox.currentText() == self.combobox_zip_text)
         self.ui.pushButton.setEnabled((self.get_source() is not None) and
