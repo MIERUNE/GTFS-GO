@@ -32,17 +32,17 @@ class GTFS_JP:
                     datatype not in self.dataframes:
                 raise FileNotFoundError(f'{datatype} is not exists.')
 
+    def stops_count(self):
+        stops_df = self.dataframes['stops']
+        return len(stops_df)
+
     def read_stops(self, empty_stops=False, no_diagrams=False):
         stops_df = self.dataframes['stops']
         stop_times_df = self.dataframes['stop_times']
         trips_df = self.dataframes['trips']
         routes_df = self.dataframes['routes']
 
-        counter = 0
-        itercount = len(stops_df)
         for stop in stops_df.itertuples():
-            counter += 1
-            print(f'stops loading... : {counter} / {itercount}')
             filtered = stop_times_df[stop_times_df['stop_id']
                                      == stop.stop_id]
             merged = pd.merge(pd.merge(filtered, trips_df,
@@ -95,6 +95,11 @@ class GTFS_JP:
             }
             yield feature
 
+    def interpolated_stops_count(self):
+        stops_df = self.dataframes['stops']
+        stop_names = stops_df['stop_name'].unique()
+        return len(stop_names)
+
     def read_interpolated_stops(self):
         stops_df = self.dataframes['stops']
         stop_names = stops_df['stop_name'].unique()
@@ -143,18 +148,23 @@ class GTFS_JP:
             ValueError(
                 f'{route_data} have neither "route_long_name" or "route_short_time".')
 
+    def routes_count(self, no_shapes=False):
+        shapes_df = self.dataframes.get('shapes')
+        if shapes_df is not None and not no_shapes:
+            shape_ids = shapes_df['shape_id'].unique()
+            return len(shape_ids)
+        else:
+            trips_df = self.dataframes['trips']
+            route_ids = trips_df['route_id'].unique()
+            return len(route_ids)
+
     def read_routes(self, no_shapes=False):
         shapes_df = self.dataframes.get('shapes')
         routes_df = self.dataframes.get('routes')
         trips_df = self.dataframes['trips']
         if shapes_df is not None and not no_shapes:
             shape_ids = shapes_df['shape_id'].unique()
-            counter = 0
             for shape_id in shape_ids:
-                # debug console
-                counter += 1
-                print(f'loading shapes... : {counter} / {len(shape_ids)}')
-
                 filtered = shapes_df[shapes_df['shape_id'] ==
                                      shape_id][['shape_pt_lon', 'shape_pt_lat']]
                 route_ids = trips_df[trips_df['shape_id']
@@ -182,12 +192,7 @@ class GTFS_JP:
                     yield feature
         else:
             route_ids = trips_df['route_id'].unique()
-            counter = 0
             for route_id in route_ids:
-                # debug console
-                counter += 1
-                print(f'loading shapes... : {counter} / {len(route_ids)}')
-
                 trip_id = trips_df[trips_df['route_id'] == route_id]['trip_id'].unique()[
                     0]
                 stop_times_df = self.dataframes.get('stop_times')
