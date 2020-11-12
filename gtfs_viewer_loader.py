@@ -104,11 +104,11 @@ class GTFSViewerLoader(QtWidgets.QDialog):
         self.close()
 
     def canceled(self):
-        if self.downloader.isRunning():
+        if self.downloader is not None and self.downloader.isRunning():
             self.downloader.terminate()
             self.downloader = None
 
-        if self.extractor.isRunning():
+        if self.extractor is not None and self.extractor.isRunning():
             self.extractor.terminate()
             self.extractor = None
 
