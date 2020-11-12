@@ -146,9 +146,9 @@ class Extractor(QThread):
     def __init__(self, zipfile_path: str):
         super().__init__()
         self.zipfile_path = zipfile_path
-        self.routes = None
-        self.stops = None
-        self.interpolated_stops = None
+        self.routes = []
+        self.stops = []
+        self.interpolated_stops = []
 
     def run(self):
         extracted_path = os.path.join(TEMPDIR, 'extract')
@@ -156,7 +156,28 @@ class Extractor(QThread):
         with zipfile.ZipFile(self.zipfile_path) as z:
             z.extractall(extracted_path)
         gtfs_jp = GTFS_JP(extracted_path)
-        self.routes = gtfs_jp.read_routes()
-        self.stops = gtfs_jp.read_stops(no_diagrams=True)
-        self.interpolated_stops = gtfs_jp.read_interpolated_stops()
+
+        routes_count = gtfs_jp.routes_count()
+        stops_count = gtfs_jp.stops_count()
+        interpolated_stops_count = gtfs_jp.interpolated_stops_count()
+        task_count_sum = routes_count + stops_count + interpolated_stops_count
+
+        progress_counter = 0
+
+        for route in gtfs_jp.read_routes():
+            self.routes.append(route)
+            progress_counter += 1
+            self.progressChanged.emit(progress_counter * 100 // task_count_sum)
+            
+        for stop in gtfs_jp.read_stops(no_diagrams=True):
+            self.stops.append(stop)
+            progress_counter += 1
+            self.progressChanged.emit(progress_counter * 100 // task_count_sum)
+
+        for interpolated_stop in gtfs_jp.read_interpolated_stops():
+            self.interpolated_stops.append(interpolated_stop)
+            progress_counter += 1
+            self.progressChanged.emit(progress_counter * 100 // task_count_sum)
+        
         self.processFinished.emit()
+
