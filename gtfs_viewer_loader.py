@@ -37,13 +37,14 @@ from qgis.core import QgsProject, QgsVectorLayer, QgsDataProvider
 from .gtfs_jp_parser.__main__ import GTFS_JP
 
 TEMPDIR = os.path.join(tempfile.gettempdir(), 'gtfsviewer')
+MAX_PROGRESS_COUNT = 100
 
 
 class GTFSViewerLoader(QtWidgets.QDialog):
 
     geojsonWritingFinished = pyqtSignal(str)
 
-    def __init__(self, zipfile: str, output_dir: str):
+    def __init__(self, zipfile: str, output_dir: str, no_shapes=False, ignore_no_route_stops=False):
         """Constructor."""
         super().__init__()
         self.ui = uic.loadUi(os.path.join(os.path.dirname(
@@ -51,9 +52,13 @@ class GTFSViewerLoader(QtWidgets.QDialog):
 
         self.zipfile = zipfile
         self.output_dir = output_dir
+        self.no_shapes = no_shapes
+        self.ignore_no_route_stops = ignore_no_route_stops
 
         self.downloader = None
         self.extractor = None
+
+        self.ui.progressBar.setMaximum(MAX_PROGRESS_COUNT)
 
         shutil.rmtree(TEMPDIR)
         os.makedirs(TEMPDIR, exist_ok=True)
@@ -72,15 +77,16 @@ class GTFSViewerLoader(QtWidgets.QDialog):
             self.load_zip(self.zipfile)
 
     def load_zip(self, zipfile_path):
-        self.extractor = Extractor(zipfile_path)
+        self.extractor = Extractor(zipfile_path,
+                                   no_shapes=self.no_shapes,
+                                   ignore_no_route_stops=self.ignore_no_route_stops)
         self.extractor.start()
         self.extractor.progressChanged.connect(self.ui.progressBar.setValue)
         self.extractor.processFinished.connect(
             lambda: self.finished(self.extractor.routes,
-                                  self.extractor.stops,
-                                  self.extractor.interpolated_stops))
+                                  self.extractor.stops))
 
-    def finished(self, routes, stops, interpolated_stops):
+    def finished(self, routes, stops):
         routes_geojson = {
             'type': 'FeatureCollection',
             'features': routes
@@ -89,15 +95,9 @@ class GTFSViewerLoader(QtWidgets.QDialog):
             'type': 'FeatureCollection',
             'features': stops
         }
-        interpolated_stops = {
-            'type': 'FeatureCollection',
-            'features': interpolated_stops
-        }
         with open(os.path.join(self.output_dir, 'routes.geojson'), mode='w') as f:
             json.dump(routes_geojson, f)
         with open(os.path.join(self.output_dir, 'stops.geojson'), mode='w') as f:
-            json.dump(stops_geojson, f)
-        with open(os.path.join(self.output_dir, 'interpolated_stops.geojson'), mode='w') as f:
             json.dump(stops_geojson, f)
 
         self.geojsonWritingFinished.emit(self.output_dir)
@@ -143,12 +143,13 @@ class Extractor(QThread):
     progressChanged = pyqtSignal(int)
     processFinished = pyqtSignal()
 
-    def __init__(self, zipfile_path: str):
+    def __init__(self, zipfile_path: str, no_shapes=False, ignore_no_route_stops=False):
         super().__init__()
         self.zipfile_path = zipfile_path
+        self.no_shapes = no_shapes
+        self.ignore_no_route_stops = ignore_no_route_stops
         self.routes = []
         self.stops = []
-        self.interpolated_stops = []
 
     def run(self):
         extracted_path = os.path.join(TEMPDIR, 'extract')
@@ -159,25 +160,22 @@ class Extractor(QThread):
 
         routes_count = gtfs_jp.routes_count()
         stops_count = gtfs_jp.stops_count()
-        interpolated_stops_count = gtfs_jp.interpolated_stops_count()
-        task_count_sum = routes_count + stops_count + interpolated_stops_count
+        task_count_sum = routes_count + stops_count
 
         progress_counter = 0
 
-        for route in gtfs_jp.read_routes():
+        for route in gtfs_jp.read_routes(no_shapes=self.no_shapes):
             self.routes.append(route)
             progress_counter += 1
-            self.progressChanged.emit(progress_counter * 100 // task_count_sum)
-            
-        for stop in gtfs_jp.read_stops(no_diagrams=True):
+            self.progressChanged.emit(
+                int(MAX_PROGRESS_COUNT * progress_counter // task_count_sum))
+
+        for stop in gtfs_jp.read_stops(no_empty_stops=self.ignore_no_route_stops, no_diagrams=True):
+            progress_counter += 1
+            self.progressChanged.emit(
+                int(MAX_PROGRESS_COUNT * progress_counter // task_count_sum))
+            if stop is None:
+                continue
             self.stops.append(stop)
-            progress_counter += 1
-            self.progressChanged.emit(progress_counter * 100 // task_count_sum)
 
-        for interpolated_stop in gtfs_jp.read_interpolated_stops():
-            self.interpolated_stops.append(interpolated_stop)
-            progress_counter += 1
-            self.progressChanged.emit(progress_counter * 100 // task_count_sum)
-        
         self.processFinished.emit()
-

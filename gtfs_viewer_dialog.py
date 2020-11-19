@@ -25,10 +25,12 @@
 import os
 
 from qgis.PyQt import QtGui, QtWidgets, uic
-from qgis.core import QgsProject, QgsVectorLayer
+from qgis.core import *
 
 from .gtfs_viewer_datalist import DATALIST
 from .gtfs_viewer_loader import GTFSViewerLoader
+from .gtfs_viewer_renderer import Renderer
+from .gtfs_viewer_labeling import get_labeling_for_stops
 
 
 class GTFSViewerDialog(QtWidgets.QDialog):
@@ -58,24 +60,32 @@ class GTFSViewerDialog(QtWidgets.QDialog):
 
     def execution(self):
         loader = GTFSViewerLoader(
-            self.get_source(), self.outputDirFileWidget.filePath())
+            self.get_source(),
+            self.outputDirFileWidget.filePath(),
+            self.ui.ignoreShapesCheckbox.isChecked(),
+            self.ui.ignoreNoRouteStopsCheckbox.isChecked())
         loader.geojsonWritingFinished.connect(self.show_geojson)
         loader.show()
 
     def show_geojson(self, geojson_dir: str):
-        interpolated_stops_geojson = os.path.join(geojson_dir,
-                                                  'interpolated_stops.geojson')
         stops_geojson = os.path.join(geojson_dir, 'stops.geojson')
         routes_geojson = os.path.join(geojson_dir, 'routes.geojson')
-
-        interpolated_stops_vlayer = QgsVectorLayer(interpolated_stops_geojson,
-                                                   'interpolated_stops', 'ogr')
         stops_vlayer = QgsVectorLayer(stops_geojson, 'stops', 'ogr')
         routes_vlayer = QgsVectorLayer(routes_geojson, 'routes', 'ogr')
+        stops_renderer = Renderer(stops_vlayer, 'stop_name')
+        routes_renderer = Renderer(routes_vlayer, 'route_name')
 
-        QgsProject.instance().addMapLayers([interpolated_stops_vlayer,
-                                            stops_vlayer,
-                                            routes_vlayer])
+        stops_vlayer.setRenderer(stops_renderer.make_renderer())
+        routes_vlayer.setRenderer(routes_renderer.make_renderer())
+
+        stops_labeling = get_labeling_for_stops()
+        stops_vlayer.setLabelsEnabled(True)
+        stops_vlayer.setLabeling(stops_labeling)
+
+        stops_vlayer.setMinimumScale(100000)
+        stops_vlayer.setScaleBasedVisibility(True)
+
+        QgsProject.instance().addMapLayers([stops_vlayer, routes_vlayer])
 
     def get_source(self):
         if self.ui.comboBox.currentData():
