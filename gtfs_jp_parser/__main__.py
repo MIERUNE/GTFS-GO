@@ -36,7 +36,7 @@ class GTFS_JP:
         stops_df = self.dataframes['stops']
         return len(stops_df)
 
-    def read_stops(self, empty_stops=False, no_diagrams=False):
+    def read_stops(self, no_empty_stops=False, no_diagrams=False):
         stops_df = self.dataframes['stops']
         stop_times_df = self.dataframes['stop_times']
         trips_df = self.dataframes['trips']
@@ -76,8 +76,10 @@ class GTFS_JP:
                             'destination': destination
                         }
 
-            if diagrams == {} and not empty_stops:
+            route_ids = self.get_route_ids_by(stop.stop_id)
+            if no_empty_stops and len(route_ids) == 0:
                 print(f'stop_id={stop.stop_id} has no route, skipping...')
+                yield
                 continue
 
             feature = {
@@ -90,7 +92,7 @@ class GTFS_JP:
                     'stop_id': str(stop.stop_id),
                     'stop_name': stop.stop_name,
                     'diagrams': diagrams,
-                    'route_ids': self.get_route_ids_by(stop.stop_id)
+                    'route_ids': route_ids
                 }
             }
             yield feature
@@ -276,7 +278,8 @@ if __name__ == "__main__":
     if args.output_dir:
         output_dir = args.output_dir
 
-    routes_features = [route for route in gtfs_jp.read_routes(no_shapes=args.no_shapes)]
+    routes_features = [route for route in gtfs_jp.read_routes(
+        no_shapes=args.no_shapes)]
     routes_geojson = {
         'type': 'FeatureCollection',
         'features': routes_features
