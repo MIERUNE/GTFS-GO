@@ -3,7 +3,7 @@
 # This file should be included when you package your plugin.# Mandatory items:
 
 [general]
-name=GTFS Viewer
+name=GTFS-Viewer
 qgisMinimumVersion=3.0
 description=The plugin to show routes and stops from GTFS
 version=0.1
@@ -12,8 +12,8 @@ email=info@mierune.co.jp
 
 about=The plugin to show routes and stops from GTFS.
 
-tracker=https://github.com/Kanahiro/GTFSViewer/issues
-repository=https://github.com/Kanahiro/GTFSViewer
+tracker=https://github.com/MIERUNE/GTFS-Viewer/issues
+repository=https://github.com/MIERUNE/GTFS-Viewer
 # End of mandatory metadata
 
 # Recommended items:
@@ -25,7 +25,7 @@ hasProcessingProvider=no
 # Tags are comma separated with spaces allowed
 tags=python, gtfs, traffic
 
-homepage=https://github.com/Kanahiro/GTFSViewer
+homepage=https://github.com/MIERUNE/GTFS-Viewer
 category=Web
 icon=imgs/icon.png
 # experimental flag
