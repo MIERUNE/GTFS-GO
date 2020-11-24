@@ -5,8 +5,8 @@ from qgis.PyQt.QtGui import QColor
 from .gtfs_viewer_settings import (
     STOPS_PNG_PATH,
     ROUTES_COLOR_LIST,
-    ROUTES_LINE_WIDTH,
-    ROUTES_OUTLINE_WIDTH,
+    ROUTES_LINE_WIDTH_MM,
+    ROUTES_OUTLINE_WIDTH_MM,
     ROUTES_OUTLINE_COLOR
 )
 
@@ -33,11 +33,11 @@ class Renderer:
         else:
             line_layer = symbol.symbolLayer(0)
             line_layer.setPenJoinStyle(Qt.RoundJoin)
-            line_layer.setWidth(ROUTES_LINE_WIDTH)
+            line_layer.setWidth(ROUTES_LINE_WIDTH_MM)
             line_layer.setColor(get_random_color())
             outline_layer = symbol.symbolLayer(0).clone()
             outline_layer.setColor(QColor(ROUTES_OUTLINE_COLOR))
-            outline_layer.setWidth(ROUTES_OUTLINE_WIDTH)
+            outline_layer.setWidth(ROUTES_OUTLINE_WIDTH_MM)
             symbol.insertSymbolLayer(0, outline_layer)
         return symbol
 
