@@ -2,8 +2,8 @@ from qgis.PyQt.QtCore import Qt
 from qgis.core import *
 from qgis.PyQt.QtGui import QColor
 
-from .gtfs_viewer_constants import (
-    BUSSTOP_PNG_PATH,
+from .gtfs_viewer_settings import (
+    STOPS_PNG_PATH,
     ROUTES_COLOR_LIST,
     ROUTES_LINE_WIDTH,
     ROUTES_OUTLINE_WIDTH,
@@ -28,7 +28,7 @@ class Renderer:
     def make_symbol(self):
         symbol = QgsSymbol.defaultSymbol(self.target_layer.geometryType())
         if self.is_point_layer():
-            symbol_layer = QgsRasterMarkerSymbolLayer(BUSSTOP_PNG_PATH)
+            symbol_layer = QgsRasterMarkerSymbolLayer(STOPS_PNG_PATH)
             symbol.changeSymbolLayer(0, symbol_layer)
         else:
             line_layer = symbol.symbolLayer(0)

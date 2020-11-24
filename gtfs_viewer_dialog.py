@@ -8,8 +8,8 @@
                              -------------------
         begin                : 2020-10-29
         git sha              : $Format:%H$
-        copyright            : (C) 2020 by Kanahiro Iguchi
-        email                : kanahiro.iguchi@gmail.com
+        copyright            : (C) 2020 by MIERUNE Inc.
+        email                : info@mierune.co.jp
  ***************************************************************************/
 
 /***************************************************************************
@@ -31,8 +31,12 @@ from .gtfs_viewer_datalist import DATALIST
 from .gtfs_viewer_loader import GTFSViewerLoader
 from .gtfs_viewer_renderer import Renderer
 from .gtfs_viewer_labeling import get_labeling_for_stops
-from .gtfs_viewer_constants import (
-    STOPS_MINIMUM_VISIBLE_SCALE
+from .gtfs_viewer_settings import (
+    STOPS_MINIMUM_VISIBLE_SCALE,
+    FILENAME_ROUTES_GEOJSON,
+    FILENAME_STOPS_GEOJSON,
+    LAYERNAME_ROUTES,
+    LAYERNAME_STOPS
 )
 
 
@@ -65,7 +69,8 @@ class GTFSViewerDialog(QtWidgets.QDialog):
     def execution(self):
         loader = GTFSViewerLoader(
             self.get_source(),
-            self.outputDirFileWidget.filePath(),
+            os.path.join(self.outputDirFileWidget.filePath(),
+                         self.get_group_name()),
             self.ui.ignoreShapesCheckbox.isChecked(),
             self.ui.ignoreNoRouteStopsCheckbox.isChecked())
         loader.geojsonWritingFinished.connect(
@@ -74,11 +79,11 @@ class GTFSViewerDialog(QtWidgets.QDialog):
 
     def show_geojson(self, geojson_dir: str):
         # these geojsons will already have been generated
-        stops_geojson = os.path.join(geojson_dir, 'stops.geojson')
-        routes_geojson = os.path.join(geojson_dir, 'routes.geojson')
+        stops_geojson = os.path.join(geojson_dir, FILENAME_STOPS_GEOJSON)
+        routes_geojson = os.path.join(geojson_dir, FILENAME_ROUTES_GEOJSON)
 
-        stops_vlayer = QgsVectorLayer(stops_geojson, 'stops', 'ogr')
-        routes_vlayer = QgsVectorLayer(routes_geojson, 'routes', 'ogr')
+        stops_vlayer = QgsVectorLayer(stops_geojson, LAYERNAME_STOPS, 'ogr')
+        routes_vlayer = QgsVectorLayer(routes_geojson, LAYERNAME_ROUTES, 'ogr')
 
         # make and set renderer for each layers
         stops_renderer = Renderer(stops_vlayer, 'stop_name')
@@ -117,7 +122,7 @@ class GTFSViewerDialog(QtWidgets.QDialog):
         if self.ui.comboBox.currentData():
             return self.ui.comboBox.currentData().get("name")
         elif self.ui.comboBox.currentData() is None and self.ui.zipFileWidget.filePath():
-            return os.path.basename(self.ui.zipFileWidget.filePath())
+            return os.path.basename(self.ui.zipFileWidget.filePath()).split(".")[0]
         else:
             return "no named group"
 

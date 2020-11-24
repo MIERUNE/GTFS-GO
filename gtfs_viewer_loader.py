@@ -8,8 +8,8 @@
                              -------------------
         begin                : 2020-10-29
         git sha              : $Format:%H$
-        copyright            : (C) 2020 by Kanahiro Iguchi
-        email                : kanahiro.iguchi@gmail.com
+        copyright            : (C) 2020 by MIERUNE Inc.
+        email                : info@mierune.co.jp
  ***************************************************************************/
 
 /***************************************************************************
@@ -34,6 +34,10 @@ from qgis.PyQt import QtWidgets, uic
 from qgis.PyQt.QtCore import QThread, pyqtSignal
 
 from .gtfs_jp_parser.__main__ import GTFS_JP
+from .gtfs_viewer_settings import (
+    FILENAME_ROUTES_GEOJSON,
+    FILENAME_STOPS_GEOJSON
+)
 
 TEMPDIR = os.path.join(tempfile.gettempdir(), 'gtfsviewer')
 MAX_PROGRESS_COUNT = 100
@@ -95,9 +99,11 @@ class GTFSViewerLoader(QtWidgets.QDialog):
             'type': 'FeatureCollection',
             'features': stops
         }
-        with open(os.path.join(self.output_dir, 'routes.geojson'), mode='w') as f:
+
+        os.makedirs(self.output_dir, exist_ok=True)
+        with open(os.path.join(self.output_dir, FILENAME_ROUTES_GEOJSON), mode='w') as f:
             json.dump(routes_geojson, f)
-        with open(os.path.join(self.output_dir, 'stops.geojson'), mode='w') as f:
+        with open(os.path.join(self.output_dir, FILENAME_STOPS_GEOJSON), mode='w') as f:
             json.dump(stops_geojson, f)
 
         self.geojsonWritingFinished.emit(self.output_dir)

@@ -1,10 +1,21 @@
 import os
 
-DATAS_DIR = os.path.join(os.path.dirname(__file__), 'datas')
-BUSSTOP_PNG_PATH = os.path.join(
-    os.path.dirname(__file__), "imgs", "busstop.png")
+FILENAME_ROUTES_GEOJSON = "routes.geojson"
+FILENAME_STOPS_GEOJSON = "stops.geojson"
+
+LAYERNAME_ROUTES = "routes"
+LAYERNAME_STOPS = "stops"
+
+STOPS_LABEL_FONT = "Arial"
+STOPS_LABEL_SIZE = 9
+STOPS_LABEL_BUFFER_SIZE = 1
+STOPS_LABEL_BUFFER_COLOR = "white"
+STOPS_LABEL_DIST = 2.2
+STOPS_LABEL_MINUMUM_VISIBLE_SCALE = 50000
 
 STOPS_MINIMUM_VISIBLE_SCALE = 100000
+STOPS_PNG_PATH = os.path.join(
+    os.path.dirname(__file__), "imgs", "busstop.png")
 
 ROUTES_LINE_WIDTH = 1.2
 ROUTES_OUTLINE_WIDTH = 2.0

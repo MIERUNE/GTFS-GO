@@ -7,8 +7,8 @@ name=GTFS Viewer
 qgisMinimumVersion=3.0
 description=The plugin to show routes and stops from GTFS
 version=0.1
-author=Kanahiro Iguchi
-email=kanahiro.iguchi@gmail.com
+author=MIERUNE Inc.
+email=info@mierune.co.jp
 
 about=The plugin to show routes and stops from GTFS.
 
