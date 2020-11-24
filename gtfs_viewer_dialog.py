@@ -54,7 +54,7 @@ class GTFSViewerDialog(QtWidgets.QDialog):
         self.ui.comboBox.addItem(self.combobox_zip_text, None)
         for data in DATALIST:
             self.ui.comboBox.addItem(
-                f'[{data["pref"]}] {data["name"]}', data['url'])
+                f'[{data["region"]}] {data["name"]}', data)
         self.ui.comboBox.currentIndexChanged.connect(self.refresh)
         self.ui.zipFileWidget.fileChanged.connect(self.refresh)
         self.ui.outputDirFileWidget.fileChanged.connect(self.refresh)
@@ -95,11 +95,13 @@ class GTFSViewerDialog(QtWidgets.QDialog):
         stops_vlayer.setMinimumScale(STOPS_MINIMUM_VISIBLE_SCALE)
         stops_vlayer.setScaleBasedVisibility(True)
 
-        QgsProject.instance().addMapLayers([stops_vlayer, routes_vlayer])
+        # add two layers as a group
+        group_name = self.get_group_name()
+        self.add_layers_as_group(group_name, [routes_vlayer, stops_vlayer])
 
     def get_source(self):
         if self.ui.comboBox.currentData():
-            return self.ui.comboBox.currentData()
+            return self.ui.comboBox.currentData().get("url")
         elif self.ui.comboBox.currentData() is None and self.ui.zipFileWidget.filePath():
             return self.ui.zipFileWidget.filePath()
         else:
@@ -110,3 +112,32 @@ class GTFSViewerDialog(QtWidgets.QDialog):
             self.ui.comboBox.currentText() == self.combobox_zip_text)
         self.ui.pushButton.setEnabled((self.get_source() is not None) and
                                       (not self.ui.outputDirFileWidget.filePath() == ''))
+
+    def get_group_name(self):
+        if self.ui.comboBox.currentData():
+            return self.ui.comboBox.currentData().get("name")
+        elif self.ui.comboBox.currentData() is None and self.ui.zipFileWidget.filePath():
+            return os.path.basename(self.ui.zipFileWidget.filePath())
+        else:
+            return "no named group"
+
+    def add_layers_as_group(self, group_name: str, layers: [QgsMapLayer]):
+        """
+        add layers into project as a group.
+        the order of layers is reverse to layers list order.
+        if layers: [layer_A, layer_B, layer_C]
+        then in tree:
+        - layer_C
+        - layer_B
+        - layer_A
+
+        Args:
+            group_name (str): [description]
+            layers ([type]): [description]
+        """
+        root = QgsProject().instance().layerTreeRoot()
+        group = root.addGroup(group_name)
+        group.setExpanded(True)
+        for layer in layers:
+            QgsProject.instance().addMapLayer(layer, False)
+            group.insertLayer(0, layer)
