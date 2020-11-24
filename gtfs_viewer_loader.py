@@ -32,7 +32,6 @@ import json
 
 from qgis.PyQt import QtWidgets, uic
 from qgis.PyQt.QtCore import QThread, pyqtSignal
-from qgis.core import QgsProject, QgsVectorLayer, QgsDataProvider
 
 from .gtfs_jp_parser.__main__ import GTFS_JP
 
@@ -55,6 +54,7 @@ class GTFSViewerLoader(QtWidgets.QDialog):
         self.no_shapes = no_shapes
         self.ignore_no_route_stops = ignore_no_route_stops
 
+        # vars to store Classes working in other threads.
         self.downloader = None
         self.extractor = None
 
@@ -170,12 +170,11 @@ class Extractor(QThread):
             self.progressChanged.emit(
                 int(MAX_PROGRESS_COUNT * progress_counter // task_count_sum))
 
-        for stop in gtfs_jp.read_stops(no_empty_stops=self.ignore_no_route_stops, no_diagrams=True):
+        for stop in gtfs_jp.read_stops(ignore_no_route=self.ignore_no_route_stops, no_diagrams=True):
             progress_counter += 1
             self.progressChanged.emit(
                 int(MAX_PROGRESS_COUNT * progress_counter // task_count_sum))
-            if stop is None:
-                continue
-            self.stops.append(stop)
+            if stop:
+                self.stops.append(stop)
 
         self.processFinished.emit()

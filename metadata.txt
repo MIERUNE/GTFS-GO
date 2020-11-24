@@ -27,7 +27,7 @@ tags=python, gtfs, traffic
 
 homepage=https://github.com/Kanahiro/GTFSViewer
 category=Web
-icon=icon.png
+icon=imgs/icon.png
 # experimental flag
 experimental=False
 

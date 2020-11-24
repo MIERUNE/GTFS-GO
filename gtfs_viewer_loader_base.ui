@@ -29,7 +29,7 @@
       <number>0</number>
      </property>
      <property name="textVisible">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="invertedAppearance">
       <bool>false</bool>

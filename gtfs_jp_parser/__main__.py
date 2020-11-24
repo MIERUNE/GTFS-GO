@@ -36,7 +36,7 @@ class GTFS_JP:
         stops_df = self.dataframes['stops']
         return len(stops_df)
 
-    def read_stops(self, no_empty_stops=False, no_diagrams=False):
+    def read_stops(self, ignore_no_route=False, no_diagrams=False):
         stops_df = self.dataframes['stops']
         stop_times_df = self.dataframes['stop_times']
         trips_df = self.dataframes['trips']
@@ -77,9 +77,9 @@ class GTFS_JP:
                         }
 
             route_ids = self.get_route_ids_by(stop.stop_id)
-            if no_empty_stops and len(route_ids) == 0:
+            if ignore_no_route and len(route_ids) == 0:
                 print(f'stop_id={stop.stop_id} has no route, skipping...')
-                yield
+                yield None
                 continue
 
             feature = {

@@ -35,6 +35,7 @@ from .gtfs_viewer_labeling import get_labeling_for_stops
 
 class GTFSViewerDialog(QtWidgets.QDialog):
 
+    combobox_placeholder_text = '---読み込むデータを選択---'
     combobox_zip_text = '---zipファイルから読み込み---'
 
     def __init__(self):
@@ -46,7 +47,7 @@ class GTFSViewerDialog(QtWidgets.QDialog):
         self.init_gui()
 
     def init_gui(self):
-        self.ui.comboBox.addItem('---読み込むデータを選択---', None)
+        self.ui.comboBox.addItem(self.combobox_placeholder_text, None)
         self.ui.comboBox.addItem(self.combobox_zip_text, None)
         for data in DATALIST:
             self.ui.comboBox.addItem(
