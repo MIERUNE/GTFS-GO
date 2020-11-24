@@ -1,36 +1,20 @@
-import os
-
-from qgis.PyQt import QtWidgets, uic, QtCore
 from qgis.PyQt.QtCore import Qt
 from qgis.core import *
-from qgis.PyQt.QtGui import QColor, QFont
+from qgis.PyQt.QtGui import QColor
 
-BUSSTOP_PNG_PATH = os.path.join(
-    os.path.dirname(__file__), "imgs", "busstop.png")
-
-# Usable color names are defined in following webpage
-# https://www.w3.org/TR/SVG11/types.html#ColorKeywords
-COLOR_LIST = [
-    "orangered",
-    "blue",
-    "green",
-    "orange",
-    "salmon",
-    "greenyellow",
-    "yellowgreen",
-    "blueviolet",
-    "lightskyblue",
-    "lightpink",
-    "royalblue",
-    "palevioletred",
-    "gold"
-]
+from .gtfs_viewer_constants import (
+    BUSSTOP_PNG_PATH,
+    ROUTES_COLOR_LIST,
+    ROUTES_LINE_WIDTH,
+    ROUTES_OUTLINE_WIDTH,
+    ROUTES_OUTLINE_COLOR
+)
 
 
 def get_random_color():
     import random
-    random_index = random.randrange(0, len(COLOR_LIST) - 1, 1)
-    return QColor(COLOR_LIST[random_index])
+    random_index = random.randrange(0, len(ROUTES_COLOR_LIST) - 1, 1)
+    return QColor(ROUTES_COLOR_LIST[random_index])
 
 
 class Renderer:
@@ -49,16 +33,17 @@ class Renderer:
         else:
             line_layer = symbol.symbolLayer(0)
             line_layer.setPenJoinStyle(Qt.RoundJoin)
-            line_layer.setWidth(1.2)
+            line_layer.setWidth(ROUTES_LINE_WIDTH)
             line_layer.setColor(get_random_color())
             outline_layer = symbol.symbolLayer(0).clone()
-            outline_layer.setColor(QColor('white'))
-            outline_layer.setWidth(2)
+            outline_layer.setColor(QColor(ROUTES_OUTLINE_COLOR))
+            outline_layer.setWidth(ROUTES_OUTLINE_WIDTH)
             symbol.insertSymbolLayer(0, outline_layer)
         return symbol
 
     def make_categories_by(self):
         categories = []
+        # get all target field value with removing dupulicates
         target_field_values = set([feature.attribute(self.target_field_name)
                                    for feature in self.target_layer.getFeatures()])
         for value in target_field_values:

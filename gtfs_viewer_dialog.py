@@ -31,6 +31,9 @@ from .gtfs_viewer_datalist import DATALIST
 from .gtfs_viewer_loader import GTFSViewerLoader
 from .gtfs_viewer_renderer import Renderer
 from .gtfs_viewer_labeling import get_labeling_for_stops
+from .gtfs_viewer_constants import (
+    STOPS_MINIMUM_VISIBLE_SCALE
+)
 
 
 class GTFSViewerDialog(QtWidgets.QDialog):
@@ -65,25 +68,31 @@ class GTFSViewerDialog(QtWidgets.QDialog):
             self.outputDirFileWidget.filePath(),
             self.ui.ignoreShapesCheckbox.isChecked(),
             self.ui.ignoreNoRouteStopsCheckbox.isChecked())
-        loader.geojsonWritingFinished.connect(self.show_geojson)
+        loader.geojsonWritingFinished.connect(
+            lambda output_dir: self.show_geojson(output_dir))
         loader.show()
 
     def show_geojson(self, geojson_dir: str):
+        # these geojsons will already have been generated
         stops_geojson = os.path.join(geojson_dir, 'stops.geojson')
         routes_geojson = os.path.join(geojson_dir, 'routes.geojson')
+
         stops_vlayer = QgsVectorLayer(stops_geojson, 'stops', 'ogr')
         routes_vlayer = QgsVectorLayer(routes_geojson, 'routes', 'ogr')
+
+        # make and set renderer for each layers
         stops_renderer = Renderer(stops_vlayer, 'stop_name')
         routes_renderer = Renderer(routes_vlayer, 'route_name')
-
         stops_vlayer.setRenderer(stops_renderer.make_renderer())
         routes_vlayer.setRenderer(routes_renderer.make_renderer())
 
+        # make and set labeling for stops
         stops_labeling = get_labeling_for_stops()
         stops_vlayer.setLabelsEnabled(True)
         stops_vlayer.setLabeling(stops_labeling)
 
-        stops_vlayer.setMinimumScale(100000)
+        # adjust layer visibility
+        stops_vlayer.setMinimumScale(STOPS_MINIMUM_VISIBLE_SCALE)
         stops_vlayer.setScaleBasedVisibility(True)
 
         QgsProject.instance().addMapLayers([stops_vlayer, routes_vlayer])
