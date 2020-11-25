@@ -64,7 +64,8 @@ class GTFSViewerLoader(QtWidgets.QDialog):
 
         self.ui.progressBar.setMaximum(MAX_PROGRESS_COUNT)
 
-        shutil.rmtree(TEMPDIR)
+        if os.path.exists(TEMPDIR):
+            shutil.rmtree(TEMPDIR)
         os.makedirs(TEMPDIR, exist_ok=True)
 
         self.start()
