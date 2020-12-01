@@ -177,7 +177,7 @@ class Extractor(QThread):
             self.progressChanged.emit(
                 int(MAX_PROGRESS_COUNT * progress_counter // task_count_sum))
 
-        for stop in gtfs_jp.read_stops(ignore_no_route=self.ignore_no_route_stops, no_diagrams=True):
+        for stop in gtfs_jp.read_stops(ignore_no_route=self.ignore_no_route_stops, diagram_mode=False):
             progress_counter += 1
             self.progressChanged.emit(
                 int(MAX_PROGRESS_COUNT * progress_counter // task_count_sum))
