@@ -23,11 +23,11 @@
 """
 
 import os
+import json
 
-from qgis.PyQt import QtGui, QtWidgets, uic
+from qgis.PyQt import QtWidgets, uic
 from qgis.core import *
 
-from .gtfs_viewer_datalist import DATALIST
 from .gtfs_viewer_loader import GTFSViewerLoader
 from .gtfs_viewer_renderer import Renderer
 from .gtfs_viewer_labeling import get_labeling_for_stops
@@ -38,6 +38,9 @@ from .gtfs_viewer_settings import (
     LAYERNAME_ROUTES,
     LAYERNAME_STOPS
 )
+
+DATALIST_JSON_PATH = os.path.join(
+    os.path.dirname(__file__), 'gtfs_viewer_datalist.json')
 
 
 class GTFSViewerDialog(QtWidgets.QDialog):
@@ -50,21 +53,41 @@ class GTFSViewerDialog(QtWidgets.QDialog):
         super().__init__()
         self.ui = uic.loadUi(os.path.join(os.path.dirname(
             __file__), 'gtfs_viewer_dialog_base.ui'), self)
-
+        with open(DATALIST_JSON_PATH) as f:
+            print(f)
+            self.datalist = json.load(f)
         self.init_gui()
 
     def init_gui(self):
         self.ui.comboBox.addItem(self.combobox_placeholder_text, None)
         self.ui.comboBox.addItem(self.combobox_zip_text, None)
-        for data in DATALIST:
-            self.ui.comboBox.addItem(
-                f'[{data["region"]}] {data["name"]}', data)
+        for data in self.datalist:
+            self.ui.comboBox.addItem(self.make_combobox_text(data), data)
         self.ui.comboBox.currentIndexChanged.connect(self.refresh)
         self.ui.zipFileWidget.fileChanged.connect(self.refresh)
         self.ui.outputDirFileWidget.fileChanged.connect(self.refresh)
         self.refresh()
 
         self.ui.pushButton.clicked.connect(self.execution)
+
+    def make_combobox_text(self, data):
+        """
+        parse data to combobox-text
+        data-schema: {
+            region: str,
+            name: str,
+            url: str
+        }
+
+        Args:
+            data ([type]): [description]
+
+        Returns:
+            str: combobox-text
+        """
+        if data.get('region') is None:
+            return data["name"]
+        return f'[{data["region"]}] {data["name"]}'
 
     def execution(self):
         loader = GTFSViewerLoader(

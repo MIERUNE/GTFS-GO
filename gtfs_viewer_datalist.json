@@ -1,0 +1,22 @@
+[
+    {
+        "region": "北海道",
+        "name": "北海道中央バス",
+        "url": "https://ckan.hoda.jp/dataset/24d1dd70-5395-4d6b-b41f-0d83e8eabdb9/resource/dbadfccc-670e-49b9-be77-c3f346ee3160/download/hokkaido_chuo.zip"
+    },
+    {
+        "region": "富山県",
+        "name": "まいどはやバス",
+        "url": "https://opdt.city.toyama.lg.jp/dataset/8de65493-0af7-49d3-aab6-b495fc3ea2b0/resource/43903d9f-1d9c-42f0-bd01-8a5fc1cb828c/download/city-toyama-maidohaya-gtfs.zip"
+    },
+    {
+        "region": "奈良県",
+        "name": "ぐるっとバス",
+        "url": "http://www.pref.nara.jp/secure/204903/GTFS-JP(2020-10-15).zip"
+    },
+    {
+        "region": "大分県",
+        "name": "中津市全体",
+        "url": "https://www.city-nakatsu.jp/doc/2019072300060/file_contents/GTFS_Nakatsu_city.zip"
+    }
+]
