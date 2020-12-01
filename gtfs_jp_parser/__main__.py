@@ -207,7 +207,6 @@ class GTFS_JP:
         else:
             route_ids = trips_df['route_id'].unique()
             for route_id in route_ids:
-                print('c')
                 trip_id = trips_df[trips_df['route_id'] == route_id]['trip_id'].unique()[
                     0]
                 stop_times_df = self.dataframes.get('stop_times')
