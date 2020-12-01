@@ -27,7 +27,7 @@ tags=python, gtfs, traffic
 
 homepage=https://github.com/MIERUNE/GTFS-Viewer
 category=Web
-icon=imgs/icon.png
+icon=imgs/busstop.png
 # experimental flag
 experimental=False
 
