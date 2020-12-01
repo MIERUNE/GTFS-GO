@@ -3,7 +3,6 @@ import os
 import glob
 import zipfile
 import tempfile
-import math
 from functools import lru_cache
 
 import pandas as pd
