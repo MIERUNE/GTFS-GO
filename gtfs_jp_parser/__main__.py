@@ -36,31 +36,44 @@ class GTFS_JP:
         stops_df = self.dataframes['stops']
         return len(stops_df)
 
-    def read_stops(self, ignore_no_route=False, no_diagrams=False):
-        stops_df = self.dataframes['stops']
-        stop_times_df = self.dataframes['stop_times']
+    def read_stops(self, ignore_no_route=False, diagram_mode=False):
+        stops_df = self.dataframes['stops'][[
+            'stop_id', 'stop_lat', 'stop_lon', 'stop_name']]
+        stop_times_df = self.dataframes['stop_times'].reindex(
+            columns=['stop_id', 'trip_id', 'departure_time'])
         trips_df = self.dataframes['trips']
         routes_df = self.dataframes['routes']
 
-        for stop in stops_df.itertuples():
-            filtered = stop_times_df[stop_times_df['stop_id']
-                                     == stop.stop_id]
-            merged = pd.merge(pd.merge(filtered, trips_df,
-                                       on='trip_id'), routes_df, on='route_id')
+        for idx in range(stops_df.shape[0]):
+            # extract key datas from Dataframe
+            stop_id = stops_df['stop_id'].iloc[idx]
+            stop_lat = stops_df['stop_lat'].iloc[idx]
+            stop_lon = stops_df['stop_lon'].iloc[idx]
+            stop_name = stops_df['stop_name'].iloc[idx]
 
             diagrams = None
-            if not no_diagrams:
+            if diagram_mode:
+                filtered = stop_times_df[stop_times_df['stop_id'] == stop_id]
+                merged = pd.merge(pd.merge(filtered, trips_df,
+                                           on='trip_id'), routes_df, on='route_id')
+
                 diagrams = {}
-                for row in merged.itertuples():
+                for idx in range(merged.shape[0]):
+                    # extract key datas from Dataframe
+                    route_id = merged['route_id'].iloc[idx]
+                    departure_time = merged['departure_time'].iloc[idx]
+                    service_id = merged['service_id'].iloc[idx]
+                    trip_id = merged['trip_id'].iloc[idx]
+
                     # get route name from long or short
                     route_data = routes_df[routes_df['route_id']
-                                           == row.route_id].iloc[0]
+                                           == route_id].iloc[0]
                     route_name = self.get_route_name_from(route_data)
 
-                    departure_time = str(row.departure_time)
-                    service_id = str(row.service_id)
+                    departure_time = str(departure_time)
+                    service_id = str(service_id)
                     destination = str(self.get_destination_stop_of(
-                        row.trip_id)['stop_name'].values[0])
+                        trip_id)['stop_name'].values[0])
 
                     # update diagrams data
                     if diagrams.get(route_name, {}).get(service_id):
@@ -76,9 +89,8 @@ class GTFS_JP:
                             'destination': destination
                         }
 
-            route_ids = self.get_route_ids_by(stop.stop_id)
+            route_ids = self.get_route_ids_by(stop_id)
             if ignore_no_route and len(route_ids) == 0:
-                print(f'stop_id={stop.stop_id} has no route, skipping...')
                 yield None
                 continue
 
@@ -86,11 +98,11 @@ class GTFS_JP:
                 'type': 'Feature',
                 'geometry': {
                     'type': 'Point',
-                    'coordinates': [stop.stop_lon, stop.stop_lat]
+                    'coordinates': [stop_lon, stop_lat]
                 },
                 'properties': {
-                    'stop_id': str(stop.stop_id),
-                    'stop_name': stop.stop_name,
+                    'stop_id': str(stop_id),
+                    'stop_name': stop_name,
                     'diagrams': diagrams,
                     'route_ids': route_ids
                 }
@@ -131,15 +143,15 @@ class GTFS_JP:
             }
             yield feature
 
-    @lru_cache(maxsize=None)
     def get_route_ids_by(self, stop_id):
-        stops_df = self.dataframes['stops']
-        stop = stops_df[stops_df['stop_id'] == stop_id]
-        stop_times_df = self.dataframes['stop_times']
-        trips_df = self.dataframes['trips']
-        merged = pd.merge(pd.merge(stop, stop_times_df,
-                                   on='stop_id'), trips_df, on='trip_id')
-        return merged['route_id'].unique().astype(str).tolist()
+        stop_times_df = self.dataframes['stop_times'][['stop_id', 'trip_id']]
+        trip_id_series = stop_times_df[stop_times_df['stop_id']
+                                       == stop_id]['trip_id']
+        trip_ids = trip_id_series.unique().astype(str).tolist()
+
+        trips_df = self.dataframes['trips'][['trip_id', 'route_id']]
+        filtered = trips_df[trips_df['trip_id'].isin(trip_ids)]
+        return filtered['route_id'].unique().astype(str).tolist()
 
     def get_route_name_from(self, route_data):
         if not str(route_data['route_long_name']) == 'nan':
@@ -195,6 +207,7 @@ class GTFS_JP:
         else:
             route_ids = trips_df['route_id'].unique()
             for route_id in route_ids:
+                print('c')
                 trip_id = trips_df[trips_df['route_id'] == route_id]['trip_id'].unique()[
                     0]
                 stop_times_df = self.dataframes.get('stop_times')
@@ -223,7 +236,7 @@ class GTFS_JP:
                 }
                 yield feature
 
-    @lru_cache(maxsize=None)
+    @ lru_cache(maxsize=None)
     def get_destination_stop_of(self, trip_id):
         stop_times_df = self.dataframes['stop_times']
         filtered = stop_times_df[stop_times_df['trip_id'] == trip_id]
@@ -233,7 +246,7 @@ class GTFS_JP:
                                     stop_times_df['stop_id'].iloc[max_stop_sequence_idx]]
         return destination_stop
 
-    @lru_cache(maxsize=None)
+    @ lru_cache(maxsize=None)
     def get_trips_filtered_by(self, route_id: str):
         trips_df = self.dataframes.get('trips')
         filtered = trips_df[trips_df['route_id'] == route_id]
@@ -252,7 +265,7 @@ if __name__ == "__main__":
     parser.add_argument('--output_dir')
     parser.add_argument('--no_shapes', action='store_true')
     parser.add_argument('--empty_stops', action='store_true')
-    parser.add_argument('--no_diagrams', action='store_true')
+    parser.add_argument('--diagram_mode', action='store_true')
     parser.add_argument('--interpolate', action='store_true')
     args = parser.parse_args()
 
@@ -286,7 +299,7 @@ if __name__ == "__main__":
     }
 
     stops_features = [stop for stop in gtfs_jp.read_stops(
-        empty_stops=args.empty_stops, no_diagrams=args.no_diagrams)]
+        empty_stops=args.empty_stops, diagram_mode=args.diagram_mode)]
     stops_geojson = {
         'type': 'FeatureCollection',
         'features': stops_features
