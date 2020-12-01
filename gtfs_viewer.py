@@ -210,5 +210,5 @@ class GTFSViewer:
     def run(self):
         """Run method that loads and starts the plugin"""
 
-        self.dialog = GTFSViewerDialog()
+        self.dialog = GTFSViewerDialog(self.iface)
         self.dialog.show()

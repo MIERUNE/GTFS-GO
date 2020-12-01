@@ -45,6 +45,7 @@ MAX_PROGRESS_COUNT = 100
 
 class GTFSViewerLoader(QtWidgets.QDialog):
 
+    loadingAborted = pyqtSignal()
     geojsonWritingFinished = pyqtSignal(str)
 
     def __init__(self, zipfile: str, output_dir: str, no_shapes=False, ignore_no_route_stops=False):
@@ -119,6 +120,7 @@ class GTFSViewerLoader(QtWidgets.QDialog):
             self.extractor.terminate()
             self.extractor = None
 
+        self.loadingAborted.emit()
         self.close()
 
 

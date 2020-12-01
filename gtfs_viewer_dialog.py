@@ -48,7 +48,7 @@ class GTFSViewerDialog(QtWidgets.QDialog):
     combobox_placeholder_text = '---読み込むデータを選択---'
     combobox_zip_text = '---zipファイルから読み込み---'
 
-    def __init__(self):
+    def __init__(self, iface):
         """Constructor."""
         super().__init__()
         self.ui = uic.loadUi(os.path.join(os.path.dirname(
@@ -56,6 +56,7 @@ class GTFSViewerDialog(QtWidgets.QDialog):
         with open(DATALIST_JSON_PATH) as f:
             print(f)
             self.datalist = json.load(f)
+        self.iface = iface
         self.init_gui()
 
     def init_gui(self):
@@ -98,7 +99,9 @@ class GTFSViewerDialog(QtWidgets.QDialog):
             self.ui.ignoreNoRouteStopsCheckbox.isChecked())
         loader.geojsonWritingFinished.connect(
             lambda output_dir: self.show_geojson(output_dir))
+        loader.loadingAborted.connect(self.ui.show)
         loader.show()
+        self.ui.hide()
 
     def show_geojson(self, geojson_dir: str):
         # these geojsons will already have been generated
@@ -126,6 +129,10 @@ class GTFSViewerDialog(QtWidgets.QDialog):
         # add two layers as a group
         group_name = self.get_group_name()
         self.add_layers_as_group(group_name, [routes_vlayer, stops_vlayer])
+
+        self.iface.messageBar().pushInfo(
+            '完了', f'{geojson_dir}に.geojsonファイルが出力されました')
+        self.ui.close()
 
     def get_source(self):
         if self.ui.comboBox.currentData():
