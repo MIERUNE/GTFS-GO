@@ -39,6 +39,10 @@ from .gtfs_viewer_settings import (
     FILENAME_STOPS_GEOJSON
 )
 
+# ignore ssl verify
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
+
 TEMPDIR = os.path.join(tempfile.gettempdir(), 'gtfsviewer')
 MAX_PROGRESS_COUNT = 100
 
