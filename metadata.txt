@@ -7,7 +7,7 @@ name=GTFS-GO
 qgisMinimumVersion=3.0
 description=The plugin to extract GTFS data and to show routes and stops.
 version=1.0
-author=MIERUNE Inc.
+author=MIERUNE
 email=info@mierune.co.jp
 
 about=The plugin to extract GTFS data and to show routes and stops.
@@ -30,18 +30,3 @@ category=Web
 icon=imgs/busstop.png
 # experimental flag
 experimental=False
-
-# deprecated flag (applies to the whole plugin, not just a single version)
-deprecated=False
-
-# Since QGIS 3.8, a comma separated list of plugins to be installed
-# (or upgraded) can be specified.
-# Check the documentation for more information.
-# plugin_dependencies=
-
-Category of the plugin: Raster, Vector, Database or Web
-# category=
-
-# If the plugin can run on QGIS Server.
-server=False
-
