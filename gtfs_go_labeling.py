@@ -1,7 +1,7 @@
 from qgis.PyQt.QtGui import QColor, QFont
 from qgis.core import *
 
-from .gtfs_viewer_settings import (
+from .gtfs_go_settings import (
     STOPS_LABEL_FONT,
     STOPS_LABEL_SIZE_MM,
     STOPS_LABEL_BUFFER_SIZE_MM,
