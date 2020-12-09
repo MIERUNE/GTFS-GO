@@ -3,17 +3,17 @@
 # This file should be included when you package your plugin.# Mandatory items:
 
 [general]
-name=GTFS-Viewer
+name=GTFS-GO
 qgisMinimumVersion=3.0
-description=The plugin to show routes and stops from GTFS
-version=0.1
+description=The plugin to extract GTFS data and to show routes and stops.
+version=1.0
 author=MIERUNE Inc.
 email=info@mierune.co.jp
 
-about=The plugin to show routes and stops from GTFS.
+about=The plugin to extract GTFS data and to show routes and stops.
 
-tracker=https://github.com/MIERUNE/GTFS-Viewer/issues
-repository=https://github.com/MIERUNE/GTFS-Viewer
+tracker=https://github.com/MIERUNE/GTFS-GO/issues
+repository=https://github.com/MIERUNE/GTFS-GO
 # End of mandatory metadata
 
 # Recommended items:
@@ -25,7 +25,7 @@ hasProcessingProvider=no
 # Tags are comma separated with spaces allowed
 tags=python, gtfs, traffic
 
-homepage=https://github.com/MIERUNE/GTFS-Viewer
+homepage=https://github.com/MIERUNE/GTFS-GO
 category=Web
 icon=imgs/busstop.png
 # experimental flag
