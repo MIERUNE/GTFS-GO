@@ -30,8 +30,6 @@ from qgis.PyQt.QtWidgets import QAction
 # Import the code for the DockWidget
 from .gtfs_go_dialog import GTFSGoDialog
 
-from .gtfs_jp_parser import GTFS_JP
-
 
 class GTFSGo:
     """QGIS Plugin Implementation."""

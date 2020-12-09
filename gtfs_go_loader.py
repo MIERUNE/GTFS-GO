@@ -33,7 +33,7 @@ import json
 from qgis.PyQt import QtWidgets, uic
 from qgis.PyQt.QtCore import QThread, pyqtSignal
 
-from .gtfs_jp_parser.__main__ import GTFS_JP
+from .gtfs_parser.__main__ import GTFSParser
 from .gtfs_go_settings import (
     FILENAME_ROUTES_GEOJSON,
     FILENAME_STOPS_GEOJSON
@@ -169,21 +169,21 @@ class Extractor(QThread):
         os.makedirs(extracted_path, exist_ok=True)
         with zipfile.ZipFile(self.zipfile_path) as z:
             z.extractall(extracted_path)
-        gtfs_jp = GTFS_JP(extracted_path)
+        gtfs_parser = GTFSParser(extracted_path)
 
-        routes_count = gtfs_jp.routes_count()
-        stops_count = gtfs_jp.stops_count()
+        routes_count = gtfs_parser.routes_count()
+        stops_count = gtfs_parser.stops_count()
         task_count_sum = routes_count + stops_count
 
         progress_counter = 0
 
-        for route in gtfs_jp.read_routes(no_shapes=self.no_shapes):
+        for route in gtfs_parser.read_routes(no_shapes=self.no_shapes):
             self.routes.append(route)
             progress_counter += 1
             self.progressChanged.emit(
                 int(MAX_PROGRESS_COUNT * progress_counter // task_count_sum))
 
-        for stop in gtfs_jp.read_stops(ignore_no_route=self.ignore_no_route_stops, diagram_mode=False):
+        for stop in gtfs_parser.read_stops(ignore_no_route=self.ignore_no_route_stops, diagram_mode=False):
             progress_counter += 1
             self.progressChanged.emit(
                 int(MAX_PROGRESS_COUNT * progress_counter // task_count_sum))
