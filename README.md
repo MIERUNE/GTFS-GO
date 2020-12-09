@@ -1,4 +1,4 @@
-# GTFS-Viewer
+# GTFS-GO
 
 QGIS Plugin to extract GTFS-data as GeoJSON and render routes and stops on the Map.
 
