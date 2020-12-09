@@ -33,7 +33,7 @@ import json
 from qgis.PyQt import QtWidgets, uic
 from qgis.PyQt.QtCore import QThread, pyqtSignal
 
-from .gtfs_parser.__main__ import GTFSParser
+from .parser.__main__ import GTFSParser
 from .gtfs_go_settings import (
     FILENAME_ROUTES_GEOJSON,
     FILENAME_STOPS_GEOJSON
