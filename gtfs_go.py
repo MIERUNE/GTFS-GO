@@ -8,8 +8,8 @@
                               -------------------
         begin                : 2020-10-29
         git sha              : $Format:%H$
-        copyright            : (C) 2020 by Kanahiro Iguchi
-        email                : kanahiro.iguchi@gmail.com
+        copyright            : (C) 2020 by MIERUNE Inc.
+        email                : info@mierune.co.jp
  ***************************************************************************/
 
 /***************************************************************************
@@ -62,7 +62,7 @@ class GTFSGo:
 
         # Declare instance attributes
         self.actions = []
-        self.menu = self.tr(u'&GTFS Viewer')
+        self.menu = self.tr(u'&GTFS GO')
         # TODO: We are going to let the user set this up in a future iteration
         self.toolbar = self.iface.addToolBar(u'GTFSGo')
         self.toolbar.setObjectName(u'GTFSGo')
@@ -168,7 +168,7 @@ class GTFSGo:
             __file__), 'imgs', 'busstop.png')
         self.add_action(
             icon_path,
-            text=self.tr(u'GTFS Viewer'),
+            text=self.tr(u'GTFS GO'),
             callback=self.run,
             parent=self.iface.mainWindow(),
             add_to_menu=True)
@@ -198,7 +198,7 @@ class GTFSGo:
 
         for action in self.actions:
             self.iface.removePluginWebMenu(
-                self.tr(u'&GTFS Viewer'),
+                self.tr(u'&GTFS GO'),
                 action)
             self.iface.removeToolBarIcon(action)
         # remove the toolbar
