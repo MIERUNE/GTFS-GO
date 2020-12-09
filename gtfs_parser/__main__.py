@@ -10,7 +10,7 @@ import pandas as pd
 from .constants import GTFS_JP_DATATYPES
 
 
-class GTFS_JP:
+class GTFSParser:
     def __init__(self, src_dir: str):
         txts = glob.glob(os.path.join(
             src_dir, '**', '*.txt'), recursive=True)
