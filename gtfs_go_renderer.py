@@ -2,7 +2,7 @@ from qgis.PyQt.QtCore import Qt
 from qgis.core import *
 from qgis.PyQt.QtGui import QColor
 
-from .gtfs_viewer_settings import (
+from .gtfs_go_settings import (
     STOPS_SVG_PATH,
     STOPS_ICON_SIZE_MM,
     STOPS_ICON_HALO_WIDTH_MM,
