@@ -166,7 +166,8 @@ class GTFSViewer:
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
-        icon_path = os.path.join(os.path.dirname(__file__), 'imgs', 'icon.png')
+        icon_path = os.path.join(os.path.dirname(
+            __file__), 'imgs', 'busstop.png')
         self.add_action(
             icon_path,
             text=self.tr(u'GTFS Viewer'),
@@ -210,5 +211,5 @@ class GTFSViewer:
     def run(self):
         """Run method that loads and starts the plugin"""
 
-        self.dialog = GTFSViewerDialog()
+        self.dialog = GTFSViewerDialog(self.iface)
         self.dialog.show()

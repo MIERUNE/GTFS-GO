@@ -1,0 +1,22 @@
+[
+    {
+        "region": "北海道",
+        "name": "北海道拓殖バス（一般路線バス・各町コミュニティバス）",
+        "url": "https://www.takubus.com/app/download/10941479479/GTFS_regular_line.zip?t=1606785205"
+    },
+    {
+        "region": "富山県",
+        "name": "まいどはやバス",
+        "url": "https://opdt.city.toyama.lg.jp/dataset/8de65493-0af7-49d3-aab6-b495fc3ea2b0/resource/43903d9f-1d9c-42f0-bd01-8a5fc1cb828c/download/city-toyama-maidohaya-gtfs.zip"
+    },
+    {
+        "region": "奈良県",
+        "name": "ぐるっとバス",
+        "url": "http://www.pref.nara.jp/secure/204903/GTFS-JP(2020-10-15).zip"
+    },
+    {
+        "region": "大分県",
+        "name": "コミュニティバス時刻表（中津市全体）",
+        "url": "https://www.city-nakatsu.jp/doc/2019072300060/file_contents/GTFS_Nakatsu_city.zip"
+    }
+]

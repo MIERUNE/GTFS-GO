@@ -39,12 +39,17 @@ from .gtfs_viewer_settings import (
     FILENAME_STOPS_GEOJSON
 )
 
+# ignore ssl verify
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
+
 TEMPDIR = os.path.join(tempfile.gettempdir(), 'gtfsviewer')
 MAX_PROGRESS_COUNT = 100
 
 
 class GTFSViewerLoader(QtWidgets.QDialog):
 
+    loadingAborted = pyqtSignal()
     geojsonWritingFinished = pyqtSignal(str)
 
     def __init__(self, zipfile: str, output_dir: str, no_shapes=False, ignore_no_route_stops=False):
@@ -119,6 +124,7 @@ class GTFSViewerLoader(QtWidgets.QDialog):
             self.extractor.terminate()
             self.extractor = None
 
+        self.loadingAborted.emit()
         self.close()
 
 
@@ -177,7 +183,7 @@ class Extractor(QThread):
             self.progressChanged.emit(
                 int(MAX_PROGRESS_COUNT * progress_counter // task_count_sum))
 
-        for stop in gtfs_jp.read_stops(ignore_no_route=self.ignore_no_route_stops, no_diagrams=True):
+        for stop in gtfs_jp.read_stops(ignore_no_route=self.ignore_no_route_stops, diagram_mode=False):
             progress_counter += 1
             self.progressChanged.emit(
                 int(MAX_PROGRESS_COUNT * progress_counter // task_count_sum))

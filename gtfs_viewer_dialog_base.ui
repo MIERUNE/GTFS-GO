@@ -38,7 +38,7 @@
      <item row="0" column="0">
       <widget class="QLabel" name="label_2">
        <property name="text">
-        <string>オープンデータを選択：</string>
+        <string>データ取得先を選択：</string>
        </property>
       </widget>
      </item>
@@ -94,9 +94,6 @@
       <widget class="QgsFileWidget" name="zipFileWidget">
        <property name="enabled">
         <bool>false</bool>
-       </property>
-       <property name="options">
-        <set>QFileDialog::ReadOnly</set>
        </property>
       </widget>
      </item>
