@@ -171,7 +171,7 @@ class GTFSGoDialog(QtWidgets.QDialog):
             layers ([type]): [description]
         """
         root = QgsProject().instance().layerTreeRoot()
-        group = root.addGroup(group_name)
+        group = root.insertGroup(0, group_name)
         group.setExpanded(True)
         for layer in layers:
             QgsProject.instance().addMapLayer(layer, False)
