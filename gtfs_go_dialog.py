@@ -45,22 +45,18 @@ DATALIST_JSON_PATH = os.path.join(
 
 class GTFSGoDialog(QtWidgets.QDialog):
 
-    combobox_placeholder_text = '---読み込むデータを選択---'
-    combobox_zip_text = '---zipファイルから読み込み---'
-
     def __init__(self, iface):
         """Constructor."""
         super().__init__()
         self.ui = uic.loadUi(os.path.join(os.path.dirname(
             __file__), 'gtfs_go_dialog_base.ui'), self)
         with open(DATALIST_JSON_PATH) as f:
-            print(f)
             self.datalist = json.load(f)
         self.iface = iface
+        self.combobox_zip_text = self.tr('---Load local ZipFile---')
         self.init_gui()
 
     def init_gui(self):
-        self.ui.comboBox.addItem(self.combobox_placeholder_text, None)
         self.ui.comboBox.addItem(self.combobox_zip_text, None)
         for data in self.datalist:
             self.ui.comboBox.addItem(self.make_combobox_text(data), data)
@@ -131,7 +127,8 @@ class GTFSGoDialog(QtWidgets.QDialog):
         self.add_layers_as_group(group_name, [routes_vlayer, stops_vlayer])
 
         self.iface.messageBar().pushInfo(
-            '完了', f'{geojson_dir}に.geojsonファイルが出力されました')
+            self.tr('finish'),
+            self.tr('generated geojson files: ') + geojson_dir)
         self.ui.close()
 
     def get_source(self):
