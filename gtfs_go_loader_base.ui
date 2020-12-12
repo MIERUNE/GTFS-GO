@@ -49,7 +49,7 @@
           </sizepolicy>
          </property>
          <property name="text">
-          <string>キャンセル</string>
+          <string>Abort</string>
          </property>
         </widget>
        </item>
