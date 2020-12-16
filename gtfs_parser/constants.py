@@ -18,7 +18,7 @@ GTFS_JP_DATATYPES = {
         'required': False
     },
     'feed_info': {
-        'required': True
+        'required': False
     },
     'frequencies': {
         'required': False

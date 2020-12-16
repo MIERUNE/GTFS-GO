@@ -143,7 +143,7 @@ class Downloader(QThread):
             os.makedirs(self.output_dir, exist_ok=True)
 
         self.download_path = os.path.join(
-            self.output_dir, f'{int(time.time())}.zip')
+            self.output_dir, str(int(time.time())) + '.zip')
 
     def run(self):
         data = urllib.request.urlopen(self.zipfile_url).read()
