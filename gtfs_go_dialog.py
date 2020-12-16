@@ -84,7 +84,7 @@ class GTFSGoDialog(QtWidgets.QDialog):
         """
         if data.get('region') is None:
             return data["name"]
-        return f'[{data["region"]}] {data["name"]}'
+        return '[' + data["region"] + ']' + data["name"]
 
     def execution(self):
         loader = GTFSGoLoader(
