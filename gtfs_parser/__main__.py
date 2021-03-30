@@ -29,7 +29,7 @@ class GTFSParser:
         for datatype in GTFS_JP_DATATYPES:
             if GTFS_JP_DATATYPES[datatype]['required'] and \
                     datatype not in self.dataframes:
-                raise FileNotFoundError(f'{datatype} is not exists.')
+                raise FileNotFoundError(f'{datatype} column does not exists.')
 
     def stops_count(self):
         stops_df = self.dataframes['stops']

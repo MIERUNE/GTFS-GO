@@ -33,6 +33,9 @@ import json
 from qgis.PyQt import QtWidgets, uic
 from qgis.PyQt.QtCore import QThread, pyqtSignal
 
+from qgis.utils import iface
+from qgis.core import Qgis
+
 from .gtfs_parser.__main__ import GTFSParser
 from .gtfs_go_settings import (
     FILENAME_ROUTES_GEOJSON,
@@ -52,7 +55,12 @@ class GTFSGoLoader(QtWidgets.QDialog):
     loadingAborted = pyqtSignal()
     geojsonWritingFinished = pyqtSignal(str)
 
-    def __init__(self, zipfile: str, output_dir: str, no_shapes=False, ignore_no_route_stops=False):
+    def __init__(
+            self,
+            zipfile: str,
+            output_dir: str,
+            no_shapes=False,
+            ignore_no_route_stops=False):
         """Constructor."""
         super().__init__()
         self.ui = uic.loadUi(os.path.join(os.path.dirname(
@@ -87,11 +95,13 @@ class GTFSGoLoader(QtWidgets.QDialog):
             self.load_zip(self.zipfile)
 
     def load_zip(self, zipfile_path):
-        self.extractor = Extractor(zipfile_path,
-                                   no_shapes=self.no_shapes,
-                                   ignore_no_route_stops=self.ignore_no_route_stops)
+        self.extractor = Extractor(
+            zipfile_path,
+            no_shapes=self.no_shapes,
+            ignore_no_route_stops=self.ignore_no_route_stops)
         self.extractor.start()
         self.extractor.progressChanged.connect(self.ui.progressBar.setValue)
+        self.extractor.errorRaised.connect(self.raised_error)
         self.extractor.processFinished.connect(
             lambda: self.finished(self.extractor.routes,
                                   self.extractor.stops))
@@ -127,6 +137,20 @@ class GTFSGoLoader(QtWidgets.QDialog):
         self.loadingAborted.emit()
         self.close()
 
+    def raised_error(self, error):
+        print(f"There was an error {error}")
+        iface.messageBar().pushMessage(
+            "Error",
+            f"{error}",
+            level=Qgis.Critical, duration=5)
+        if self.extractor is not None and self.extractor.isRunning():
+            self.extractor.terminate()
+            self.extractor = None
+
+        self.loadingAborted.emit()
+        self.ui.hide()
+        self.close()
+
 
 class Downloader(QThread):
     processFinished = pyqtSignal()
@@ -154,9 +178,14 @@ class Downloader(QThread):
 
 class Extractor(QThread):
     progressChanged = pyqtSignal(int)
+    errorRaised = pyqtSignal(FileNotFoundError)
     processFinished = pyqtSignal()
 
-    def __init__(self, zipfile_path: str, no_shapes=False, ignore_no_route_stops=False):
+    def __init__(
+            self,
+            zipfile_path: str,
+            no_shapes=False,
+            ignore_no_route_stops=False):
         super().__init__()
         self.zipfile_path = zipfile_path
         self.no_shapes = no_shapes
@@ -169,7 +198,11 @@ class Extractor(QThread):
         os.makedirs(extracted_path, exist_ok=True)
         with zipfile.ZipFile(self.zipfile_path) as z:
             z.extractall(extracted_path)
-        gtfs_parser = GTFSParser(extracted_path)
+            try:
+                gtfs_parser = GTFSParser(extracted_path)
+            except FileNotFoundError as F:
+                self.errorRaised.emit(F)
+                return
 
         routes_count = gtfs_parser.routes_count()
         stops_count = gtfs_parser.stops_count()
@@ -183,7 +216,9 @@ class Extractor(QThread):
             self.progressChanged.emit(
                 int(MAX_PROGRESS_COUNT * progress_counter // task_count_sum))
 
-        for stop in gtfs_parser.read_stops(ignore_no_route=self.ignore_no_route_stops, diagram_mode=False):
+        for stop in gtfs_parser.read_stops(
+                ignore_no_route=self.ignore_no_route_stops,
+                diagram_mode=False):
             progress_counter += 1
             self.progressChanged.emit(
                 int(MAX_PROGRESS_COUNT * progress_counter // task_count_sum))
