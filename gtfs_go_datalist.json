@@ -12,11 +12,79 @@
     {
         "region": "奈良県",
         "name": "ぐるっとバス",
-        "url": "http://www.pref.nara.jp/secure/204903/GTFS-JP(2020-10-15).zip"
+        "url": "http://www.pref.nara.jp/secure/204903/GTFS-JP(2021-03-18_1033).zip"
     },
     {
         "region": "大分県",
         "name": "コミュニティバス時刻表（中津市全体）",
         "url": "https://www.city-nakatsu.jp/doc/2019072300060/file_contents/GTFS_Nakatsu_city.zip"
+    },
+    {
+        "region": "Douala, Cameroon",
+        "name": "Yellow Taxis",
+        "url": "https://development-data-hub-s3-public.s3.amazonaws.com/ddhfiles/1188736/gtfs_yellow_taxis.zip"
+    }
+    ,
+    {
+        "region": "Douala, Cameroon",
+        "name": "Socatur Bus",
+        "url": "https://development-data-hub-s3-public.s3.amazonaws.com/ddhfiles/1188736/socatur-bus.zip"
+    },
+    {
+        "region": "Mexico",
+        "name": "Mexico city",
+        "url": "https://development-data-hub-s3-public.s3.amazonaws.com/ddhfiles/974581/gtfs_semovi_cdmx.zip"
+    }
+    ,
+    {
+        "region": "Brazil",
+        "name": "Porto Alegre",
+        "url": "https://development-data-hub-s3-public.s3.amazonaws.com/ddhfiles/1188536/gtfs_porto_alegre_2020.zip"
+    }
+    ,
+    {
+        "region": "山梨県",
+        "name": "山梨県全市町",
+        "url": "https://transitfeeds.com/p/yamanashi/813/latest/download"
+    },
+    {
+        "region": "New York",
+        "name": "Subway",
+        "url": "http://web.mta.info/developers/data/nyct/subway/google_transit.zip"
+    },
+    {
+        "region": "New York",
+        "name": "Bronx",
+        "url": "http://web.mta.info/developers/data/nyct/bus/google_transit_bronx.zip"
+    },
+    {
+        "region": "New York",
+        "name": "Queens",
+        "url": "http://web.mta.info/developers/data/nyct/bus/google_transit_queens.zip"
+    },
+    {
+        "region": "New York",
+        "name": "Brooklyn",
+        "url": "http://web.mta.info/developers/data/nyct/bus/google_transit_brooklyn.zip"
+    },
+    {
+        "region": "New York",
+        "name": "Staten Island",
+        "url": "http://web.mta.info/developers/data/nyct/bus/google_transit_staten_island.zip"
+    },
+    {
+        "region": "New York",
+        "name": "Metro North",
+        "url": "http://web.mta.info/developers/data/mnr/google_transit.zip"
+    },
+    {
+        "region": "New York",
+        "name": "Bus co.",
+        "url": "http://web.mta.info/developers/data/busco/google_transit.zip"
+    },
+    {
+        "region": "New York",
+        "name": "Nassau",
+        "url": "http://www.nicebus.com/NiceBus/media/Nicebus-FrontPageNewsImages/To_Google_Merged.zip"
     }
 ]
