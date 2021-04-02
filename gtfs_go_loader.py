@@ -101,7 +101,7 @@ class GTFSGoLoader(QtWidgets.QDialog):
             ignore_no_route_stops=self.ignore_no_route_stops)
         self.extractor.start()
         self.extractor.progressChanged.connect(self.ui.progressBar.setValue)
-        self.extractor.errorRaised.connect(self.raised_error)
+        self.extractor.errorRaised.connect(self.on_raised_error)
         self.extractor.processFinished.connect(
             lambda: self.finished(self.extractor.routes,
                                   self.extractor.stops))
@@ -137,7 +137,7 @@ class GTFSGoLoader(QtWidgets.QDialog):
         self.loadingAborted.emit()
         self.close()
 
-    def raised_error(self, error):
+    def on_raised_error(self, error):
         print(f"There was an error {error}")
         iface.messageBar().pushMessage(
             "Error",
