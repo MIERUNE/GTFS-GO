@@ -1,3 +1,8 @@
+"""
+The GTFS_JP_DATATYPES dict shows the files that are expected to be inside the zip file.
+In case a required file is missing it will raise an error during the data load.
+"""
+
 GTFS_JP_DATATYPES = {
     'agency_jp': {
         'required': False

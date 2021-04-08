@@ -12,6 +12,15 @@ from .constants import GTFS_JP_DATATYPES
 
 class GTFSParser:
     def __init__(self, src_dir: str):
+        """
+        Generates a dataframe from the zip file.
+
+        Args:
+            src_dir (str): path to the zip file holding the GTFS data
+
+        Raises:
+            FileNotFoundError: Error raised when there is a missing required file.
+        """
         txts = glob.glob(os.path.join(
             src_dir, '**', '*.txt'), recursive=True)
         self.dataframes = {}
@@ -32,10 +41,27 @@ class GTFSParser:
                 raise FileNotFoundError(f'{datatype} column does not exists.')
 
     def stops_count(self):
+        """
+        Counts the number of stops inside the dataset
+
+        Returns:
+            stops (int): Number of stops inside the GTFS dataset
+        """
         stops_df = self.dataframes['stops']
         return len(stops_df)
 
     def read_stops(self, ignore_no_route=False, diagram_mode=False):
+        """
+        Read the stops data and transform them into GeoJSON
+
+        Args:
+            ignore_no_route (bool, optional): Ignore stops without route. Defaults to False.
+            diagram_mode (bool, optional):　if True it will create a diagram key in the json with routes, destination and stop_id. Defaults to False.
+
+        Yields:
+            feature (GeoJSON): Yields a geojson of a point composed by the details of the stop.
+            None (None): Yields None in case there is no data to return.
+        """
         stops_df = self.dataframes['stops'][[
             'stop_id', 'stop_lat', 'stop_lon', 'stop_name']]
         stop_times_df = self.dataframes['stop_times'].reindex(
@@ -53,8 +79,13 @@ class GTFSParser:
             diagrams = None
             if diagram_mode:
                 filtered = stop_times_df[stop_times_df['stop_id'] == stop_id]
-                merged = pd.merge(pd.merge(filtered, trips_df,
-                                           on='trip_id'), routes_df, on='route_id')
+                merged = pd.merge(
+                    pd.merge(
+                        filtered,
+                        trips_df,
+                        on='trip_id'),
+                    routes_df,
+                    on='route_id')
 
                 diagrams = {}
                 for idx in range(merged.shape[0]):
@@ -109,11 +140,23 @@ class GTFSParser:
             yield feature
 
     def interpolated_stops_count(self):
+        """
+        Counts the stops with unique names.
+
+        Returns:
+            stop counts (int): Count of unique stops
+        """
         stops_df = self.dataframes['stops']
         stop_names = stops_df['stop_name'].unique()
         return len(stop_names)
 
     def read_interpolated_stops(self):
+        """
+        Return unique stops.
+
+        Yields:
+            feature (GeoJSON): Yields a geojson of a the unique point composed by the details of the stop.
+        """
         stops_df = self.dataframes['stops']
         stop_names = stops_df['stop_name'].unique()
         for stop_name in stop_names:
@@ -143,6 +186,15 @@ class GTFSParser:
             yield feature
 
     def get_route_ids_by(self, stop_id):
+        """
+        Return ids of routes that pass through that stop_id.
+
+        Args:
+            stop_id (string): The id of the stop whose routes are to be returned.
+
+        Returns:
+            route_ids (list): list of route_ids that
+        """
         stop_times_df = self.dataframes['stop_times'][['stop_id', 'trip_id']]
         trip_id_series = stop_times_df[stop_times_df['stop_id']
                                        == stop_id]['trip_id']
@@ -153,6 +205,14 @@ class GTFSParser:
         return filtered['route_id'].unique().astype(str).tolist()
 
     def get_route_name_from(self, route_data):
+        """
+        Returns the route name from the route_data
+        Args:
+            route_data (dict): dict object containing the route data
+
+        Returns:
+            route_name (str): route name
+        """
         if not str(route_data['route_long_name']) == 'nan':
             return str(route_data['route_long_name'])
         elif not str(route_data['route_short_name']) == 'nan':
@@ -162,6 +222,15 @@ class GTFSParser:
                 f'{route_data} have neither "route_long_name" or "route_short_time".')
 
     def routes_count(self, no_shapes=False):
+        """
+        Counts the routes
+
+        Args:
+            no_shapes (bool, optional): whether to count the routes from shapes or not. Defaults to False.
+
+        Returns:
+            routes (int): how may routes in the dataset.
+        """
         shapes_df = self.dataframes.get('shapes')
         if shapes_df is not None and not no_shapes:
             shape_ids = shapes_df['shape_id'].unique()
@@ -172,6 +241,15 @@ class GTFSParser:
             return len(route_ids)
 
     def read_routes(self, no_shapes=False):
+        """
+        Read routes and yields them as geojson
+
+        Args:
+            no_shapes (bool, optional): whether to read the routes from the shapes or not. Defaults to False.
+
+        Yields:
+            feature (GeoJSON): A geojson of a route data as a linestring.
+        """
         shapes_df = self.dataframes.get('shapes')
         routes_df = self.dataframes.get('routes')
         trips_df = self.dataframes['trips']
@@ -236,6 +314,15 @@ class GTFSParser:
 
     @ lru_cache(maxsize=None)
     def get_destination_stop_of(self, trip_id):
+        """
+        Returns the final stop of the trip
+
+        Args:
+            trip_id (str): Id of the trip
+
+        Returns:
+            destination_stop (pd.DataFrame): last stop of the trip
+        """
         stop_times_df = self.dataframes['stop_times']
         filtered = stop_times_df[stop_times_df['trip_id'] == trip_id]
         max_stop_sequence_idx = filtered['stop_sequence'].idxmax()
@@ -246,6 +333,15 @@ class GTFSParser:
 
     @ lru_cache(maxsize=None)
     def get_trips_filtered_by(self, route_id: str):
+        """
+        Returns the trips that pass through that route.
+
+        Args:
+            route_id (str): The id of the route linked with the trips
+
+        Returns:
+            trips (pandas.core.series.Series): Series of trips which can be done through that route
+        """
         trips_df = self.dataframes.get('trips')
         filtered = trips_df[trips_df['route_id'] == route_id]
         if len(filtered['route_id'].unique()) > 1:
