@@ -7,20 +7,15 @@ from functools import lru_cache
 
 import pandas as pd
 
-from .constants import GTFS_JP_DATATYPES
+try:
+    # QGIS-import
+    from .constants import GTFS_JP_DATATYPES
+except:
+    from constants import GTFS_JP_DATATYPES
 
 
 class GTFSParser:
     def __init__(self, src_dir: str):
-        """
-        Generates a dataframe from the zip file.
-
-        Args:
-            src_dir (str): path to the zip file holding the GTFS data
-
-        Raises:
-            FileNotFoundError: Error raised when there is a missing required file.
-        """
         txts = glob.glob(os.path.join(
             src_dir, '**', '*.txt'), recursive=True)
         self.dataframes = {}
@@ -29,7 +24,7 @@ class GTFSParser:
             if os.path.basename(datatype) not in GTFS_JP_DATATYPES:
                 print(f'{datatype} is not specified in GTFS-JP, skipping...')
                 continue
-            with open(txt) as t:
+            with open(txt, encoding='utf-8_sig') as t:
                 df = pd.read_csv(t)
                 if len(df) == 0:
                     print(f'{datatype}.txt is empty, skipping...')
@@ -38,163 +33,185 @@ class GTFSParser:
         for datatype in GTFS_JP_DATATYPES:
             if GTFS_JP_DATATYPES[datatype]['required'] and \
                     datatype not in self.dataframes:
-                raise FileNotFoundError(f'{datatype} column does not exists.')
+                raise FileNotFoundError(f'{datatype} is not exists.')
 
     def stops_count(self):
-        """
-        Counts the number of stops inside the dataset
-
-        Returns:
-            stops (int): Number of stops inside the GTFS dataset
-        """
         stops_df = self.dataframes['stops']
         return len(stops_df)
 
-    def read_stops(self, ignore_no_route=False, diagram_mode=False):
-        """
-        Read the stops data and transform them into GeoJSON
-
-        Args:
-            ignore_no_route (bool, optional): Ignore stops without route. Defaults to False.
-            diagram_mode (bool, optional):　if True it will create a diagram key in the json with routes, destination and stop_id. Defaults to False.
-
-        Yields:
-            feature (GeoJSON): Yields a geojson of a point composed by the details of the stop.
-            None (None): Yields None in case there is no data to return.
-        """
+    def read_stops(self, ignore_no_route=False):
         stops_df = self.dataframes['stops'][[
             'stop_id', 'stop_lat', 'stop_lon', 'stop_name']]
-        stop_times_df = self.dataframes['stop_times'].reindex(
-            columns=['stop_id', 'trip_id', 'departure_time'])
-        trips_df = self.dataframes['trips']
-        routes_df = self.dataframes['routes']
+        route_id_on_stops = self.get_route_ids_on_stops()
 
-        for idx in range(stops_df.shape[0]):
-            # extract key datas from Dataframe
-            stop_id = stops_df['stop_id'].iloc[idx]
-            stop_lat = stops_df['stop_lat'].iloc[idx]
-            stop_lon = stops_df['stop_lon'].iloc[idx]
-            stop_name = stops_df['stop_name'].iloc[idx]
+        for stop in stops_df.itertuples():
+            if stop.stop_id in route_id_on_stops:
+                route_ids = route_id_on_stops.at[stop.stop_id].tolist()
+            else:
+                if ignore_no_route:
+                    continue
+                route_ids = []
 
-            diagrams = None
-            if diagram_mode:
-                filtered = stop_times_df[stop_times_df['stop_id'] == stop_id]
-                merged = pd.merge(
-                    pd.merge(
-                        filtered,
-                        trips_df,
-                        on='trip_id'),
-                    routes_df,
-                    on='route_id')
+            yield {
+                'type': 'Feature',
+                'geometry': {
+                    'type': 'Point',
+                    'coordinates': [stop.stop_lon, stop.stop_lat]
+                },
+                'properties': {
+                    'stop_id': stop.stop_id,
+                    'stop_name': stop.stop_name,
+                    'route_ids': route_ids
+                }
+            }
 
-                diagrams = {}
-                for idx in range(merged.shape[0]):
-                    # extract key datas from Dataframe
-                    route_id = merged['route_id'].iloc[idx]
-                    departure_time = merged['departure_time'].iloc[idx]
-                    service_id = merged['service_id'].iloc[idx]
-                    trip_id = merged['trip_id'].iloc[idx]
+    def get_route_ids_on_stops(self):
+        stop_times_trip_df = pd.merge(
+            self.dataframes['stop_times'],
+            self.dataframes['trips'],
+            on='trip_id',
+        )
+        group = stop_times_trip_df.groupby('stop_id')['route_id'].unique()
+        group.apply(lambda x: x.sort())
+        return group
 
-                    # get route name from long or short
-                    route_data = routes_df[routes_df['route_id']
-                                           == route_id].iloc[0]
-                    route_name = self.get_route_name_from(route_data)
+    def stops_to_geojson(self, ignore_no_route=False):
+        stops_df = self.dataframes['stops'][[
+            'stop_id', 'stop_lat', 'stop_lon', 'stop_name']]
 
-                    departure_time = str(departure_time)
-                    service_id = str(service_id)
-                    destination = str(self.get_destination_stop_of(
-                        trip_id)['stop_name'].values[0])
+        stops_geojson = {
+            'type': 'FeatureCollection',
+            'features': []
+        }
 
-                    # update diagrams data
-                    if diagrams.get(route_name, {}).get(service_id):
-                        diagrams[route_name][service_id].append(departure_time)
-                    elif diagrams.get(route_name):
-                        diagrams[route_name].update({
-                            service_id: [departure_time],
-                            'destination': destination
-                        })
-                    else:
-                        diagrams[route_name] = {
-                            service_id: [departure_time],
-                            'destination': destination
-                        }
+        route_id_on_stops = self.get_route_ids_on_stops()
 
-            route_ids = self.get_route_ids_by(stop_id)
-            if ignore_no_route and len(route_ids) == 0:
-                yield None
-                continue
+        for stop in stops_df.itertuples():
+            if stop.stop_id in route_id_on_stops:
+                route_ids = route_id_on_stops.at[stop.stop_id].tolist()
+            else:
+                if ignore_no_route:
+                    continue
+                route_ids = []
 
             feature = {
                 'type': 'Feature',
                 'geometry': {
                     'type': 'Point',
-                    'coordinates': [stop_lon, stop_lat]
+                    'coordinates': [stop.stop_lon, stop.stop_lat]
                 },
                 'properties': {
-                    'stop_id': str(stop_id),
-                    'stop_name': stop_name,
-                    'diagrams': diagrams,
+                    'stop_id': stop.stop_id,
+                    'stop_name': stop.stop_name,
                     'route_ids': route_ids
                 }
             }
-            yield feature
-
-    def interpolated_stops_count(self):
-        """
-        Counts the stops with unique names.
-
-        Returns:
-            stop counts (int): Count of unique stops
-        """
-        stops_df = self.dataframes['stops']
-        stop_names = stops_df['stop_name'].unique()
-        return len(stop_names)
+            stops_geojson['features'].append(feature)
+        return stops_geojson
 
     def read_interpolated_stops(self):
-        """
-        Return unique stops.
-
-        Yields:
-            feature (GeoJSON): Yields a geojson of a the unique point composed by the details of the stop.
-        """
-        stops_df = self.dataframes['stops']
-        stop_names = stops_df['stop_name'].unique()
-        for stop_name in stop_names:
-            same_named_stops = stops_df[stops_df['stop_name'] == stop_name]
-            same_named_stops_ids = same_named_stops['stop_id'].unique()
-
-            route_ids = []
-            for stop_id in same_named_stops_ids:
-                route_ids.extend(self.get_route_ids_by(stop_id))
-            route_ids = list(set(route_ids))
-
-            lonlats = same_named_stops[['stop_lon', 'stop_lat']]
-            centroid = lonlats.mean()
-
-            feature = {
+        stop_dicts = self.dataframes['stops'][[
+            'stop_id', 'stop_name']].to_dict(orient='records')
+        for stop_dict in stop_dicts:
+            # extract keys from Dataframe
+            stop_id = stop_dict['stop_id']
+            stop_name = stop_dict['stop_name']
+            yield {
                 'type': 'Feature',
                 'geometry': {
                     'type': 'Point',
-                    'coordinates': centroid.values.tolist()
+                    'coordinates': self.get_similar_stops_centroid(stop_id)
                 },
                 'properties': {
                     'stop_name': stop_name,
-                    'stop_ids': same_named_stops_ids.tolist(),
-                    'route_ids': route_ids
+                    'stop_id': stop_id,
                 }
             }
-            yield feature
+
+    def read_interpolated_routes(self, all_trips=False):
+        stop_times_df = self.dataframes.get(
+            'stop_times')[['stop_id', 'trip_id', 'stop_sequence']].copy()
+
+        path_data = {}
+
+        stop_id_dict = stop_times_df['stop_id'].to_dict()
+        trip_id_dict = stop_times_df['trip_id'].to_dict()
+        stop_times_dicts = stop_times_df.sort_values(
+            ['trip_id', 'stop_sequence']).to_dict(orient='records')
+        for i in range(len(stop_times_dicts) - 1):
+            prev_trip_id = trip_id_dict[i]
+            next_trip_id = trip_id_dict[i + 1]
+            if not prev_trip_id == next_trip_id:
+                continue
+            prev_stop_id = stop_id_dict[i]
+            next_stop_id = stop_id_dict[i + 1]
+            prev_stop_latlon = self.get_similar_stops_centroid(prev_stop_id)
+            next_stop_latlon = self.get_similar_stops_centroid(next_stop_id)
+            path_id = ''.join(
+                map(str, prev_stop_latlon)) + ''.join(map(str, next_stop_latlon))
+            if path_data.get(path_id) is None:
+                path_data[path_id] = {
+                    'frequency': 1,
+                    'prev_stop_latlon': prev_stop_latlon,
+                    'next_stop_latlon': next_stop_latlon
+                }
+            else:
+                path_data[path_id]['frequency'] += 1
+
+        for path_id in path_data:
+            yield {
+                'type': 'Feature',
+                'geometry': {
+                    'type': 'LineString',
+                    'coordinates': [path_data[path_id]['prev_stop_latlon'],
+                                    path_data[path_id]['next_stop_latlon']]
+                },
+                'properties': {
+                    'frequency': path_data[path_id]['frequency']
+                }
+            }
+
+    @ lru_cache(maxsize=None)
+    def get_similar_stops_centroid(self, stop_id: str, max_distance_degree=0.01):
+        """
+        基準となる停留所の名称・位置から、名寄せすべき停留所の平均座標を算出
+        Args:
+            stop_id (str): 基準となる停留所のstop_id
+            max_distance_degree (float, optional): 近傍判定のおける許容範囲、経緯度での距離 Defaults to 0.003.
+        Returns:
+            [float, float]: 名寄せされた停留所の平均座標
+        """
+        stops_df = self.dataframes['stops']
+        if 'parent_station' not in stops_df.columns:
+            stops_df['parent_station'] = 'nan'
+        stop = stops_df[stops_df['stop_id'] == stop_id].iloc[0]
+        stop_name = stop['stop_name']
+        stop_lon = stop['stop_lon']
+        stop_lat = stop['stop_lat']
+        parent_station = stop['parent_station']
+
+        if str(parent_station) == 'nan':
+            similar_named_stops = self.get_similar_named_stops(stop_name)
+            similar_named_and_near_stops = similar_named_stops.query(
+                f'(stop_lon - {stop_lon}) ** 2 + (stop_lat - {stop_lat}) ** 2  < {max_distance_degree ** 2}')
+            return similar_named_and_near_stops[['stop_lon', 'stop_lat']].mean().values.tolist()
+        else:
+            return stops_df[stops_df['stop_id'] == parent_station].iloc[0][['stop_lon', 'stop_lat']].values.tolist()
+
+    @ lru_cache(maxsize=None)
+    def get_similar_named_stops(self, stop_name):
+        """
+        名称が類似する停留所を抽出する
+        Args:
+            stop_name ([type]): 停留所名
+        Returns:
+            [type]: 類似するstops_df
+        """
+        stops_df = self.dataframes['stops']
+        similar_name_stops = stops_df[stops_df['stop_name'] == stop_name]
+        return similar_name_stops
 
     def get_route_ids_by(self, stop_id):
-        """
-        Return ids of routes that pass through that stop_id.
-
-        Args:
-            stop_id (string): The id of the stop whose routes are to be returned.
-
-        Returns:
-            route_ids (list): list of route_ids that
-        """
         stop_times_df = self.dataframes['stop_times'][['stop_id', 'trip_id']]
         trip_id_series = stop_times_df[stop_times_df['stop_id']
                                        == stop_id]['trip_id']
@@ -205,14 +222,6 @@ class GTFSParser:
         return filtered['route_id'].unique().astype(str).tolist()
 
     def get_route_name_from(self, route_data):
-        """
-        Returns the route name from the route_data
-        Args:
-            route_data (dict): dict object containing the route data
-
-        Returns:
-            route_name (str): route name
-        """
         if not str(route_data['route_long_name']) == 'nan':
             return str(route_data['route_long_name'])
         elif not str(route_data['route_short_name']) == 'nan':
@@ -221,67 +230,45 @@ class GTFSParser:
             ValueError(
                 f'{route_data} have neither "route_long_name" or "route_short_time".')
 
-    def routes_count(self, no_shapes=False):
-        """
-        Counts the routes
-
-        Args:
-            no_shapes (bool, optional): whether to count the routes from shapes or not. Defaults to False.
-
-        Returns:
-            routes (int): how may routes in the dataset.
-        """
-        shapes_df = self.dataframes.get('shapes')
-        if shapes_df is not None and not no_shapes:
-            shape_ids = shapes_df['shape_id'].unique()
-            return len(shape_ids)
+    @classmethod
+    def get_route_name_from_tupple(cls, route):
+        if not pd.isna(route.route_short_name):
+            return route.route_short_name
+        elif not pd.isna(route.route_long_name):
+            return route.route_long_name
         else:
-            trips_df = self.dataframes['trips']
-            route_ids = trips_df['route_id'].unique()
+            ValueError(
+                f'{route} have neither "route_long_name" or "route_short_time".')
+
+    def routes_count(self, no_shapes=False):
+        if self.dataframes.get('shapes') is None or no_shapes:
+            route_ids = self.dataframes.get('trips')['route_id'].unique()
             return len(route_ids)
+        else:
+            shape_ids = self.dataframes.get('shapes')['shape_id'].unique()
+            return len(shape_ids)
+
+    @ lru_cache(maxsize=None)
+    def get_shape_ids_on_routes(self):
+        trips_with_shape_df = self.dataframes['trips'][[
+            'route_id', 'shape_id']].dropna(subset=['shape_id'])
+        group = trips_with_shape_df.groupby('route_id')['shape_id'].unique()
+        group.apply(lambda x: x.sort())
+        return group
+
+    @ lru_cache(maxsize=None)
+    def get_shapes_coordinates(self):
+        shapes_df = self.dataframes['shapes'].copy()
+        shapes_df.sort_values('shape_pt_sequence')
+        shapes_df['pt'] = shapes_df[[
+            'shape_pt_lon', 'shape_pt_lat']].values.tolist()
+        return shapes_df.groupby('shape_id')['pt'].apply(list)
 
     def read_routes(self, no_shapes=False):
-        """
-        Read routes and yields them as geojson
-
-        Args:
-            no_shapes (bool, optional): whether to read the routes from the shapes or not. Defaults to False.
-
-        Yields:
-            feature (GeoJSON): A geojson of a route data as a linestring.
-        """
-        shapes_df = self.dataframes.get('shapes')
-        routes_df = self.dataframes.get('routes')
-        trips_df = self.dataframes['trips']
-        if shapes_df is not None and not no_shapes:
-            shape_ids = shapes_df['shape_id'].unique()
-            for shape_id in shape_ids:
-                filtered = shapes_df[shapes_df['shape_id'] ==
-                                     shape_id][['shape_pt_lon', 'shape_pt_lat']]
-                route_ids = trips_df[trips_df['shape_id']
-                                     == shape_id]['route_id'].unique()
-                for route_id in route_ids:
-                    route_data = routes_df[routes_df['route_id']
-                                           == route_id].iloc[0]
-                    route_name = self.get_route_name_from(route_data)
-                    trip_id = trips_df[trips_df['route_id']
-                                       == route_id]['trip_id'].values[0]
-                    destination = str(self.get_destination_stop_of(
-                        trip_id)['stop_name'].values[0])
-                    feature = {
-                        'type': 'Feature',
-                        'geometry': {
-                            'type': 'LineString',
-                            'coordinates': filtered.values.tolist()
-                        },
-                        'properties': {
-                            'route_id': str(route_id),
-                            'route_name': route_name,
-                            'destination': destination
-                        }
-                    }
-                    yield feature
-        else:
+        if self.dataframes.get('shapes') is None or no_shapes:
+            # no-shape routes
+            routes_df = self.dataframes.get('routes')
+            trips_df = self.dataframes['trips']
             route_ids = trips_df['route_id'].unique()
             for route_id in route_ids:
                 trip_id = trips_df[trips_df['route_id'] == route_id]['trip_id'].unique()[
@@ -294,11 +281,7 @@ class GTFSParser:
                 route_data = routes_df[routes_df['route_id']
                                        == route_id].iloc[0]
                 route_name = self.get_route_name_from(route_data)
-                trip_id = trips_df[trips_df['route_id']
-                                   == route_id]['trip_id'].values[0]
-                destination = str(self.get_destination_stop_of(
-                    trip_id)['stop_name'].values[0])
-                feature = {
+                yield {
                     'type': 'Feature',
                     'geometry': {
                         'type': 'LineString',
@@ -307,22 +290,30 @@ class GTFSParser:
                     'properties': {
                         'route_id': str(route_id),
                         'route_name': route_name,
-                        'destination': destination
                     }
                 }
-                yield feature
+        else:
+            for route in self.dataframes.get('routes').itertuples():
+                shape_coords = self.get_shapes_coordinates()
+                shape_ids_on_routes = self.get_shape_ids_on_routes()
+                coordinates = [shape_coords.at[shape_id]
+                               for shape_id in shape_ids_on_routes[route.route_id]]
+
+                route_name = self.get_route_name_from_tupple(route)
+                yield {
+                    'type': 'Feature',
+                    'geometry': {
+                        'type': 'MultiLineString',
+                        'coordinates': coordinates
+                    },
+                    'properties': {
+                        'route_id': str(route.route_id),
+                        'route_name': route_name,
+                    }
+                }
 
     @ lru_cache(maxsize=None)
     def get_destination_stop_of(self, trip_id):
-        """
-        Returns the final stop of the trip
-
-        Args:
-            trip_id (str): Id of the trip
-
-        Returns:
-            destination_stop (pd.DataFrame): last stop of the trip
-        """
         stop_times_df = self.dataframes['stop_times']
         filtered = stop_times_df[stop_times_df['trip_id'] == trip_id]
         max_stop_sequence_idx = filtered['stop_sequence'].idxmax()
@@ -333,15 +324,6 @@ class GTFSParser:
 
     @ lru_cache(maxsize=None)
     def get_trips_filtered_by(self, route_id: str):
-        """
-        Returns the trips that pass through that route.
-
-        Args:
-            route_id (str): The id of the route linked with the trips
-
-        Returns:
-            trips (pandas.core.series.Series): Series of trips which can be done through that route
-        """
         trips_df = self.dataframes.get('trips')
         filtered = trips_df[trips_df['route_id'] == route_id]
         if len(filtered['route_id'].unique()) > 1:
@@ -358,9 +340,8 @@ if __name__ == "__main__":
     parser.add_argument('--src_dir')
     parser.add_argument('--output_dir')
     parser.add_argument('--no_shapes', action='store_true')
-    parser.add_argument('--empty_stops', action='store_true')
-    parser.add_argument('--diagram_mode', action='store_true')
-    parser.add_argument('--interpolate', action='store_true')
+    parser.add_argument('--ignore_no_route', action='store_true')
+    parser.add_argument('--frequency', action='store_true')
     args = parser.parse_args()
 
     if args.zip is None and args.src_dir is None:
@@ -374,10 +355,10 @@ if __name__ == "__main__":
         os.mkdir(temp_dir)
         with zipfile.ZipFile(args.zip) as z:
             z.extractall(temp_dir)
-        gtfs_jp = GTFS_JP(temp_dir)
+        gtfs_parser = GTFSParser(temp_dir)
         output_dir = temp_dir
     else:
-        gtfs_jp = GTFS_JP(args.src_dir)
+        gtfs_parser = GTFSParser(args.src_dir)
         output_dir = args.src_dir
 
     print('GTFS loaded.')
@@ -385,31 +366,35 @@ if __name__ == "__main__":
     if args.output_dir:
         output_dir = args.output_dir
 
-    routes_features = [route for route in gtfs_jp.read_routes(
-        no_shapes=args.no_shapes)]
-    routes_geojson = {
-        'type': 'FeatureCollection',
-        'features': routes_features
-    }
-
-    stops_features = [stop for stop in gtfs_jp.read_stops(
-        empty_stops=args.empty_stops, diagram_mode=args.diagram_mode)]
-    stops_geojson = {
-        'type': 'FeatureCollection',
-        'features': stops_features
-    }
+    if args.frequency:
+        stops_features = [
+            route for route in gtfs_parser.read_interpolated_stops()]
+        stops_geojson = {
+            'type': 'FeatureCollection',
+            'features': stops_features
+        }
+        routes_features = [
+            route for route in gtfs_parser.read_interpolated_routes()]
+        routes_geojson = {
+            'type': 'FeatureCollection',
+            'features': routes_features
+        }
+    else:
+        routes_features = [route for route in gtfs_parser.read_routes(
+            no_shapes=args.no_shapes)]
+        routes_geojson = {
+            'type': 'FeatureCollection',
+            'features': routes_features
+        }
+        stops_features = [stop for stop in gtfs_parser.read_stops(
+            ignore_no_route=args.ignore_no_route)]
+        stops_geojson = {
+            'type': 'FeatureCollection',
+            'features': stops_features
+        }
 
     print('writing geojsons...')
-    with open(os.path.join(output_dir, 'routes.geojson'), mode='w') as f:
+    with open(os.path.join(output_dir, 'routes.geojson'), mode='w', encoding='utf-8') as f:
         json.dump(routes_geojson, f, ensure_ascii=False)
-    with open(os.path.join(output_dir, 'stops.geojson'), mode='w') as f:
+    with open(os.path.join(output_dir, 'stops.geojson'), mode='w', encoding='utf-8') as f:
         json.dump(stops_geojson, f, ensure_ascii=False)
-
-    if args.interpolate:
-        interpolated_stops_features = gtfs_jp.read_interpolated_stops()
-        interpolated_stops_geojson = {
-            'type': 'FeatureCollection',
-            'features': interpolated_stops_features
-        }
-        with open(os.path.join(output_dir, 'interpolated_stops.geojson'), mode='w') as f:
-            json.dump(interpolated_stops_geojson, f, ensure_ascii=False)
