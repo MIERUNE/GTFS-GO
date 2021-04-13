@@ -75,40 +75,6 @@ class GTFSParser:
         group.apply(lambda x: x.sort())
         return group
 
-    def stops_to_geojson(self, ignore_no_route=False):
-        stops_df = self.dataframes['stops'][[
-            'stop_id', 'stop_lat', 'stop_lon', 'stop_name']]
-
-        stops_geojson = {
-            'type': 'FeatureCollection',
-            'features': []
-        }
-
-        route_id_on_stops = self.get_route_ids_on_stops()
-
-        for stop in stops_df.itertuples():
-            if stop.stop_id in route_id_on_stops:
-                route_ids = route_id_on_stops.at[stop.stop_id].tolist()
-            else:
-                if ignore_no_route:
-                    continue
-                route_ids = []
-
-            feature = {
-                'type': 'Feature',
-                'geometry': {
-                    'type': 'Point',
-                    'coordinates': [stop.stop_lon, stop.stop_lat]
-                },
-                'properties': {
-                    'stop_id': stop.stop_id,
-                    'stop_name': stop.stop_name,
-                    'route_ids': route_ids
-                }
-            }
-            stops_geojson['features'].append(feature)
-        return stops_geojson
-
     def read_interpolated_stops(self):
         stop_dicts = self.dataframes['stops'][[
             'stop_id', 'stop_name']].to_dict(orient='records')
@@ -128,7 +94,7 @@ class GTFSParser:
                 }
             }
 
-    def read_interpolated_routes(self, all_trips=False):
+    def read_route_frequency(self, all_trips=False):
         stop_times_df = self.dataframes.get(
             'stop_times')[['stop_id', 'trip_id', 'stop_sequence']].copy()
 
@@ -183,6 +149,7 @@ class GTFSParser:
         """
         stops_df = self.dataframes['stops']
         if 'parent_station' not in stops_df.columns:
+            # parent_stationカラムがない場合はあとで比較するために'nan'で埋めておく
             stops_df['parent_station'] = 'nan'
         stop = stops_df[stops_df['stop_id'] == stop_id].iloc[0]
         stop_name = stop['stop_name']
@@ -191,7 +158,7 @@ class GTFSParser:
         parent_station = stop['parent_station']
 
         if str(parent_station) == 'nan':
-            similar_named_stops = self.get_similar_named_stops(stop_name)
+            similar_named_stops = self.get_similar_stops_by_id_prefix(stop_id)
             similar_named_and_near_stops = similar_named_stops.query(
                 f'(stop_lon - {stop_lon}) ** 2 + (stop_lat - {stop_lat}) ** 2  < {max_distance_degree ** 2}')
             return similar_named_and_near_stops[['stop_lon', 'stop_lat']].mean().values.tolist()
@@ -199,7 +166,32 @@ class GTFSParser:
             return stops_df[stops_df['stop_id'] == parent_station].iloc[0][['stop_lon', 'stop_lat']].values.tolist()
 
     @ lru_cache(maxsize=None)
-    def get_similar_named_stops(self, stop_name):
+    def get_similar_stops_by_id_prefix(self, stop_id: str, delimiter='_'):
+        """
+        停留所をstop_idと区切り文字を考慮して名寄せする
+        stop_idはGTFSを作るツールによって特定の区切り文字を用いて親停留所を示す場合がある
+        例：〇〇駅前_A, 〇〇駅前_B
+        任意の区切り文字でstop_idを区切り、その前方の文字列を用いて停留所を名寄せする
+
+        Args:
+            stop_id (str)
+            delimiter (str, optional): 区切り文字、デフォルトは'_'.
+
+        Returns:
+            [pd.DataFrame]
+        """
+        stops_df = self.dataframes['stops'].copy()
+
+        # when deleimter='_', a_b -> a, a_b_c -> a_b
+        stops_df['stop_id_prefix'] = stops_df['stop_id'].map(
+            lambda name: name.rsplit(delimiter, 1)[0])
+
+        prefix = stop_id.rsplit(delimiter, 1)[0]
+        similar_stops = stops_df[stops_df['stop_id_prefix'] == prefix]
+        return similar_stops
+
+    @ lru_cache(maxsize=None)
+    def get_similar_stops_by(self, stop_name):
         """
         名称が類似する停留所を抽出する
         Args:
@@ -211,16 +203,6 @@ class GTFSParser:
         similar_name_stops = stops_df[stops_df['stop_name'] == stop_name]
         return similar_name_stops
 
-    def get_route_ids_by(self, stop_id):
-        stop_times_df = self.dataframes['stop_times'][['stop_id', 'trip_id']]
-        trip_id_series = stop_times_df[stop_times_df['stop_id']
-                                       == stop_id]['trip_id']
-        trip_ids = trip_id_series.unique().astype(str).tolist()
-
-        trips_df = self.dataframes['trips'][['trip_id', 'route_id']]
-        filtered = trips_df[trips_df['trip_id'].isin(trip_ids)]
-        return filtered['route_id'].unique().astype(str).tolist()
-
     def get_route_name_from(self, route_data):
         if not str(route_data['route_long_name']) == 'nan':
             return str(route_data['route_long_name'])
@@ -230,7 +212,7 @@ class GTFSParser:
             ValueError(
                 f'{route_data} have neither "route_long_name" or "route_short_time".')
 
-    @classmethod
+    @ classmethod
     def get_route_name_from_tupple(cls, route):
         if not pd.isna(route.route_short_name):
             return route.route_short_name
@@ -374,7 +356,7 @@ if __name__ == "__main__":
             'features': stops_features
         }
         routes_features = [
-            route for route in gtfs_parser.read_interpolated_routes()]
+            route for route in gtfs_parser.read_route_frequency()]
         routes_geojson = {
             'type': 'FeatureCollection',
             'features': routes_features
