@@ -97,51 +97,51 @@ class GTFSParser:
 
     def read_route_frequency(self, all_trips=False):
         stop_times_df = self.dataframes.get(
-            'stop_times')[['stop_id', 'trip_id', 'stop_sequence']].copy()
+            'stop_times')[['stop_id', 'trip_id', 'stop_sequence']].sort_values(
+            ['trip_id', 'stop_sequence']).copy()
+        stop_times_df['prev_stop_id'] = stop_times_df['stop_id']
+        stop_times_df['prev_trip_id'] = stop_times_df['trip_id']
+        stop_times_df['next_stop_id'] = stop_times_df['stop_id'].shift(-1)
+        stop_times_df['next_trip_id'] = stop_times_df['trip_id'].shift(-1)
 
-        stops_df = self.dataframes.get('stops')[['stop_id']].copy()
-        stops_df['similar_stops_centroid'] = stops_df['stop_id'].apply(
+        # tripの最後は削除
+        stop_times_df = stop_times_df.drop(
+            index=stop_times_df.query('prev_trip_id != next_trip_id').index)
+
+        # 代表点
+        stop_times_df['prev_similar_stops_centroid'] = stop_times_df['prev_stop_id'].apply(
+            self.get_similar_stops_centroid)
+        stop_times_df['next_similar_stops_centroid'] = stop_times_df['next_stop_id'].apply(
             self.get_similar_stops_centroid)
 
-        merged_df = pd.merge(stop_times_df, stops_df, on='stop_id')
+        # 経路ID
+        def latlon_to_str(latlon): return ''.join(
+            list(map(lambda coord: str(round(coord, 4)), latlon)))
+        stop_times_df['path_id'] = stop_times_df['prev_similar_stops_centroid'].map(
+            latlon_to_str) + stop_times_df['next_similar_stops_centroid'].map(latlon_to_str)
 
-        path_data = {}
-        merged_dicts = merged_df.sort_values(
-            ['trip_id', 'stop_sequence']).to_dict(orient='records')
-        for i in range(len(merged_dicts) - 1):
-            prev_trip_id = merged_dicts[i]['trip_id']
-            next_trip_id = merged_dicts[i + 1]['trip_id']
-            if prev_trip_id != next_trip_id:
-                continue
-            prev_stop_latlon = merged_dicts[i]['similar_stops_centroid']
-            next_stop_latlon = merged_dicts[i + 1]['similar_stops_centroid']
-            path_id = ''.join(
-                map(str, prev_stop_latlon)) + ''.join(map(str, next_stop_latlon))
+        # 同じ経路を集計
+        path_frequency = stop_times_df[['stop_id', 'path_id']].groupby(
+            'path_id').count().reset_index()
+        path_frequency.columns = ['path_id', 'path_count']
+        path_data = pd.merge(path_frequency, stop_times_df.drop_duplicates(
+            subset='path_id'), on='path_id')
+        path_data_dict = path_data.to_dict(orient='records')
 
-            if path_data.get(path_id) is None:
-                path_data[path_id] = {
-                    'frequency': 1,
-                    'prev_stop_latlon': prev_stop_latlon,
-                    'next_stop_latlon': next_stop_latlon
-                }
-            else:
-                path_data[path_id]['frequency'] += 1
-
-        for path_id in path_data:
-            yield {
-                'type': 'Feature',
-                'geometry': {
-                    'type': 'LineString',
-                    'coordinates': (path_data[path_id]['prev_stop_latlon'],
-                                    path_data[path_id]['next_stop_latlon'])
-                },
-                'properties': {
-                    'frequency': path_data[path_id]['frequency']
-                }
+        return [{
+            'type': 'Feature',
+            'geometry': {
+                'type': 'LineString',
+                'coordinates': (path['prev_similar_stops_centroid'],
+                                path['next_similar_stops_centroid'])
+            },
+            'properties': {
+                'frequency': path['path_count']
             }
+        } for path in path_data_dict]
 
     @ lru_cache(maxsize=None)
-    def get_similar_stops_centroid(self, stop_id: str, max_distance_degree=0.01, delimiter='-'):
+    def get_similar_stops_centroid(self, stop_id: str, max_distance_degree=0.01, delimiter='_'):
         """
         基準となる停留所の名称・位置から、名寄せすべき停留所の平均座標を算出
         Args:
@@ -344,8 +344,7 @@ if __name__ == "__main__":
             'features': stops_features
         }
         print('stop finished')
-        routes_features = [
-            route for route in gtfs_parser.read_route_frequency()]
+        routes_features = gtfs_parser.read_route_frequency()
         routes_geojson = {
             'type': 'FeatureCollection',
             'features': routes_features
