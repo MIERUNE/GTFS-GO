@@ -76,21 +76,22 @@ class GTFSParser:
         return group
 
     def read_interpolated_stops(self):
-        stop_dicts = self.dataframes['stops'][[
-            'stop_id', 'stop_name']].to_dict(orient='records')
+        stops_df = self.dataframes.get('stops')
+        stops_df['similar_stops_centroid'] = stops_df['stop_id'].apply(
+            self.get_similar_stops_centroid)
+        stop_dicts = stops_df[[
+            'stop_id', 'stop_name', 'similar_stops_centroid']].to_dict(orient='records')
         for stop_dict in stop_dicts:
             # extract keys from Dataframe
-            stop_id = stop_dict['stop_id']
-            stop_name = stop_dict['stop_name']
             yield {
                 'type': 'Feature',
                 'geometry': {
                     'type': 'Point',
-                    'coordinates': self.get_similar_stops_centroid(stop_id)
+                    'coordinates': stop_dict['similar_stops_centroid']
                 },
                 'properties': {
-                    'stop_name': stop_name,
-                    'stop_id': stop_id,
+                    'stop_name': stop_dict['stop_name'],
+                    'stop_id': stop_dict['stop_id'],
                 }
             }
 
@@ -98,23 +99,25 @@ class GTFSParser:
         stop_times_df = self.dataframes.get(
             'stop_times')[['stop_id', 'trip_id', 'stop_sequence']].copy()
 
-        path_data = {}
+        stops_df = self.dataframes.get('stops')[['stop_id']].copy()
+        stops_df['similar_stops_centroid'] = stops_df['stop_id'].apply(
+            self.get_similar_stops_centroid)
 
-        stop_id_dict = stop_times_df['stop_id'].to_dict()
-        trip_id_dict = stop_times_df['trip_id'].to_dict()
-        stop_times_dicts = stop_times_df.sort_values(
+        merged_df = pd.merge(stop_times_df, stops_df, on='stop_id')
+
+        path_data = {}
+        merged_dicts = merged_df.sort_values(
             ['trip_id', 'stop_sequence']).to_dict(orient='records')
-        for i in range(len(stop_times_dicts) - 1):
-            prev_trip_id = trip_id_dict[i]
-            next_trip_id = trip_id_dict[i + 1]
-            if not prev_trip_id == next_trip_id:
+        for i in range(len(merged_dicts) - 1):
+            prev_trip_id = merged_dicts[i]['trip_id']
+            next_trip_id = merged_dicts[i + 1]['trip_id']
+            if prev_trip_id != next_trip_id:
                 continue
-            prev_stop_id = stop_id_dict[i]
-            next_stop_id = stop_id_dict[i + 1]
-            prev_stop_latlon = self.get_similar_stops_centroid(prev_stop_id)
-            next_stop_latlon = self.get_similar_stops_centroid(next_stop_id)
+            prev_stop_latlon = merged_dicts[i]['similar_stops_centroid']
+            next_stop_latlon = merged_dicts[i + 1]['similar_stops_centroid']
             path_id = ''.join(
                 map(str, prev_stop_latlon)) + ''.join(map(str, next_stop_latlon))
+
             if path_data.get(path_id) is None:
                 path_data[path_id] = {
                     'frequency': 1,
@@ -129,8 +132,8 @@ class GTFSParser:
                 'type': 'Feature',
                 'geometry': {
                     'type': 'LineString',
-                    'coordinates': [path_data[path_id]['prev_stop_latlon'],
-                                    path_data[path_id]['next_stop_latlon']]
+                    'coordinates': (path_data[path_id]['prev_stop_latlon'],
+                                    path_data[path_id]['next_stop_latlon'])
                 },
                 'properties': {
                     'frequency': path_data[path_id]['frequency']
@@ -138,12 +141,12 @@ class GTFSParser:
             }
 
     @ lru_cache(maxsize=None)
-    def get_similar_stops_centroid(self, stop_id: str, max_distance_degree=0.01):
+    def get_similar_stops_centroid(self, stop_id: str, max_distance_degree=0.01, delimiter='-'):
         """
         基準となる停留所の名称・位置から、名寄せすべき停留所の平均座標を算出
         Args:
             stop_id (str): 基準となる停留所のstop_id
-            max_distance_degree (float, optional): 近傍判定のおける許容範囲、経緯度での距離 Defaults to 0.003.
+            max_distance_degree (float, optional): 近傍判定のおける許容範囲、経緯度での距離 Defaults to 0.01.
         Returns:
             [float, float]: 名寄せされた停留所の平均座標
         """
@@ -151,44 +154,29 @@ class GTFSParser:
         if 'parent_station' not in stops_df.columns:
             # parent_stationカラムがない場合はあとで比較するために'nan'で埋めておく
             stops_df['parent_station'] = 'nan'
-        stop = stops_df[stops_df['stop_id'] == stop_id].iloc[0]
-        stop_name = stop['stop_name']
-        stop_lon = stop['stop_lon']
-        stop_lat = stop['stop_lat']
-        parent_station = stop['parent_station']
 
-        if str(parent_station) == 'nan':
-            similar_named_stops = self.get_similar_stops_by_id_prefix(stop_id)
-            similar_named_and_near_stops = similar_named_stops.query(
-                f'(stop_lon - {stop_lon}) ** 2 + (stop_lat - {stop_lat}) ** 2  < {max_distance_degree ** 2}')
-            return similar_named_and_near_stops[['stop_lon', 'stop_lat']].mean().values.tolist()
+        stop = stops_df[stops_df['stop_id'] == stop_id].iloc[0]
+
+        if str(stop['parent_station']) == 'nan':
+            if delimiter:
+                stops_df_id_delimited = self.get_stops_id_delimited(delimiter)
+                stop_id_prefix = stop_id.rsplit(delimiter, 1)[0]
+                similar_stops = stops_df_id_delimited[stops_df_id_delimited['stop_id_prefix']
+                                                      == stop_id_prefix]
+            else:
+                similar_stops = self.get_similar_stops_by(stop['stop_name'])
+                similar_stops = similar_stops.query(
+                    f'(stop_lon - {stop["stop_lon"]}) ** 2 + (stop_lat - {stop["stop_lat"]}) ** 2  < {max_distance_degree ** 2}')
+            return similar_stops[['stop_lon', 'stop_lat']].mean().values.tolist()
         else:
-            return stops_df[stops_df['stop_id'] == parent_station].iloc[0][['stop_lon', 'stop_lat']].values.tolist()
+            return stops_df[stops_df['stop_id'] == stop['parent_station']].iloc[0][['stop_lon', 'stop_lat']].values.tolist()
 
     @ lru_cache(maxsize=None)
-    def get_similar_stops_by_id_prefix(self, stop_id: str, delimiter='_'):
-        """
-        停留所をstop_idと区切り文字を考慮して名寄せする
-        stop_idはGTFSを作るツールによって特定の区切り文字を用いて親停留所を示す場合がある
-        例：〇〇駅前_A, 〇〇駅前_B
-        任意の区切り文字でstop_idを区切り、その前方の文字列を用いて停留所を名寄せする
-
-        Args:
-            stop_id (str)
-            delimiter (str, optional): 区切り文字、デフォルトは'_'.
-
-        Returns:
-            [pd.DataFrame]
-        """
-        stops_df = self.dataframes['stops'].copy()
-
-        # when deleimter='_', a_b -> a, a_b_c -> a_b
+    def get_stops_id_delimited(self, delimiter):
+        stops_df = self.dataframes.get('stops')
         stops_df['stop_id_prefix'] = stops_df['stop_id'].map(
-            lambda name: name.rsplit(delimiter, 1)[0])
-
-        prefix = stop_id.rsplit(delimiter, 1)[0]
-        similar_stops = stops_df[stops_df['stop_id_prefix'] == prefix]
-        return similar_stops
+            lambda stop_id: stop_id.rsplit(delimiter, 1)[0])
+        return stops_df
 
     @ lru_cache(maxsize=None)
     def get_similar_stops_by(self, stop_name):
@@ -355,12 +343,14 @@ if __name__ == "__main__":
             'type': 'FeatureCollection',
             'features': stops_features
         }
+        print('stop finished')
         routes_features = [
             route for route in gtfs_parser.read_route_frequency()]
         routes_geojson = {
             'type': 'FeatureCollection',
             'features': routes_features
         }
+        print('routes finished')
     else:
         routes_features = [route for route in gtfs_parser.read_routes(
             no_shapes=args.no_shapes)]
