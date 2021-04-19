@@ -237,38 +237,48 @@ class GTFSParser:
     def read_routes(self, no_shapes=False):
         if self.dataframes.get('shapes') is None or no_shapes:
             # no-shape routes
-            routes_df = self.dataframes.get('routes')
-            trips_df = self.dataframes['trips']
-            route_ids = trips_df['route_id'].unique()
+            trips_df = self.dataframes['trips'][['trip_id', 'route_id']]
+            routes_df = self.dataframes['routes'][[
+                'route_id', 'route_long_name', 'route_short_name']]
+
+            trips_routes = pd.merge(trips_df, routes_df, on='route_id')
+
+            stop_times_df = self.dataframes['stop_times'][[
+                'stop_id', 'trip_id', 'stop_sequence']]
+            stops_df = self.dataframes.get(
+                'stops')[['stop_id', 'stop_lon', 'stop_lat']]
+
+            merged = pd.merge(stop_times_df, trips_routes, on='trip_id')
+            merged = pd.merge(
+                merged, stops_df[['stop_id', 'stop_lon', 'stop_lat']], on='stop_id')
+            merged['route_concat_name'] = merged['route_long_name'].fillna('') + \
+                merged['route_short_name'].fillna('')
+
+            route_ids = merged['route_id'].unique()
+            print(len(route_ids))
             for route_id in route_ids:
-                trip_id = trips_df[trips_df['route_id'] == route_id]['trip_id'].unique()[
-                    0]
-                stop_times_df = self.dataframes.get('stop_times')
-                filtered = stop_times_df[stop_times_df['trip_id'] == trip_id]
-                stops_df = self.dataframes.get('stops')
-                merged = pd.merge(filtered, stops_df, on='stop_id')[
-                    ['stop_lon', 'stop_lat']]
-                route_data = routes_df[routes_df['route_id']
-                                       == route_id].iloc[0]
-                route_name = self.get_route_name_from(route_data)
+                route = merged[merged['route_id'] == route_id]
+                print(route)
+                trip_id = route['trip_id'].unique()[0]
+                route = route[route['trip_id'] ==
+                              trip_id].sort_values('stop_sequence')
                 yield {
                     'type': 'Feature',
                     'geometry': {
                         'type': 'LineString',
-                        'coordinates': merged.values.tolist()
+                        'coordinates': route[['stop_lon', 'stop_lat']].values.tolist()
                     },
                     'properties': {
                         'route_id': str(route_id),
-                        'route_name': route_name,
+                        'route_name': route.route_concat_name.values.tolist()[0],
                     }
                 }
         else:
+            shape_coords = self.get_shapes_coordinates()
+            shape_ids_on_routes = self.get_shape_ids_on_routes()
             for route in self.dataframes.get('routes').itertuples():
-                shape_coords = self.get_shapes_coordinates()
-                shape_ids_on_routes = self.get_shape_ids_on_routes()
                 coordinates = [shape_coords.at[shape_id]
                                for shape_id in shape_ids_on_routes[route.route_id]]
-
                 route_name = self.get_route_name_from_tupple(route)
                 yield {
                     'type': 'Feature',
