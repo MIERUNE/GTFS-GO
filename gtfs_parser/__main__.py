@@ -36,6 +36,7 @@ class GTFSParser:
                     datatype not in self.dataframes:
                 raise FileNotFoundError(f'{datatype} is not exists.')
 
+        # cast some numeric value columns to int or float
         self.dataframes['stops'] = self.dataframes['stops'].astype(
             {'stop_lon': float, 'stop_lat': float})
         self.dataframes['stop_times'] = self.dataframes['stop_times'].astype({
@@ -44,7 +45,8 @@ class GTFSParser:
             {'shape_pt_lon': float, 'shape_pt_lat': float, 'shape_pt_sequence': int})
 
         if 'parent_station' not in self.dataframes.get('stops').columns:
-            # あとで比較するためにparent_stationカラムがない場合は'nan'で埋めておく
+            # parent_station is optional column on GTFS but use in this module
+            # when parent_station is not in stops, fill by 'nan' (not NaN)
             self.dataframes['stops']['parent_station'] = 'nan'
 
     def read_stops(self, ignore_no_route=False):
@@ -85,10 +87,10 @@ class GTFSParser:
         group.apply(lambda x: x.sort())
         return group
 
-    def read_interpolated_stops(self):
+    def read_interpolated_stops(self, delimiter='', max_distance_degree=0.01):
         stops_df = self.dataframes.get('stops')
         stops_df['similar_stops_centroid'] = stops_df['stop_id'].map(
-            self.get_similar_stops_centroid)
+            lambda stop_id: self.get_similar_stops_centroid(stop_id, delimiter, max_distance_degree))
         stop_dicts = stops_df[[
             'stop_id', 'stop_name', 'similar_stops_centroid']].to_dict(orient='records')
         return [{
@@ -103,32 +105,44 @@ class GTFSParser:
             }
         } for stop in stop_dicts]
 
-    def read_route_frequency(self, all_trips=False):
+    def read_route_frequency(self, yyyymmdd='', delimiter='', max_distance_degree=0.01):
         stop_times_df = self.dataframes.get(
             'stop_times')[['stop_id', 'trip_id', 'stop_sequence']].sort_values(
             ['trip_id', 'stop_sequence']).copy()
+
+        # filter stop_times by whether serviced or not
+        if yyyymmdd:
+            trips_filtered_by_day = self.get_trips_on_a_day(yyyymmdd)
+            stop_times_df = pd.merge(
+                stop_times_df, trips_filtered_by_day, on='trip_id', how='left')
+            stop_times_df = stop_times_df[stop_times_df['service_flag'] == 1]
+
         stop_times_df['prev_stop_id'] = stop_times_df['stop_id']
         stop_times_df['prev_trip_id'] = stop_times_df['trip_id']
         stop_times_df['next_stop_id'] = stop_times_df['stop_id'].shift(-1)
         stop_times_df['next_trip_id'] = stop_times_df['trip_id'].shift(-1)
 
-        # tripの最後は削除
+        # drop last stops (-> stops has no next stop)
         stop_times_df = stop_times_df.drop(
             index=stop_times_df.query('prev_trip_id != next_trip_id').index)
 
-        # 代表点
+        # calculate similar stops centroid
         stop_times_df['prev_similar_stops_centroid'] = stop_times_df['prev_stop_id'].map(
-            self.get_similar_stops_centroid)
+            lambda stop_id: self.get_similar_stops_centroid(stop_id,
+                                                            delimiter,
+                                                            max_distance_degree))
         stop_times_df['next_similar_stops_centroid'] = stop_times_df['next_stop_id'].map(
-            self.get_similar_stops_centroid)
+            lambda stop_id: self.get_similar_stops_centroid(stop_id,
+                                                            delimiter,
+                                                            max_distance_degree))
 
-        # 経路ID
+        # define path_id by prev-stops-centroid and next-stops-centroid
         def latlon_to_str(latlon): return ''.join(
             list(map(lambda coord: str(round(coord, 4)), latlon)))
         stop_times_df['path_id'] = stop_times_df['prev_similar_stops_centroid'].map(
             latlon_to_str) + stop_times_df['next_similar_stops_centroid'].map(latlon_to_str)
 
-        # 同じ経路を集計
+        # aggregate path-frequency
         path_frequency = stop_times_df[['stop_id', 'path_id']].groupby(
             'path_id').count().reset_index()
         path_frequency.columns = ['path_id', 'path_count']
@@ -149,7 +163,7 @@ class GTFSParser:
         } for path in path_data_dict]
 
     @ lru_cache(maxsize=None)
-    def get_similar_stops_centroid(self, stop_id: str, max_distance_degree=0.01, delimiter='-'):
+    def get_similar_stops_centroid(self, stop_id: str, delimiter='', max_distance_degree=0.01):
         """
         基準となる停留所の名称・位置から、名寄せすべき停留所の平均座標を算出
         Args:
@@ -231,7 +245,7 @@ class GTFSParser:
             'shape_pt_lon', 'shape_pt_lat']].values.tolist()
         return shapes_df.groupby('shape_id')['pt'].apply(list)
 
-    def get_trip_ids_on_a_day(self, yyyymmdd: str):
+    def get_trips_on_a_day(self, yyyymmdd: str):
         # sunday, monday, tuesday...
         day_of_week = datetime.date(int(yyyymmdd[0:4]), int(
             yyyymmdd[4:6]), int(yyyymmdd[6:8])).strftime('%A').lower()
@@ -255,15 +269,18 @@ class GTFSParser:
 
             services_on_a_day = pd.merge(
                 services_on_a_day, to_be_removed_services, on='service_id', how='left')
-
-            services_on_a_day = services_on_a_day.drop(
-                index=(services_on_a_day['exception_type'] == '2').index)
-
+            services_on_a_day = services_on_a_day[services_on_a_day['exception_type'] != '2']
             services_on_a_day = pd.concat(
                 [services_on_a_day, to_be_appended_services])
-            print(services_on_a_day)
 
-        return None
+        services_on_a_day['service_flag'] = 1
+
+        # filter trips
+        trips_df = self.dataframes['trips'].copy()
+        trip_service = pd.merge(trips_df, services_on_a_day, on='service_id')
+        trip_service = trip_service[trip_service['service_flag'] == 1]
+
+        return trip_service[['trip_id', 'service_flag']]
 
     def read_routes(self, no_shapes=False):
         if self.dataframes.get('shapes') is None or no_shapes:
@@ -337,6 +354,8 @@ if __name__ == "__main__":
     parser.add_argument('--no_shapes', action='store_true')
     parser.add_argument('--ignore_no_route', action='store_true')
     parser.add_argument('--frequency', action='store_true')
+    parser.add_argument('--yyyymmdd')
+    parser.add_argument('--delimiter')
     args = parser.parse_args()
 
     if args.zip is None and args.src_dir is None:
@@ -357,19 +376,19 @@ if __name__ == "__main__":
         output_dir = args.src_dir
 
     print('GTFS loaded.')
-    gtfs_parser.get_trip_ids_on_a_day('20200901')
-    raise ValueError
 
     if args.output_dir:
         output_dir = args.output_dir
 
     if args.frequency:
-        stops_features = gtfs_parser.read_interpolated_stops()
+        stops_features = gtfs_parser.read_interpolated_stops(
+            delimiter=args.delimiter)
         stops_geojson = {
             'type': 'FeatureCollection',
             'features': stops_features
         }
-        routes_features = gtfs_parser.read_route_frequency()
+        routes_features = gtfs_parser.read_route_frequency(
+            yyyymmdd=args.yyyymmdd, delimiter=args.delimiter)
         routes_geojson = {
             'type': 'FeatureCollection',
             'features': routes_features
