@@ -9,9 +9,9 @@ import pandas as pd
 
 try:
     # QGIS-import
-    from .constants import GTFS_JP_DATATYPES
+    from .constants import GTFS_DATATYPES
 except:
-    from constants import GTFS_JP_DATATYPES
+    from constants import GTFS_DATATYPES
 
 
 class GTFSParser:
@@ -21,8 +21,8 @@ class GTFSParser:
         self.dataframes = {}
         for txt in txts:
             datatype = os.path.basename(txt).split('.')[0]
-            if os.path.basename(datatype) not in GTFS_JP_DATATYPES:
-                print(f'{datatype} is not specified in GTFS-JP, skipping...')
+            if os.path.basename(datatype) not in GTFS_DATATYPES:
+                print(f'{datatype} is not specified in GTFS, skipping...')
                 continue
             with open(txt, encoding='utf-8_sig') as t:
                 df = pd.read_csv(t)
@@ -30,8 +30,8 @@ class GTFSParser:
                     print(f'{datatype}.txt is empty, skipping...')
                     continue
                 self.dataframes[os.path.basename(txt).split('.')[0]] = df
-        for datatype in GTFS_JP_DATATYPES:
-            if GTFS_JP_DATATYPES[datatype]['required'] and \
+        for datatype in GTFS_DATATYPES:
+            if GTFS_DATATYPES[datatype]['required'] and \
                     datatype not in self.dataframes:
                 raise FileNotFoundError(f'{datatype} is not exists.')
 
@@ -189,15 +189,6 @@ class GTFSParser:
         similar_name_stops = stops_df[stops_df['stop_name'] == stop_name]
         return similar_name_stops
 
-    def get_route_name_from(self, route_data):
-        if not str(route_data['route_long_name']) == 'nan':
-            return str(route_data['route_long_name'])
-        elif not str(route_data['route_short_name']) == 'nan':
-            return str(route_data['route_short_name'])
-        else:
-            ValueError(
-                f'{route_data} have neither "route_long_name" or "route_short_time".')
-
     @ classmethod
     def get_route_name_from_tupple(cls, route):
         if not pd.isna(route.route_short_name):
@@ -292,25 +283,6 @@ class GTFSParser:
                     }
                 })
             return features
-
-    @ lru_cache(maxsize=None)
-    def get_destination_stop_of(self, trip_id):
-        stop_times_df = self.dataframes['stop_times']
-        filtered = stop_times_df[stop_times_df['trip_id'] == trip_id]
-        max_stop_sequence_idx = filtered['stop_sequence'].idxmax()
-        stops_df = self.dataframes['stops']
-        destination_stop = stops_df[stops_df['stop_id'] ==
-                                    stop_times_df['stop_id'].iloc[max_stop_sequence_idx]]
-        return destination_stop
-
-    @ lru_cache(maxsize=None)
-    def get_trips_filtered_by(self, route_id: str):
-        trips_df = self.dataframes.get('trips')
-        filtered = trips_df[trips_df['route_id'] == route_id]
-        if len(filtered['route_id'].unique()) > 1:
-            print(f'number of trips filterd by "{route_id}" is larger than 1')
-        trips = filtered.iloc[:, 1:-1].to_dict(orient='records')
-        return trips
 
 
 if __name__ == "__main__":
