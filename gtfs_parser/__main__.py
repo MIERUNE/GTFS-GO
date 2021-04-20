@@ -4,6 +4,7 @@ import glob
 import zipfile
 import tempfile
 from functools import lru_cache
+import datetime
 
 import pandas as pd
 
@@ -148,7 +149,7 @@ class GTFSParser:
         } for path in path_data_dict]
 
     @ lru_cache(maxsize=None)
-    def get_similar_stops_centroid(self, stop_id: str, max_distance_degree=0.01, delimiter=''):
+    def get_similar_stops_centroid(self, stop_id: str, max_distance_degree=0.01, delimiter='-'):
         """
         基準となる停留所の名称・位置から、名寄せすべき停留所の平均座標を算出
         Args:
@@ -230,8 +231,38 @@ class GTFSParser:
             'shape_pt_lon', 'shape_pt_lat']].values.tolist()
         return shapes_df.groupby('shape_id')['pt'].apply(list)
 
-    @ classmethod
-    def filter_trips_by(trips_df, yyyymmdd: str):
+    def get_trip_ids_on_a_day(self, yyyymmdd: str):
+        # sunday, monday, tuesday...
+        day_of_week = datetime.date(int(yyyymmdd[0:4]), int(
+            yyyymmdd[4:6]), int(yyyymmdd[6:8])).strftime('%A').lower()
+
+        # filter services by day
+        calendar_df = self.dataframes['calendar'].copy()
+        calendar_df = calendar_df.astype({'start_date': int, 'end_date': int})
+        calendar_df = calendar_df[calendar_df[day_of_week] == '1']
+        calendar_df = calendar_df.query(
+            f'start_date <= {int(yyyymmdd)} and {int(yyyymmdd)} <= end_date', engine='python')
+
+        services_on_a_day = calendar_df[['service_id']]
+
+        calendar_dates_df = self.dataframes.get('calendar_dates')
+        if calendar_dates_df is not None:
+            filtered = calendar_dates_df[calendar_dates_df['date'] == yyyymmdd][[
+                'service_id', 'exception_type']]
+            to_be_removed_services = filtered[filtered['exception_type'] == '2']
+            to_be_appended_services = filtered[filtered['exception_type'] == '1'][[
+                'service_id']]
+
+            services_on_a_day = pd.merge(
+                services_on_a_day, to_be_removed_services, on='service_id', how='left')
+
+            services_on_a_day = services_on_a_day.drop(
+                index=(services_on_a_day['exception_type'] == '2').index)
+
+            services_on_a_day = pd.concat(
+                [services_on_a_day, to_be_appended_services])
+            print(services_on_a_day)
+
         return None
 
     def read_routes(self, no_shapes=False):
@@ -326,6 +357,8 @@ if __name__ == "__main__":
         output_dir = args.src_dir
 
     print('GTFS loaded.')
+    gtfs_parser.get_trip_ids_on_a_day('20200901')
+    raise ValueError
 
     if args.output_dir:
         output_dir = args.output_dir
