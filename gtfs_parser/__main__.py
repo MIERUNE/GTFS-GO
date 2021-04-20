@@ -91,6 +91,7 @@ class GTFSParser:
         stops_df = self.dataframes.get('stops')
         stops_df['similar_stops_centroid'] = stops_df['stop_id'].map(
             lambda stop_id: self.get_similar_stops_centroid(stop_id, delimiter, max_distance_degree))
+
         stop_dicts = stops_df[[
             'stop_id', 'stop_name', 'similar_stops_centroid']].to_dict(orient='records')
         return [{
@@ -175,41 +176,49 @@ class GTFSParser:
         stops_df = self.dataframes['stops']
         stop = stops_df[stops_df['stop_id'] == stop_id].iloc[0]
 
-        if str(stop['parent_station']) == 'nan':
-            if delimiter:
-                stops_df_id_delimited = self.get_stops_id_delimited(delimiter)
-                stop_id_prefix = stop_id.rsplit(delimiter, 1)[0]
-                similar_stops = stops_df_id_delimited[stops_df_id_delimited['stop_id_prefix']
-                                                      == stop_id_prefix][['stop_lon', 'stop_lat']]
-            else:
-                similar_stops = self.get_similar_stops_by(
-                    stop['stop_name'])[['stop_lon', 'stop_lat']].copy()
-                similar_stops = similar_stops.query(
-                    f'(stop_lon - {stop["stop_lon"]}) ** 2 + (stop_lat - {stop["stop_lat"]}) ** 2  < {max_distance_degree ** 2}')
-            return similar_stops.mean().values.tolist()
-        else:
+        if str(stop['parent_station']) != 'nan':
             return stops_df[stops_df['stop_id'] == stop['parent_station']][['stop_lon', 'stop_lat']].iloc[0].values.tolist()
+
+        if delimiter:
+            stop_id_prefix = stop_id.rsplit(delimiter, 1)[0]
+            stops_df_id_delimited = self.get_stops_id_delimited(delimiter)
+            if stop_id_prefix != stop_id:
+                seperated_only_stops = stops_df_id_delimited[stops_df_id_delimited['seperated']]
+                similar_stops = seperated_only_stops[seperated_only_stops['stop_id_prefix'] == stop_id_prefix][[
+                    'similar_stops_centroid_lon', 'similar_stops_centroid_lat']]
+                return similar_stops.values.tolist()[0]
+            else:
+                # when cannot seperate stop_id, grouping by name and distance
+                stops_df = stops_df_id_delimited[~stops_df_id_delimited['seperated']]
+
+        # grouping by name and distance
+        similar_stops = stops_df[stops_df['stop_name'] == stop['stop_name']][[
+            'stop_lon', 'stop_lat']].copy()
+        similar_stops = similar_stops.query(
+            f'(stop_lon - {stop["stop_lon"]}) ** 2 + (stop_lat - {stop["stop_lat"]}) ** 2  < {max_distance_degree ** 2}')
+        return similar_stops.mean().values.tolist()
+
+    def get_similar_stops_by_name_and_distance(self, stop_name, distance):
+        similar_stops = self.stops_df[self.stops_df['stop_name'] == stop['stop_name']][[
+            'stop_lon', 'stop_lat']].copy()
+        similar_stops = similar_stops.query(
+            f'(stop_lon - {stop["stop_lon"]}) ** 2 + (stop_lat - {stop["stop_lat"]}) ** 2  < {max_distance_degree ** 2}')
+        return similar_stops
 
     @ lru_cache(maxsize=None)
     def get_stops_id_delimited(self, delimiter):
         stops_df = self.dataframes.get(
-            'stops')[['stop_id', 'stop_lon', 'stop_lat']].copy()
+            'stops')[['stop_id', 'stop_name', 'stop_lon', 'stop_lat', 'parent_station']].copy()
         stops_df['stop_id_prefix'] = stops_df['stop_id'].map(
             lambda stop_id: stop_id.rsplit(delimiter, 1)[0])
-        return stops_df
-
-    @ lru_cache(maxsize=None)
-    def get_similar_stops_by(self, stop_name):
-        """
-        名称が一致する近傍停留所を抽出する
-        Args:
-            stop_name ([type]): 停留所名
-        Returns:
-            [type]: 類似するstops_df
-        """
-        stops_df = self.dataframes['stops']
-        similar_name_stops = stops_df[stops_df['stop_name'] == stop_name]
-        return similar_name_stops
+        stops_df['seperated'] = stops_df['stop_id'] != stops_df['stop_id_prefix']
+        grouped_by_prefix = stops_df[[
+            'stop_id_prefix', 'stop_lon', 'stop_lat']].groupby('stop_id_prefix').mean().reset_index()
+        grouped_by_prefix.columns = [
+            'stop_id_prefix', 'similar_stops_centroid_lon', 'similar_stops_centroid_lat']
+        stops_df_with_centroid = pd.merge(
+            stops_df, grouped_by_prefix, on='stop_id_prefix', how='left')
+        return stops_df_with_centroid
 
     @ classmethod
     def get_route_name_from_tupple(cls, route):
