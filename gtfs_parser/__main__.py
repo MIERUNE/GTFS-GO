@@ -39,15 +39,12 @@ class GTFSParser:
             # あとで比較するためにparent_stationカラムがない場合は'nan'で埋めておく
             self.dataframes['stops']['parent_station'] = 'nan'
 
-    def stops_count(self):
-        stops_df = self.dataframes['stops']
-        return len(stops_df)
-
     def read_stops(self, ignore_no_route=False):
         stops_df = self.dataframes['stops'][[
             'stop_id', 'stop_lat', 'stop_lon', 'stop_name']]
         route_id_on_stops = self.get_route_ids_on_stops()
 
+        features = []
         for stop in stops_df.itertuples():
             if stop.stop_id in route_id_on_stops:
                 route_ids = route_id_on_stops.at[stop.stop_id].tolist()
@@ -56,7 +53,7 @@ class GTFSParser:
                     continue
                 route_ids = []
 
-            yield {
+            features.append({
                 'type': 'Feature',
                 'geometry': {
                     'type': 'Point',
@@ -67,7 +64,8 @@ class GTFSParser:
                     'stop_name': stop.stop_name,
                     'route_ids': route_ids
                 }
-            }
+            })
+        return features
 
     def get_route_ids_on_stops(self):
         stop_times_trip_df = pd.merge(
@@ -248,21 +246,21 @@ class GTFSParser:
             stops_df = self.dataframes.get(
                 'stops')[['stop_id', 'stop_lon', 'stop_lat']]
 
-            merged = pd.merge(stop_times_df, trips_routes, on='trip_id')
             merged = pd.merge(
-                merged, stops_df[['stop_id', 'stop_lon', 'stop_lat']], on='stop_id')
+                stop_times_df, stops_df[['stop_id', 'stop_lon', 'stop_lat']], on='stop_id')
+            merged = pd.merge(merged, trips_routes, on='trip_id')
             merged['route_concat_name'] = merged['route_long_name'].fillna('') + \
                 merged['route_short_name'].fillna('')
 
             route_ids = merged['route_id'].unique()
-            print(len(route_ids))
+
+            features = []
             for route_id in route_ids:
                 route = merged[merged['route_id'] == route_id]
-                print(route)
                 trip_id = route['trip_id'].unique()[0]
                 route = route[route['trip_id'] ==
                               trip_id].sort_values('stop_sequence')
-                yield {
+                features.append({
                     'type': 'Feature',
                     'geometry': {
                         'type': 'LineString',
@@ -272,15 +270,17 @@ class GTFSParser:
                         'route_id': str(route_id),
                         'route_name': route.route_concat_name.values.tolist()[0],
                     }
-                }
+                })
+            return features
         else:
             shape_coords = self.get_shapes_coordinates()
             shape_ids_on_routes = self.get_shape_ids_on_routes()
+            features = []
             for route in self.dataframes.get('routes').itertuples():
                 coordinates = [shape_coords.at[shape_id]
                                for shape_id in shape_ids_on_routes[route.route_id]]
                 route_name = self.get_route_name_from_tupple(route)
-                yield {
+                features.append({
                     'type': 'Feature',
                     'geometry': {
                         'type': 'MultiLineString',
@@ -290,7 +290,8 @@ class GTFSParser:
                         'route_id': str(route.route_id),
                         'route_name': route_name,
                     }
-                }
+                })
+            return features
 
     @ lru_cache(maxsize=None)
     def get_destination_stop_of(self, trip_id):
@@ -352,22 +353,19 @@ if __name__ == "__main__":
             'type': 'FeatureCollection',
             'features': stops_features
         }
-        print('stop finished')
         routes_features = gtfs_parser.read_route_frequency()
         routes_geojson = {
             'type': 'FeatureCollection',
             'features': routes_features
         }
-        print('routes finished')
     else:
-        routes_features = [route for route in gtfs_parser.read_routes(
-            no_shapes=args.no_shapes)]
+        routes_features = gtfs_parser.read_routes(no_shapes=args.no_shapes)
         routes_geojson = {
             'type': 'FeatureCollection',
             'features': routes_features
         }
-        stops_features = [stop for stop in gtfs_parser.read_stops(
-            ignore_no_route=args.ignore_no_route)]
+        stops_features = gtfs_parser.read_stops(
+            ignore_no_route=args.ignore_no_route)
         stops_geojson = {
             'type': 'FeatureCollection',
             'features': stops_features
