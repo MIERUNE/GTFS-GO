@@ -361,6 +361,11 @@ if __name__ == "__main__":
     if args.zip is None and args.src_dir is None:
         raise RuntimeError('gtfs-jp-parser needs zipfile or src_dir.')
 
+    if args.yyyymmdd:
+        if len(args.yyyymmdd) != 8:
+            raise RuntimeError(
+                f'yyyymmdd must be 8 characters string, for example 20210401, your is {args.yyyymmdd} ({len(args.yyyymmdd)} characters)')
+
     if args.zip:
         print('extracting zipfile...')
         temp_dir = os.path.join(tempfile.gettempdir(), 'gtfs-jp-parser')
