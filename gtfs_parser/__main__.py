@@ -25,7 +25,7 @@ class GTFSParser:
                 print(f'{datatype} is not specified in GTFS, skipping...')
                 continue
             with open(txt, encoding='utf-8_sig') as t:
-                df = pd.read_csv(t)
+                df = pd.read_csv(t, dtype=str)
                 if len(df) == 0:
                     print(f'{datatype}.txt is empty, skipping...')
                     continue
@@ -34,6 +34,13 @@ class GTFSParser:
             if GTFS_DATATYPES[datatype]['required'] and \
                     datatype not in self.dataframes:
                 raise FileNotFoundError(f'{datatype} is not exists.')
+
+        self.dataframes['stops'] = self.dataframes['stops'].astype(
+            {'stop_lon': float, 'stop_lat': float})
+        self.dataframes['stop_times'] = self.dataframes['stop_times'].astype({
+                                                                             'stop_sequence': int})
+        self.dataframes['shapes'] = self.dataframes['shapes'].astype(
+            {'shape_pt_lon': float, 'shape_pt_lat': float, 'shape_pt_sequence': int})
 
         if 'parent_station' not in self.dataframes.get('stops').columns:
             # あとで比較するためにparent_stationカラムがない場合は'nan'で埋めておく
@@ -141,7 +148,7 @@ class GTFSParser:
         } for path in path_data_dict]
 
     @ lru_cache(maxsize=None)
-    def get_similar_stops_centroid(self, stop_id: str, max_distance_degree=0.01, delimiter='_'):
+    def get_similar_stops_centroid(self, stop_id: str, max_distance_degree=0.01, delimiter=''):
         """
         基準となる停留所の名称・位置から、名寄せすべき停留所の平均座標を算出
         Args:
@@ -166,7 +173,7 @@ class GTFSParser:
                     f'(stop_lon - {stop["stop_lon"]}) ** 2 + (stop_lat - {stop["stop_lat"]}) ** 2  < {max_distance_degree ** 2}')
             return similar_stops.mean().values.tolist()
         else:
-            return stops_df[stops_df['stop_id'] == stop['parent_station']][['stop_lon', 'stop_lat']].iloc[0].mean().values.tolist()
+            return stops_df[stops_df['stop_id'] == stop['parent_station']][['stop_lon', 'stop_lat']].iloc[0].values.tolist()
 
     @ lru_cache(maxsize=None)
     def get_stops_id_delimited(self, delimiter):
@@ -222,6 +229,10 @@ class GTFSParser:
         shapes_df['pt'] = shapes_df[[
             'shape_pt_lon', 'shape_pt_lat']].values.tolist()
         return shapes_df.groupby('shape_id')['pt'].apply(list)
+
+    @ classmethod
+    def filter_trips_by(trips_df, yyyymmdd: str):
+        return None
 
     def read_routes(self, no_shapes=False):
         if self.dataframes.get('shapes') is None or no_shapes:
