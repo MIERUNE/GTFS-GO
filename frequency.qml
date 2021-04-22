@@ -14,6 +14,42 @@
           <prop v="MM" k="dash_pattern_offset_unit"/>
           <prop v="0" k="draw_inside_polygon"/>
           <prop v="bevel" k="joinstyle"/>
+          <prop v="255,255,255,255" k="line_color"/>
+          <prop v="solid" k="line_style"/>
+          <prop v="0.26" k="line_width"/>
+          <prop v="MM" k="line_width_unit"/>
+          <prop v="0" k="offset"/>
+          <prop v="3x:0,0,0,0,0,0" k="offset_map_unit_scale"/>
+          <prop v="MM" k="offset_unit"/>
+          <prop v="0" k="ring_filter"/>
+          <prop v="0" k="tweak_dash_pattern_on_corners"/>
+          <prop v="0" k="use_custom_dash"/>
+          <prop v="3x:0,0,0,0,0,0" k="width_map_unit_scale"/>
+          <data_defined_properties>
+            <Option type="Map">
+              <Option type="QString" name="name" value=""/>
+              <Option type="Map" name="properties">
+                <Option type="Map" name="outlineWidth">
+                  <Option type="bool" name="active" value="true"/>
+                  <Option type="QString" name="expression" value="(&quot;frequency&quot;^0.5) * 0.15"/>
+                  <Option type="int" name="type" value="3"/>
+                </Option>
+              </Option>
+              <Option type="QString" name="type" value="collection"/>
+            </Option>
+          </data_defined_properties>
+        </layer>
+        <layer enabled="1" pass="0" locked="0" class="SimpleLine">
+          <prop v="0" k="align_dash_pattern"/>
+          <prop v="square" k="capstyle"/>
+          <prop v="5;2" k="customdash"/>
+          <prop v="3x:0,0,0,0,0,0" k="customdash_map_unit_scale"/>
+          <prop v="MM" k="customdash_unit"/>
+          <prop v="0" k="dash_pattern_offset"/>
+          <prop v="3x:0,0,0,0,0,0" k="dash_pattern_offset_map_unit_scale"/>
+          <prop v="MM" k="dash_pattern_offset_unit"/>
+          <prop v="0" k="draw_inside_polygon"/>
+          <prop v="bevel" k="joinstyle"/>
           <prop v="17,185,48,255" k="line_color"/>
           <prop v="solid" k="line_style"/>
           <prop v="0.26" k="line_width"/>
