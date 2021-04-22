@@ -180,20 +180,20 @@ class GTFSParser:
             return stops_df[stops_df['stop_id'] == stop['parent_station']][['stop_lon', 'stop_lat']].iloc[0].values.tolist()
 
         if delimiter:
-            stop_id_prefix = stop_id.rsplit(delimiter, 1)[0]
             stops_df_id_delimited = self.get_stops_id_delimited(delimiter)
+            stop_id_prefix = stop_id.rsplit(delimiter, 1)[0]
             if stop_id_prefix != stop_id:
-                seperated_only_stops = stops_df_id_delimited[stops_df_id_delimited['seperated']]
+                seperated_only_stops = stops_df_id_delimited[stops_df_id_delimited['delimited']]
                 similar_stops = seperated_only_stops[seperated_only_stops['stop_id_prefix'] == stop_id_prefix][[
                     'similar_stops_centroid_lon', 'similar_stops_centroid_lat']]
                 return similar_stops.values.tolist()[0]
             else:
                 # when cannot seperate stop_id, grouping by name and distance
-                stops_df = stops_df_id_delimited[~stops_df_id_delimited['seperated']]
+                stops_df = stops_df_id_delimited[~stops_df_id_delimited['delimited']]
 
         # grouping by name and distance
         similar_stops = stops_df[stops_df['stop_name'] == stop['stop_name']][[
-            'stop_lon', 'stop_lat']].copy()
+            'stop_lon', 'stop_lat']]
         similar_stops = similar_stops.query(
             f'(stop_lon - {stop["stop_lon"]}) ** 2 + (stop_lat - {stop["stop_lat"]}) ** 2  < {max_distance_degree ** 2}')
         return similar_stops.mean().values.tolist()
@@ -211,7 +211,7 @@ class GTFSParser:
             'stops')[['stop_id', 'stop_name', 'stop_lon', 'stop_lat', 'parent_station']].copy()
         stops_df['stop_id_prefix'] = stops_df['stop_id'].map(
             lambda stop_id: stop_id.rsplit(delimiter, 1)[0])
-        stops_df['seperated'] = stops_df['stop_id'] != stops_df['stop_id_prefix']
+        stops_df['delimited'] = stops_df['stop_id'] != stops_df['stop_id_prefix']
         grouped_by_prefix = stops_df[[
             'stop_id_prefix', 'stop_lon', 'stop_lat']].groupby('stop_id_prefix').mean().reset_index()
         grouped_by_prefix.columns = [
@@ -336,6 +336,8 @@ class GTFSParser:
             shape_ids_on_routes = self.get_shape_ids_on_routes()
             features = []
             for route in self.dataframes.get('routes').itertuples():
+                if shape_ids_on_routes.get(route.route_id) is None:
+                    continue
                 coordinates = [shape_coords.at[shape_id]
                                for shape_id in shape_ids_on_routes[route.route_id]]
                 route_name = self.get_route_name_from_tupple(route)
@@ -350,6 +352,24 @@ class GTFSParser:
                         'route_name': route_name,
                     }
                 })
+            loaded_shape_ids = list(set(sum([list(val)
+                                             for val in shape_ids_on_routes], [])))
+
+            for shape_id in shape_coords.index:
+                if shape_id in loaded_shape_ids:
+                    continue
+                features.append({
+                    'type': 'Feature',
+                    'geometry': {
+                        'type': 'MultiLineString',
+                        'coordinates': [shape_coords.at[shape_id]]
+                    },
+                    'properties': {
+                        'route_id': None,
+                        'route_name': str(shape_id),
+                    }
+                })
+
             return features
 
 
