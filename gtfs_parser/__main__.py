@@ -148,7 +148,7 @@ class GTFSParser:
 
         # filter stop_times by whether serviced or not
         if yyyymmdd:
-            trips_filtered_by_day = self.get_trips_on_a_day(yyyymmdd)
+            trips_filtered_by_day = self.get_trips_on_a_date(yyyymmdd)
             stop_times_df = pd.merge(
                 stop_times_df, trips_filtered_by_day, on='trip_id', how='left')
             stop_times_df = stop_times_df[stop_times_df['service_flag'] == 1]
@@ -220,12 +220,16 @@ class GTFSParser:
     @ lru_cache(maxsize=None)
     def get_similar_stops_centroid(self, stop_id: str, delimiter='', max_distance_degree=0.01):
         """
-        基準となる停留所の名称・位置から、名寄せすべき停留所の平均座標を算出
+        With one stop_id, group stops by parent, stop_id, or stop_name and each distance, and calc centroid of them.
+        - parent: this is simple, if stop has parent_station, the 'centroid' is parent_station lat-lon
+        - stop_id: by delimiter seperate stop_id into prefix and suffix, and group stops having same stop_id-prefix
+        - name and distance: group stops by stop_name, excluding stops are far than max_distance_degree
+
         Args:
-            stop_id (str): 基準となる停留所のstop_id
-            max_distance_degree (float, optional): 近傍判定における許容範囲、経緯度での距離 Defaults to 0.01.
+            stop_id (str): target stop_id
+            max_distance_degree (float, optional): distance limit on grouping, Defaults to 0.01.
         Returns:
-            [float, float]: 名寄せされた停留所の平均座標
+            [float, float]: centroid of grouped stops
         """
         stops_df = self.dataframes['stops']
         stop = stops_df[stops_df['stop_id'] == stop_id].iloc[0]
@@ -308,7 +312,16 @@ class GTFSParser:
             'shape_pt_lon', 'shape_pt_lat']].values.tolist()
         return shapes_df.groupby('shape_id')['pt'].apply(list)
 
-    def get_trips_on_a_day(self, yyyymmdd: str):
+    def get_trips_on_a_date(self, yyyymmdd: str):
+        """
+        get trips are on service on a date.
+
+        Args:
+            yyyymmdd (str): [description]
+
+        Returns:
+            [type]: [description]
+        """
         # sunday, monday, tuesday...
         day_of_week = datetime.date(int(yyyymmdd[0:4]), int(
             yyyymmdd[4:6]), int(yyyymmdd[6:8])).strftime('%A').lower()
