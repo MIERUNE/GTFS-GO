@@ -49,7 +49,17 @@ class GTFSParser:
             # when parent_station is not in stops, fill by 'nan' (not NaN)
             self.dataframes['stops']['parent_station'] = 'nan'
 
-    def read_stops(self, ignore_no_route=False):
+    def read_stops(self, ignore_no_route=False) -> list:
+        """
+        read stops by stops table
+
+        Args:
+            ignore_no_route (bool, optional): stops unconnected to routes are skipped. Defaults to False.
+
+        Returns:
+            list: [description]
+        """
+
         stops_df = self.dataframes['stops'][[
             'stop_id', 'stop_lat', 'stop_lon', 'stop_name']]
         route_id_on_stops = self.get_route_ids_on_stops()
@@ -88,6 +98,19 @@ class GTFSParser:
         return group
 
     def read_interpolated_stops(self, delimiter='', max_distance_degree=0.01):
+        """
+        Read stops "interpolated" by parent station or stop_id or stop_name and distance.
+        There are many similar stops that are near to each, has same name, or has same prefix in stop_id.
+        In traffic analyzing, it is good for that similar stops to be grouped as same stop.
+        This method group them by some elements, parent, id, name and distance.
+
+        Args:
+            delimiter (str, optional): stop_id delimiter, sample_A, sample_B, then delimiter is '_'. Defaults to ''.
+            max_distance_degree (float, optional): distance limit in grouping by stop_name. Defaults to 0.01.
+
+        Returns:
+            [type]: [description]
+        """
         stops_df = self.dataframes.get('stops')
         stops_df['similar_stops_centroid'] = stops_df['stop_id'].map(
             lambda stop_id: self.get_similar_stops_centroid(stop_id, delimiter, max_distance_degree))
@@ -107,6 +130,18 @@ class GTFSParser:
         } for stop in stop_dicts]
 
     def read_route_frequency(self, yyyymmdd='', delimiter='', max_distance_degree=0.01):
+        """
+        By grouped stops, aggregate route frequency.
+        Filtering trips by a date, you can aggregate frequency only route serviced on the date.
+
+        Args:
+            yyyymmdd (str, optional): date, like 20210401. Defaults to ''.
+            delimiter (str, optional): stop_id delimiter, sample_A, sample_B, then delimiter is '_'. Defaults to ''.
+            max_distance_degree (float, optional): distance limit in grouping by stop_name. Defaults to 0.01.
+
+        Returns:
+            [type]: [description]
+        """
         stop_times_df = self.dataframes.get(
             'stop_times')[['stop_id', 'trip_id', 'stop_sequence']].sort_values(
             ['trip_id', 'stop_sequence']).copy()
@@ -118,10 +153,23 @@ class GTFSParser:
                 stop_times_df, trips_filtered_by_day, on='trip_id', how='left')
             stop_times_df = stop_times_df[stop_times_df['service_flag'] == 1]
 
+        # join agency info)
+        stop_times_df = pd.merge(stop_times_df, self.dataframes['trips'][[
+                                 'trip_id', 'route_id']], on='trip_id', how='left')
+        stop_times_df = pd.merge(stop_times_df, self.dataframes['routes'][[
+                                 'route_id', 'agency_id']], on='route_id', how='left')
+        stop_times_df = pd.merge(stop_times_df, self.dataframes['agency'][[
+                                 'agency_id', 'agency_name']], on='agency_id', how='left')
+
+        # get prev and next stops_id, stop_name, trip_id
+        stop_times_df = pd.merge(stop_times_df, self.dataframes['stops'][[
+                                 'stop_id', 'stop_name']], on='stop_id', how='left')
         stop_times_df['prev_stop_id'] = stop_times_df['stop_id']
         stop_times_df['prev_trip_id'] = stop_times_df['trip_id']
+        stop_times_df['prev_stop_name'] = stop_times_df['stop_name']
         stop_times_df['next_stop_id'] = stop_times_df['stop_id'].shift(-1)
         stop_times_df['next_trip_id'] = stop_times_df['trip_id'].shift(-1)
+        stop_times_df['next_stop_name'] = stop_times_df['stop_name'].shift(-1)
 
         # drop last stops (-> stops has no next stop)
         stop_times_df = stop_times_df.drop(
@@ -159,7 +207,13 @@ class GTFSParser:
                                 path['next_similar_stops_centroid'])
             },
             'properties': {
-                'frequency': path['path_count']
+                'frequency': path['path_count'],
+                'prev_stop_id': path['prev_stop_id'],
+                'prev_stop_name': path['prev_stop_name'],
+                'next_stop_id': path['next_stop_id'],
+                'next_stop_name': path['next_stop_name'],
+                'agency_id':path['agency_id'],
+                'agency_name': path['agency_name']
             }
         } for path in path_data_dict]
 
@@ -291,28 +345,43 @@ class GTFSParser:
 
         return trip_service[['trip_id', 'service_flag']]
 
-    def read_routes(self, no_shapes=False):
+    def read_routes(self, no_shapes=False) -> list:
+        """
+        read routes by shapes or stop_times
+        First, this method try to load shapes and parse it into routes,
+        but shapes is optional table in GTFS. Then is shapes does not exist or no_shapes is True,
+        this parse routes by stop_time, stops, trips, and routes.
+
+        Args:
+            no_shapes (bool, optional): ignore shapes table. Defaults to False.
+
+        Returns:
+            [list]: list of GeoJSON-Feature-dict
+        """
         if self.dataframes.get('shapes') is None or no_shapes:
             # no-shape routes
+
+            # trip-route-merge:A
             trips_df = self.dataframes['trips'][['trip_id', 'route_id']]
             routes_df = self.dataframes['routes'][[
                 'route_id', 'route_long_name', 'route_short_name']]
-
             trips_routes = pd.merge(trips_df, routes_df, on='route_id')
 
+            # stop_times-stops-merge:B
             stop_times_df = self.dataframes['stop_times'][[
                 'stop_id', 'trip_id', 'stop_sequence']]
             stops_df = self.dataframes.get(
                 'stops')[['stop_id', 'stop_lon', 'stop_lat']]
-
             merged = pd.merge(
                 stop_times_df, stops_df[['stop_id', 'stop_lon', 'stop_lat']], on='stop_id')
+
+            # A-B-merge
             merged = pd.merge(merged, trips_routes, on='trip_id')
             merged['route_concat_name'] = merged['route_long_name'].fillna('') + \
                 merged['route_short_name'].fillna('')
 
+            # parse routes
             route_ids = merged['route_id'].unique()
-
             features = []
             for route_id in route_ids:
                 route = merged[merged['route_id'] == route_id]
@@ -352,9 +421,12 @@ class GTFSParser:
                         'route_name': route_name,
                     }
                 })
+
+            # list-up already loaded shape_ids, dropping dupulicates
             loaded_shape_ids = list(set(sum([list(val)
                                              for val in shape_ids_on_routes], [])))
 
+            # load shape_ids unloaded yet
             for shape_id in shape_coords.index:
                 if shape_id in loaded_shape_ids:
                     continue
@@ -369,7 +441,6 @@ class GTFSParser:
                         'route_name': str(shape_id),
                     }
                 })
-
             return features
 
 
