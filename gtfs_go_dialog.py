@@ -29,13 +29,14 @@ import urllib
 import shutil
 import zipfile
 import tempfile
+import datetime
 
 from qgis.PyQt import QtWidgets, uic
+from PyQt5.QtCore import QDate
 from qgis.core import *
 
 from .gtfs_parser import GTFSParser
 
-from .gtfs_go_loader import GTFSGoLoader
 from .gtfs_go_renderer import Renderer
 from .gtfs_go_labeling import get_labeling_for_stops
 from .gtfs_go_settings import (
@@ -79,6 +80,11 @@ class GTFSGoDialog(QtWidgets.QDialog):
         self.ui.simpleRadioButton.clicked.connect(self.refresh)
         self.ui.freqRadioButton.clicked.connect(self.refresh)
 
+        # set today DateEdit
+        now = datetime.datetime.now()
+        self.ui.filterByDateDateEdit.setDate(
+            QDate(now.year, now.month, now.day))
+
         self.refresh()
 
         self.ui.pushButton.clicked.connect(self.execution)
@@ -87,6 +93,7 @@ class GTFSGoDialog(QtWidgets.QDialog):
         """
         parse data to combobox-text
         data-schema: {
+            country: str,
             region: str,
             name: str,
             url: str
@@ -98,9 +105,7 @@ class GTFSGoDialog(QtWidgets.QDialog):
         Returns:
             str: combobox-text
         """
-        if data.get('region') is None:
-            return data["name"]
-        return '[' + data["region"] + ']' + data["name"]
+        return '[' + data["country"] + ']' + '[' + data["region"] + ']' + data["name"]
 
     def download_zip(self, url: str) -> str:
         data = urllib.request.urlopen(url).read()
@@ -143,11 +148,12 @@ class GTFSGoDialog(QtWidgets.QDialog):
         else:
             routes_geojson = {
                 'type': 'FeatureCollection',
-                'features': gtfs_parser.read_route_frequency()
+                'features': gtfs_parser.read_route_frequency(yyyymmdd=self.get_yyyymmdd(),
+                                                             delimiter=self.get_delimiter())
             }
             stops_geojson = {
                 'type': 'FeatureCollection',
-                'features': gtfs_parser.read_interpolated_stops()
+                'features': gtfs_parser.read_interpolated_stops(delimiter=self.get_delimiter())
             }
 
         output_dir = os.path.join(
@@ -161,6 +167,20 @@ class GTFSGoDialog(QtWidgets.QDialog):
         self.show_geojson(output_dir)
 
         self.ui.close()
+
+    def get_yyyymmdd(self):
+        if not self.ui.filterByDateCheckBox.isChecked():
+            return ''
+        date = self.ui.filterByDateDateEdit.date()
+        yyyy = str(date.year()).zfill(4)
+        mm = str(date.month()).zfill(2)
+        dd = str(date.day()).zfill(2)
+        return yyyy + mm + dd
+
+    def get_delimiter(self):
+        if not self.ui.delimiterCheckBox.isChecked():
+            return ''
+        return self.ui.delimiterLineEdit.text()
 
     def show_geojson(self, geojson_dir: str):
         # these geojsons will already have been generated
@@ -178,6 +198,7 @@ class GTFSGoDialog(QtWidgets.QDialog):
         if self.ui.simpleRadioButton.isChecked():
             routes_vlayer.setRenderer(routes_renderer.make_renderer())
         else:
+            # set style from QML
             routes_vlayer.loadNamedStyle(os.path.join(
                 os.path.dirname(__file__), 'frequency.qml'))
 

@@ -31,7 +31,7 @@
               <Option type="Map" name="properties">
                 <Option type="Map" name="outlineWidth">
                   <Option type="bool" name="active" value="true"/>
-                  <Option type="QString" name="expression" value="(&quot;frequency&quot;^0.5) * 0.15"/>
+                  <Option type="QString" name="expression" value="(&quot;frequency&quot;^0.4) * 0.4"/>
                   <Option type="int" name="type" value="3"/>
                 </Option>
               </Option>
@@ -67,7 +67,7 @@
               <Option type="Map" name="properties">
                 <Option type="Map" name="outlineWidth">
                   <Option type="bool" name="active" value="true"/>
-                  <Option type="QString" name="expression" value="(&quot;frequency&quot;^0.5) * 0.08"/>
+                  <Option type="QString" name="expression" value="(&quot;frequency&quot;^0.4) * 0.2"/>
                   <Option type="int" name="type" value="3"/>
                 </Option>
               </Option>
