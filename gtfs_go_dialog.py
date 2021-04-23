@@ -23,12 +23,20 @@
 """
 
 import os
+import time
 import json
+import urllib
+import shutil
+import zipfile
+import tempfile
+import datetime
 
 from qgis.PyQt import QtWidgets, uic
+from PyQt5.QtCore import QDate
 from qgis.core import *
 
-from .gtfs_go_loader import GTFSGoLoader
+from .gtfs_parser import GTFSParser
+
 from .gtfs_go_renderer import Renderer
 from .gtfs_go_labeling import get_labeling_for_stops
 from .gtfs_go_settings import (
@@ -41,6 +49,8 @@ from .gtfs_go_settings import (
 
 DATALIST_JSON_PATH = os.path.join(
     os.path.dirname(__file__), 'gtfs_go_datalist.json')
+
+TEMP_DIR = os.path.join(tempfile.gettempdir(), 'GTFSGo')
 
 
 class GTFSGoDialog(QtWidgets.QDialog):
@@ -60,9 +70,21 @@ class GTFSGoDialog(QtWidgets.QDialog):
         self.ui.comboBox.addItem(self.combobox_zip_text, None)
         for data in self.datalist:
             self.ui.comboBox.addItem(self.make_combobox_text(data), data)
+
+        # set refresh event on some ui
         self.ui.comboBox.currentIndexChanged.connect(self.refresh)
         self.ui.zipFileWidget.fileChanged.connect(self.refresh)
         self.ui.outputDirFileWidget.fileChanged.connect(self.refresh)
+
+        # change mode by radio button
+        self.ui.simpleRadioButton.clicked.connect(self.refresh)
+        self.ui.freqRadioButton.clicked.connect(self.refresh)
+
+        # set today DateEdit
+        now = datetime.datetime.now()
+        self.ui.filterByDateDateEdit.setDate(
+            QDate(now.year, now.month, now.day))
+
         self.refresh()
 
         self.ui.pushButton.clicked.connect(self.execution)
@@ -71,6 +93,7 @@ class GTFSGoDialog(QtWidgets.QDialog):
         """
         parse data to combobox-text
         data-schema: {
+            country: str,
             region: str,
             name: str,
             url: str
@@ -82,22 +105,82 @@ class GTFSGoDialog(QtWidgets.QDialog):
         Returns:
             str: combobox-text
         """
-        if data.get('region') is None:
-            return data["name"]
-        return '[' + data["region"] + ']' + data["name"]
+        return '[' + data["country"] + ']' + '[' + data["region"] + ']' + data["name"]
+
+    def download_zip(self, url: str) -> str:
+        data = urllib.request.urlopen(url).read()
+        download_path = os.path.join(TEMP_DIR, str(int(time.time())) + '.zip')
+        with open(download_path, mode='wb') as f:
+            f.write(data)
+
+        return download_path
+
+    def extract_zip(self, zip_path: str) -> str:
+        extracted_dir = os.path.join(TEMP_DIR, 'extract')
+        os.makedirs(extracted_dir, exist_ok=True)
+        with zipfile.ZipFile(zip_path) as z:
+            z.extractall(extracted_dir)
+        return extracted_dir
 
     def execution(self):
-        loader = GTFSGoLoader(
-            self.get_source(),
-            os.path.join(self.outputDirFileWidget.filePath(),
-                         self.get_group_name()),
-            self.ui.ignoreShapesCheckbox.isChecked(),
-            self.ui.ignoreNoRouteStopsCheckbox.isChecked())
-        loader.geojsonWritingFinished.connect(
-            lambda output_dir: self.show_geojson(output_dir))
-        loader.loadingAborted.connect(self.ui.show)
-        loader.show()
-        self.ui.hide()
+        if os.path.exists(TEMP_DIR):
+            shutil.rmtree(TEMP_DIR)
+        os.makedirs(TEMP_DIR, exist_ok=True)
+
+        zip_src = self.get_source()
+        if zip_src.startswith('http'):
+            zip_path = self.download_zip(zip_src)
+        else:
+            zip_path = zip_src
+
+        extracted_dir = self.extract_zip(zip_path)
+
+        gtfs_parser = GTFSParser(extracted_dir)
+        if self.ui.simpleRadioButton.isChecked():
+            routes_geojson = {
+                'type': 'FeatureCollection',
+                'features': gtfs_parser.read_routes(no_shapes=self.ui.ignoreShapesCheckbox.isChecked())
+            }
+            stops_geojson = {
+                'type': 'FeatureCollection',
+                'features': gtfs_parser.read_stops(ignore_no_route=self.ui.ignoreNoRouteStopsCheckbox.isChecked())
+            }
+        else:
+            routes_geojson = {
+                'type': 'FeatureCollection',
+                'features': gtfs_parser.read_route_frequency(yyyymmdd=self.get_yyyymmdd(),
+                                                             delimiter=self.get_delimiter())
+            }
+            stops_geojson = {
+                'type': 'FeatureCollection',
+                'features': gtfs_parser.read_interpolated_stops(delimiter=self.get_delimiter())
+            }
+
+        output_dir = os.path.join(
+            self.outputDirFileWidget.filePath(), self.get_group_name())
+        os.makedirs(output_dir, exist_ok=True)
+        with open(os.path.join(output_dir, FILENAME_ROUTES_GEOJSON), mode='w') as f:
+            json.dump(routes_geojson, f, ensure_ascii=False)
+        with open(os.path.join(output_dir, FILENAME_STOPS_GEOJSON), mode='w') as f:
+            json.dump(stops_geojson, f, ensure_ascii=False)
+
+        self.show_geojson(output_dir)
+
+        self.ui.close()
+
+    def get_yyyymmdd(self):
+        if not self.ui.filterByDateCheckBox.isChecked():
+            return ''
+        date = self.ui.filterByDateDateEdit.date()
+        yyyy = str(date.year()).zfill(4)
+        mm = str(date.month()).zfill(2)
+        dd = str(date.day()).zfill(2)
+        return yyyy + mm + dd
+
+    def get_delimiter(self):
+        if not self.ui.delimiterCheckBox.isChecked():
+            return ''
+        return self.ui.delimiterLineEdit.text()
 
     def show_geojson(self, geojson_dir: str):
         # these geojsons will already have been generated
@@ -111,7 +194,13 @@ class GTFSGoDialog(QtWidgets.QDialog):
         stops_renderer = Renderer(stops_vlayer, 'stop_name')
         routes_renderer = Renderer(routes_vlayer, 'route_name')
         stops_vlayer.setRenderer(stops_renderer.make_renderer())
-        routes_vlayer.setRenderer(routes_renderer.make_renderer())
+
+        if self.ui.simpleRadioButton.isChecked():
+            routes_vlayer.setRenderer(routes_renderer.make_renderer())
+        else:
+            # set style from QML
+            routes_vlayer.loadNamedStyle(os.path.join(
+                os.path.dirname(__file__), 'frequency.qml'))
 
         # make and set labeling for stops
         stops_labeling = get_labeling_for_stops()
@@ -144,6 +233,9 @@ class GTFSGoDialog(QtWidgets.QDialog):
             self.ui.comboBox.currentText() == self.combobox_zip_text)
         self.ui.pushButton.setEnabled((self.get_source() is not None) and
                                       (not self.ui.outputDirFileWidget.filePath() == ''))
+
+        self.ui.simpleFrame.setEnabled(self.ui.simpleRadioButton.isChecked())
+        self.ui.freqFrame.setEnabled(self.ui.freqRadioButton.isChecked())
 
     def get_group_name(self):
         if self.ui.comboBox.currentData():
