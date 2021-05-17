@@ -16,7 +16,7 @@ except:
 
 
 class GTFSParser:
-    def __init__(self, src_dir: str):
+    def __init__(self, src_dir: str, as_frequency=False, delimiter='', max_distance_degree=0.01):
         txts = glob.glob(os.path.join(
             src_dir, '**', '*.txt'), recursive=True)
         self.dataframes = {}
@@ -48,6 +48,10 @@ class GTFSParser:
             # parent_station is optional column on GTFS but use in this module
             # when parent_station is not in stops, fill by 'nan' (not NaN)
             self.dataframes['stops']['parent_station'] = 'nan'
+
+        if as_frequency:
+            self.dataframes['stops']['similar_stops_centroid'] = self.dataframes['stops']['stop_id'].map(
+                lambda stop_id: self.get_similar_stops_centroid(stop_id, delimiter, max_distance_degree))
 
     def read_stops(self, ignore_no_route=False) -> list:
         """
@@ -97,7 +101,7 @@ class GTFSParser:
         group.apply(lambda x: x.sort())
         return group
 
-    def read_interpolated_stops(self, delimiter='', max_distance_degree=0.01):
+    def read_interpolated_stops(self):
         """
         Read stops "interpolated" by parent station or stop_id or stop_name and distance.
         There are many similar stops that are near to each, has same name, or has same prefix in stop_id.
@@ -112,9 +116,6 @@ class GTFSParser:
             [type]: [description]
         """
         stops_df = self.dataframes.get('stops')
-        stops_df['similar_stops_centroid'] = stops_df['stop_id'].map(
-            lambda stop_id: self.get_similar_stops_centroid(stop_id, delimiter, max_distance_degree))
-
         stop_dicts = stops_df[[
             'stop_id', 'stop_name', 'similar_stops_centroid']].to_dict(orient='records')
         return [{
@@ -129,7 +130,7 @@ class GTFSParser:
             }
         } for stop in stop_dicts]
 
-    def read_route_frequency(self, yyyymmdd='', delimiter='', max_distance_degree=0.01):
+    def read_route_frequency(self, yyyymmdd=''):
         """
         By grouped stops, aggregate route frequency.
         Filtering trips by a date, you can aggregate frequency only route serviced on the date.
@@ -163,27 +164,20 @@ class GTFSParser:
 
         # get prev and next stops_id, stop_name, trip_id
         stop_times_df = pd.merge(stop_times_df, self.dataframes['stops'][[
-                                 'stop_id', 'stop_name']], on='stop_id', how='left')
+                                 'stop_id', 'stop_name', 'similar_stops_centroid']], on='stop_id', how='left')
         stop_times_df['prev_stop_id'] = stop_times_df['stop_id']
         stop_times_df['prev_trip_id'] = stop_times_df['trip_id']
         stop_times_df['prev_stop_name'] = stop_times_df['stop_name']
+        stop_times_df['prev_similar_stops_centroid'] = stop_times_df['similar_stops_centroid']
         stop_times_df['next_stop_id'] = stop_times_df['stop_id'].shift(-1)
         stop_times_df['next_trip_id'] = stop_times_df['trip_id'].shift(-1)
         stop_times_df['next_stop_name'] = stop_times_df['stop_name'].shift(-1)
+        stop_times_df['next_similar_stops_centroid'] = stop_times_df['similar_stops_centroid'].shift(
+            -1)
 
         # drop last stops (-> stops has no next stop)
         stop_times_df = stop_times_df.drop(
             index=stop_times_df.query('prev_trip_id != next_trip_id').index)
-
-        # calculate similar stops centroid
-        stop_times_df['prev_similar_stops_centroid'] = stop_times_df['prev_stop_id'].map(
-            lambda stop_id: self.get_similar_stops_centroid(stop_id,
-                                                            delimiter,
-                                                            max_distance_degree))
-        stop_times_df['next_similar_stops_centroid'] = stop_times_df['next_stop_id'].map(
-            lambda stop_id: self.get_similar_stops_centroid(stop_id,
-                                                            delimiter,
-                                                            max_distance_degree))
 
         # define path_id by prev-stops-centroid and next-stops-centroid
         def latlon_to_str(latlon): return ''.join(
@@ -487,11 +481,11 @@ if __name__ == "__main__":
         os.mkdir(temp_dir)
         with zipfile.ZipFile(args.zip) as z:
             z.extractall(temp_dir)
-        gtfs_parser = GTFSParser(temp_dir)
         output_dir = temp_dir
     else:
-        gtfs_parser = GTFSParser(args.src_dir)
         output_dir = args.src_dir
+    gtfs_parser = GTFSParser(
+        output_dir, as_frequency=args.frequency, delimiter=args.delimiter)
 
     print('GTFS loaded.')
 
@@ -499,14 +493,13 @@ if __name__ == "__main__":
         output_dir = args.output_dir
 
     if args.frequency:
-        stops_features = gtfs_parser.read_interpolated_stops(
-            delimiter=args.delimiter)
+        stops_features = gtfs_parser.read_interpolated_stops()
         stops_geojson = {
             'type': 'FeatureCollection',
             'features': stops_features
         }
         routes_features = gtfs_parser.read_route_frequency(
-            yyyymmdd=args.yyyymmdd, delimiter=args.delimiter)
+            yyyymmdd=args.yyyymmdd)
         routes_geojson = {
             'type': 'FeatureCollection',
             'features': routes_features
