@@ -162,19 +162,14 @@ class GTFSGoDialog(QtWidgets.QDialog):
                 'features': gtfs_parser.read_interpolated_stops()
             }
             # write stop_id conversion result csv
-            gtfs_parser.dataframes['stops'][['stop_id', 'stop_name', 'similar_stop_id', 'similar_stop_name']].to_csv(os.path.join(
-                output_dir, FILENAME_RESULT_CSV), index=False, encoding='cp932')
-
-        # sometimes geojson-dict including pd.Series, is not serializable to JSON.
-        def series_to_value(series):
-            return series.values[0]
+            with open(os.path.join(output_dir, FILENAME_RESULT_CSV), mode="w", encoding="cp932", errors="ignore")as f:
+                gtfs_parser.dataframes['stops'][[
+                    'stop_id', 'stop_name', 'similar_stop_id', 'similar_stop_name']].to_csv(f, index=False)
 
         with open(os.path.join(output_dir, FILENAME_ROUTES_GEOJSON), mode='w') as f:
-            json.dump(routes_geojson, f, ensure_ascii=False,
-                      default=lambda series: series.values[0])
+            json.dump(routes_geojson, f, ensure_ascii=False)
         with open(os.path.join(output_dir, FILENAME_STOPS_GEOJSON), mode='w') as f:
-            json.dump(stops_geojson, f, ensure_ascii=False,
-                      default=lambda series: series.values[0])
+            json.dump(stops_geojson, f, ensure_ascii=False)
 
         self.show_geojson(output_dir)
 

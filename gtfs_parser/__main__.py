@@ -58,10 +58,18 @@ class GTFSParser:
             self.aggregate_similar_stops(delimiter, max_distance_degree)
 
     def aggregate_similar_stops(self, delimiter, max_distance_degree):
-        self.dataframes['stops'][['similar_stop_id', 'similar_stop_name', 'similar_stops_centroid']] = pd.DataFrame(self.dataframes['stops']['stop_id'].map(
-            lambda stop_id: self.get_similar_stop_tuple(stop_id, delimiter, max_distance_degree)).tolist(), index=self.dataframes['stops'].index)
+        parent_ids = self.dataframes['stops']['parent_station'].unique()
+        self.dataframes['stops']['is_parent'] = self.dataframes['stops']['stop_id'].map(
+            lambda stop_id: 1 if stop_id in parent_ids else 0)
+
+        self.dataframes['stops'][['similar_stop_id', 'similar_stop_name', 'similar_stops_centroid']] = self.dataframes['stops']['stop_id'].map(
+            lambda stop_id: self.get_similar_stop_tuple(stop_id, delimiter, max_distance_degree)).apply(pd.Series)
         self.dataframes['stops']['position_id'] = self.dataframes['stops']['similar_stops_centroid'].map(
             latlon_to_str)
+
+        # sometimes stop_name accidently becomes pd.Series instead of str.
+        self.dataframes['stops']['similar_stop_name'] = self.dataframes['stops']['similar_stop_name'].map(
+            lambda val: val if type(val) == str else val.stop_name)
 
         self.similar_stops_df = self.dataframes['stops'].drop_duplicates(
             subset='position_id')[[
@@ -242,6 +250,9 @@ class GTFSParser:
         stops_df = self.dataframes['stops'].sort_values('stop_id')
         stop = stops_df[stops_df['stop_id'] == stop_id].iloc[0]
 
+        if stop['is_parent'] == 1:
+            return stop['stop_id'], stop['stop_name'], [stop['stop_lon'], stop['stop_lat']]
+
         if str(stop['parent_station']) != 'nan':
             similar_stop_id = stop['parent_station']
             similar_stop = stops_df[stops_df['stop_id'] == similar_stop_id]
@@ -258,7 +269,7 @@ class GTFSParser:
                 seperated_only_stops = stops_df_id_delimited[stops_df_id_delimited['delimited']]
                 similar_stops = seperated_only_stops[seperated_only_stops['stop_id_prefix'] == stop_id_prefix][[
                     'stop_name', 'similar_stops_centroid_lon', 'similar_stops_centroid_lat']]
-                similar_stop_name = similar_stops['stop_name'].values[0]
+                similar_stop_name = similar_stops[['stop_name']].iloc[0]
                 similar_stop_centroid = similar_stops[[
                     'similar_stops_centroid_lon', 'similar_stops_centroid_lat']].values.tolist()[0]
                 return similar_stop_id, similar_stop_name, similar_stop_centroid
@@ -273,8 +284,8 @@ class GTFSParser:
             f'(stop_lon - {stop["stop_lon"]}) ** 2 + (stop_lat - {stop["stop_lat"]}) ** 2  < {max_distance_degree ** 2}')
         similar_stop_centroid = similar_stops[[
             'stop_lon', 'stop_lat']].mean().values.tolist()
-        similar_stop_id = similar_stops['stop_id'].values[0]
-        similar_stop_name = similar_stops['stop_name'].values[0]
+        similar_stop_id = similar_stops['stop_id'].iloc[0]
+        similar_stop_name = stop['stop_name']
         return similar_stop_id, similar_stop_name, similar_stop_centroid
 
     def get_similar_stops_by_name_and_distance(self, stop_name, distance):
@@ -548,8 +559,6 @@ if __name__ == "__main__":
 
     print('writing geojsons...')
     with open(os.path.join(output_dir, 'routes.geojson'), mode='w', encoding='utf-8') as f:
-        json.dump(routes_geojson, f, ensure_ascii=False,
-                  default=lambda series: series.values[0])
+        json.dump(routes_geojson, f, ensure_ascii=False)
     with open(os.path.join(output_dir, 'stops.geojson'), mode='w', encoding='utf-8') as f:
-        json.dump(stops_geojson, f, ensure_ascii=False,
-                  default=lambda series: series.values[0])
+        json.dump(stops_geojson, f, ensure_ascii=False)
