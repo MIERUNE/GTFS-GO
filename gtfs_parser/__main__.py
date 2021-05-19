@@ -15,8 +15,12 @@ except:
     from constants import GTFS_DATATYPES
 
 
+def latlon_to_str(latlon):
+    return ''.join(list(map(lambda coord: str(round(coord, 4)), latlon)))
+
+
 class GTFSParser:
-    def __init__(self, src_dir: str):
+    def __init__(self, src_dir: str, as_frequency=False, delimiter='', max_distance_degree=0.01):
         txts = glob.glob(os.path.join(
             src_dir, '**', '*.txt'), recursive=True)
         self.dataframes = {}
@@ -48,6 +52,28 @@ class GTFSParser:
             # parent_station is optional column on GTFS but use in this module
             # when parent_station is not in stops, fill by 'nan' (not NaN)
             self.dataframes['stops']['parent_station'] = 'nan'
+
+        if as_frequency:
+            self.similar_stops_df = None
+            self.aggregate_similar_stops(delimiter, max_distance_degree)
+
+    def aggregate_similar_stops(self, delimiter, max_distance_degree):
+        parent_ids = self.dataframes['stops']['parent_station'].unique()
+        self.dataframes['stops']['is_parent'] = self.dataframes['stops']['stop_id'].map(
+            lambda stop_id: 1 if stop_id in parent_ids else 0)
+
+        self.dataframes['stops'][['similar_stop_id', 'similar_stop_name', 'similar_stops_centroid']] = self.dataframes['stops']['stop_id'].map(
+            lambda stop_id: self.get_similar_stop_tuple(stop_id, delimiter, max_distance_degree)).apply(pd.Series)
+        self.dataframes['stops']['position_id'] = self.dataframes['stops']['similar_stops_centroid'].map(
+            latlon_to_str)
+
+        # sometimes stop_name accidently becomes pd.Series instead of str.
+        self.dataframes['stops']['similar_stop_name'] = self.dataframes['stops']['similar_stop_name'].map(
+            lambda val: val if type(val) == str else val.stop_name)
+
+        self.similar_stops_df = self.dataframes['stops'].drop_duplicates(
+            subset='position_id')[[
+                'position_id', 'similar_stop_id', 'similar_stop_name', 'similar_stops_centroid']].copy()
 
     def read_stops(self, ignore_no_route=False) -> list:
         """
@@ -97,7 +123,7 @@ class GTFSParser:
         group.apply(lambda x: x.sort())
         return group
 
-    def read_interpolated_stops(self, delimiter='', max_distance_degree=0.01):
+    def read_interpolated_stops(self):
         """
         Read stops "interpolated" by parent station or stop_id or stop_name and distance.
         There are many similar stops that are near to each, has same name, or has same prefix in stop_id.
@@ -111,12 +137,9 @@ class GTFSParser:
         Returns:
             [type]: [description]
         """
-        stops_df = self.dataframes.get('stops')
-        stops_df['similar_stops_centroid'] = stops_df['stop_id'].map(
-            lambda stop_id: self.get_similar_stops_centroid(stop_id, delimiter, max_distance_degree))
 
-        stop_dicts = stops_df[[
-            'stop_id', 'stop_name', 'similar_stops_centroid']].to_dict(orient='records')
+        stop_dicts = self.similar_stops_df[[
+            'similar_stop_id', 'similar_stop_name', 'similar_stops_centroid']].to_dict(orient='records')
         return [{
             'type': 'Feature',
             'geometry': {
@@ -124,12 +147,12 @@ class GTFSParser:
                 'coordinates': stop['similar_stops_centroid']
             },
             'properties': {
-                'stop_name': stop['stop_name'],
-                'stop_id': stop['stop_id'],
+                'similar_stop_name': stop['similar_stop_name'],
+                'similar_stop_id': stop['similar_stop_id'],
             }
         } for stop in stop_dicts]
 
-    def read_route_frequency(self, yyyymmdd='', delimiter='', max_distance_degree=0.01):
+    def read_route_frequency(self, yyyymmdd=''):
         """
         By grouped stops, aggregate route frequency.
         Filtering trips by a date, you can aggregate frequency only route serviced on the date.
@@ -155,44 +178,37 @@ class GTFSParser:
 
         # join agency info)
         stop_times_df = pd.merge(stop_times_df, self.dataframes['trips'][[
-                                 'trip_id', 'route_id']], on='trip_id', how='left')
+            'trip_id', 'route_id']], on='trip_id', how='left')
         stop_times_df = pd.merge(stop_times_df, self.dataframes['routes'][[
-                                 'route_id', 'agency_id']], on='route_id', how='left')
+            'route_id', 'agency_id']], on='route_id', how='left')
         stop_times_df = pd.merge(stop_times_df, self.dataframes['agency'][[
-                                 'agency_id', 'agency_name']], on='agency_id', how='left')
+            'agency_id', 'agency_name']], on='agency_id', how='left')
 
         # get prev and next stops_id, stop_name, trip_id
         stop_times_df = pd.merge(stop_times_df, self.dataframes['stops'][[
-                                 'stop_id', 'stop_name']], on='stop_id', how='left')
-        stop_times_df['prev_stop_id'] = stop_times_df['stop_id']
+            'stop_id', 'similar_stop_id', 'similar_stop_name', 'similar_stops_centroid']], on='stop_id', how='left')
+        stop_times_df['prev_stop_id'] = stop_times_df['similar_stop_id']
         stop_times_df['prev_trip_id'] = stop_times_df['trip_id']
-        stop_times_df['prev_stop_name'] = stop_times_df['stop_name']
-        stop_times_df['next_stop_id'] = stop_times_df['stop_id'].shift(-1)
+        stop_times_df['prev_stop_name'] = stop_times_df['similar_stop_name']
+        stop_times_df['prev_similar_stops_centroid'] = stop_times_df['similar_stops_centroid']
+        stop_times_df['next_stop_id'] = stop_times_df['similar_stop_id'].shift(
+            -1)
         stop_times_df['next_trip_id'] = stop_times_df['trip_id'].shift(-1)
-        stop_times_df['next_stop_name'] = stop_times_df['stop_name'].shift(-1)
+        stop_times_df['next_stop_name'] = stop_times_df['similar_stop_name'].shift(
+            -1)
+        stop_times_df['next_similar_stops_centroid'] = stop_times_df['similar_stops_centroid'].shift(
+            -1)
 
         # drop last stops (-> stops has no next stop)
         stop_times_df = stop_times_df.drop(
             index=stop_times_df.query('prev_trip_id != next_trip_id').index)
 
-        # calculate similar stops centroid
-        stop_times_df['prev_similar_stops_centroid'] = stop_times_df['prev_stop_id'].map(
-            lambda stop_id: self.get_similar_stops_centroid(stop_id,
-                                                            delimiter,
-                                                            max_distance_degree))
-        stop_times_df['next_similar_stops_centroid'] = stop_times_df['next_stop_id'].map(
-            lambda stop_id: self.get_similar_stops_centroid(stop_id,
-                                                            delimiter,
-                                                            max_distance_degree))
-
         # define path_id by prev-stops-centroid and next-stops-centroid
-        def latlon_to_str(latlon): return ''.join(
-            list(map(lambda coord: str(round(coord, 4)), latlon)))
         stop_times_df['path_id'] = stop_times_df['prev_similar_stops_centroid'].map(
             latlon_to_str) + stop_times_df['next_similar_stops_centroid'].map(latlon_to_str)
 
         # aggregate path-frequency
-        path_frequency = stop_times_df[['stop_id', 'path_id']].groupby(
+        path_frequency = stop_times_df[['similar_stop_id', 'path_id']].groupby(
             'path_id').count().reset_index()
         path_frequency.columns = ['path_id', 'path_count']
         path_data = pd.merge(path_frequency, stop_times_df.drop_duplicates(
@@ -218,10 +234,10 @@ class GTFSParser:
         } for path in path_data_dict]
 
     @ lru_cache(maxsize=None)
-    def get_similar_stops_centroid(self, stop_id: str, delimiter='', max_distance_degree=0.01):
+    def get_similar_stop_tuple(self, stop_id: str, delimiter='', max_distance_degree=0.01):
         """
-        With one stop_id, group stops by parent, stop_id, or stop_name and each distance, and calc centroid of them.
-        - parent: this is simple, if stop has parent_station, the 'centroid' is parent_station lat-lon
+        With one stop_id, group stops by parent, stop_id, or stop_name and each distance.
+        - parent: if stop has parent_station, the 'centroid' is parent_station lat-lon
         - stop_id: by delimiter seperate stop_id into prefix and suffix, and group stops having same stop_id-prefix
         - name and distance: group stops by stop_name, excluding stops are far than max_distance_degree
 
@@ -229,32 +245,48 @@ class GTFSParser:
             stop_id (str): target stop_id
             max_distance_degree (float, optional): distance limit on grouping, Defaults to 0.01.
         Returns:
-            [float, float]: centroid of grouped stops
+            str, str, [float, float]: similar_stop_id, similar_stop_name, similar_stops_centroid
         """
-        stops_df = self.dataframes['stops']
+        stops_df = self.dataframes['stops'].sort_values('stop_id')
         stop = stops_df[stops_df['stop_id'] == stop_id].iloc[0]
 
+        if stop['is_parent'] == 1:
+            return stop['stop_id'], stop['stop_name'], [stop['stop_lon'], stop['stop_lat']]
+
         if str(stop['parent_station']) != 'nan':
-            return stops_df[stops_df['stop_id'] == stop['parent_station']][['stop_lon', 'stop_lat']].iloc[0].values.tolist()
+            similar_stop_id = stop['parent_station']
+            similar_stop = stops_df[stops_df['stop_id'] == similar_stop_id]
+            similar_stop_name = similar_stop[['stop_name']].iloc[0]
+            similar_stop_centroid = similar_stop[[
+                'stop_lon', 'stop_lat']].iloc[0].values.tolist()
+            return similar_stop_id, similar_stop_name, similar_stop_centroid
 
         if delimiter:
             stops_df_id_delimited = self.get_stops_id_delimited(delimiter)
             stop_id_prefix = stop_id.rsplit(delimiter, 1)[0]
             if stop_id_prefix != stop_id:
+                similar_stop_id = stop_id_prefix
                 seperated_only_stops = stops_df_id_delimited[stops_df_id_delimited['delimited']]
                 similar_stops = seperated_only_stops[seperated_only_stops['stop_id_prefix'] == stop_id_prefix][[
-                    'similar_stops_centroid_lon', 'similar_stops_centroid_lat']]
-                return similar_stops.values.tolist()[0]
+                    'stop_name', 'similar_stops_centroid_lon', 'similar_stops_centroid_lat']]
+                similar_stop_name = similar_stops[['stop_name']].iloc[0]
+                similar_stop_centroid = similar_stops[[
+                    'similar_stops_centroid_lon', 'similar_stops_centroid_lat']].values.tolist()[0]
+                return similar_stop_id, similar_stop_name, similar_stop_centroid
             else:
                 # when cannot seperate stop_id, grouping by name and distance
                 stops_df = stops_df_id_delimited[~stops_df_id_delimited['delimited']]
 
         # grouping by name and distance
         similar_stops = stops_df[stops_df['stop_name'] == stop['stop_name']][[
-            'stop_lon', 'stop_lat']]
+            'stop_id', 'stop_name', 'stop_lon', 'stop_lat']]
         similar_stops = similar_stops.query(
             f'(stop_lon - {stop["stop_lon"]}) ** 2 + (stop_lat - {stop["stop_lat"]}) ** 2  < {max_distance_degree ** 2}')
-        return similar_stops.mean().values.tolist()
+        similar_stop_centroid = similar_stops[[
+            'stop_lon', 'stop_lat']].mean().values.tolist()
+        similar_stop_id = similar_stops['stop_id'].iloc[0]
+        similar_stop_name = stop['stop_name']
+        return similar_stop_id, similar_stop_name, similar_stop_centroid
 
     def get_similar_stops_by_name_and_distance(self, stop_name, distance):
         similar_stops = self.stops_df[self.stops_df['stop_name'] == stop['stop_name']][[
@@ -487,11 +519,11 @@ if __name__ == "__main__":
         os.mkdir(temp_dir)
         with zipfile.ZipFile(args.zip) as z:
             z.extractall(temp_dir)
-        gtfs_parser = GTFSParser(temp_dir)
         output_dir = temp_dir
     else:
-        gtfs_parser = GTFSParser(args.src_dir)
         output_dir = args.src_dir
+    gtfs_parser = GTFSParser(
+        output_dir, as_frequency=args.frequency, delimiter=args.delimiter)
 
     print('GTFS loaded.')
 
@@ -499,18 +531,19 @@ if __name__ == "__main__":
         output_dir = args.output_dir
 
     if args.frequency:
-        stops_features = gtfs_parser.read_interpolated_stops(
-            delimiter=args.delimiter)
+        stops_features = gtfs_parser.read_interpolated_stops()
         stops_geojson = {
             'type': 'FeatureCollection',
             'features': stops_features
         }
         routes_features = gtfs_parser.read_route_frequency(
-            yyyymmdd=args.yyyymmdd, delimiter=args.delimiter)
+            yyyymmdd=args.yyyymmdd)
         routes_geojson = {
             'type': 'FeatureCollection',
             'features': routes_features
         }
+        gtfs_parser.dataframes['stops'][['stop_id', 'stop_name', 'similar_stop_id', 'similar_stop_name']].to_csv(os.path.join(
+            output_dir, 'result.csv'), index=False, encoding='cp932')
     else:
         routes_features = gtfs_parser.read_routes(no_shapes=args.no_shapes)
         routes_geojson = {

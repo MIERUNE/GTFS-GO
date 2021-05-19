@@ -2,6 +2,7 @@ import os
 
 FILENAME_ROUTES_GEOJSON = "routes.geojson"
 FILENAME_STOPS_GEOJSON = "stops.geojson"
+FILENAME_RESULT_CSV = "result.csv"
 
 LAYERNAME_ROUTES = "routes"
 LAYERNAME_STOPS = "stops"
