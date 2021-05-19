@@ -134,9 +134,12 @@ class GTFSGoDialog(QtWidgets.QDialog):
             zip_path = zip_src
 
         extracted_dir = self.extract_zip(zip_path)
+        output_dir = os.path.join(
+            self.outputDirFileWidget.filePath(), self.get_group_name())
+        os.makedirs(output_dir, exist_ok=True)
 
-        gtfs_parser = GTFSParser(extracted_dir)
         if self.ui.simpleRadioButton.isChecked():
+            gtfs_parser = GTFSParser(extracted_dir)
             routes_geojson = {
                 'type': 'FeatureCollection',
                 'features': gtfs_parser.read_routes(no_shapes=self.ui.ignoreShapesCheckbox.isChecked())
@@ -146,23 +149,30 @@ class GTFSGoDialog(QtWidgets.QDialog):
                 'features': gtfs_parser.read_stops(ignore_no_route=self.ui.ignoreNoRouteStopsCheckbox.isChecked())
             }
         else:
+            gtfs_parser = GTFSParser(
+                extracted_dir, as_frequency=True, delimiter=self.get_delimiter())
+
             routes_geojson = {
                 'type': 'FeatureCollection',
-                'features': gtfs_parser.read_route_frequency(yyyymmdd=self.get_yyyymmdd(),
-                                                             delimiter=self.get_delimiter())
+                'features': gtfs_parser.read_route_frequency(yyyymmdd=self.get_yyyymmdd())
             }
             stops_geojson = {
                 'type': 'FeatureCollection',
-                'features': gtfs_parser.read_interpolated_stops(delimiter=self.get_delimiter())
+                'features': gtfs_parser.read_interpolated_stops()
             }
+            gtfs_parser.dataframes['stops'][['stop_id', 'stop_name', 'similar_stop_id', 'similar_stop_name']].to_csv(os.path.join(
+                output_dir, 'result.csv'), index=False, encoding='cp932')
 
-        output_dir = os.path.join(
-            self.outputDirFileWidget.filePath(), self.get_group_name())
-        os.makedirs(output_dir, exist_ok=True)
+        # sometimes geojson-dict including pd.Series, is not serializable to JSON.
+        def series_to_value(series):
+            return series.values[0]
+
         with open(os.path.join(output_dir, FILENAME_ROUTES_GEOJSON), mode='w') as f:
-            json.dump(routes_geojson, f, ensure_ascii=False)
+            json.dump(routes_geojson, f, ensure_ascii=False,
+                      default=lambda series: series.values[0])
         with open(os.path.join(output_dir, FILENAME_STOPS_GEOJSON), mode='w') as f:
-            json.dump(stops_geojson, f, ensure_ascii=False)
+            json.dump(stops_geojson, f, ensure_ascii=False,
+                      default=lambda series: series.values[0])
 
         self.show_geojson(output_dir)
 
@@ -203,7 +213,8 @@ class GTFSGoDialog(QtWidgets.QDialog):
                 os.path.dirname(__file__), 'frequency.qml'))
 
         # make and set labeling for stops
-        stops_labeling = get_labeling_for_stops()
+        stops_labeling = get_labeling_for_stops(
+            target_field_name="stop_name" if self.ui.simpleRadioButton.isChecked() else "similar_stop_name")
         stops_vlayer.setLabelsEnabled(True)
         stops_vlayer.setLabeling(stops_labeling)
 
