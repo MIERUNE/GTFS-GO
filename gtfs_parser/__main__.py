@@ -228,8 +228,8 @@ class GTFSParser:
     @ lru_cache(maxsize=None)
     def get_similar_stop_tuple(self, stop_id: str, delimiter='', max_distance_degree=0.01):
         """
-        With one stop_id, group stops by parent, stop_id, or stop_name and each distance, and calc centroid of them.
-        - parent: this is simple, if stop has parent_station, the 'centroid' is parent_station lat-lon
+        With one stop_id, group stops by parent, stop_id, or stop_name and each distance.
+        - parent: if stop has parent_station, the 'centroid' is parent_station lat-lon
         - stop_id: by delimiter seperate stop_id into prefix and suffix, and group stops having same stop_id-prefix
         - name and distance: group stops by stop_name, excluding stops are far than max_distance_degree
 
