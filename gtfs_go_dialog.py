@@ -164,7 +164,7 @@ class GTFSGoDialog(QtWidgets.QDialog):
             }
 
             route_filename = 'frequency.geojson'
-            stops_filename = 'stops.geojson'
+            stops_filename = 'frequency_stops.geojson'
 
             # write stop_id conversion result csv
             with open(os.path.join(output_dir, FILENAME_RESULT_CSV), mode="w", encoding="cp932", errors="ignore")as f:
