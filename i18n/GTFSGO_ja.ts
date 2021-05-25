@@ -17,17 +17,17 @@
 <context>
     <name>GTFSGoDialog</name>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="66"/>
+        <location filename="../gtfs_go_dialog.py" line="61"/>
         <source>---Load local ZipFile---</source>
         <translation>---ZIPファイルから読み込み---</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="220"/>
+        <location filename="../gtfs_go_dialog.py" line="243"/>
         <source>finish</source>
         <translation>完了</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="220"/>
+        <location filename="../gtfs_go_dialog.py" line="243"/>
         <source>generated geojson files: </source>
         <translation>GeoJSONファイルが出力されました: </translation>
     </message>
@@ -65,7 +65,7 @@
         <translation>経路を持たないstopsを無視する</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="265"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="312"/>
         <source>Extract on QGIS</source>
         <translation>QGISに読み込む</translation>
     </message>
@@ -85,19 +85,24 @@
         <translation>運行頻度を集計</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="180"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="244"/>
         <source>stop_id delimiter</source>
         <translation>stop_idの区切り文字</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="193"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="263"/>
         <source>_</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="209"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="186"/>
         <source>filter by day</source>
         <translation>運行日で抽出</translation>
+    </message>
+    <message>
+        <location filename="../gtfs_go_dialog_base.ui" line="228"/>
+        <source>unify similar stops</source>
+        <translation>stopを名寄せする</translation>
     </message>
 </context>
 </TS>

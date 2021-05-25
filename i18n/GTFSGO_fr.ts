@@ -16,17 +16,17 @@
 <context>
     <name>GTFSGoDialog</name>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="66"/>
+        <location filename="../gtfs_go_dialog.py" line="61"/>
         <source>---Load local ZipFile---</source>
         <translation>---Charger un fichier zip local---</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="220"/>
+        <location filename="../gtfs_go_dialog.py" line="243"/>
         <source>finish</source>
         <translation>Terminer</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="220"/>
+        <location filename="../gtfs_go_dialog.py" line="243"/>
         <source>generated geojson files: </source>
         <translation>Fichiers GeoJSON générés: </translation>
     </message>
@@ -64,7 +64,7 @@
         <translation>Ignorer les arrêts isolés</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="265"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="312"/>
         <source>Extract on QGIS</source>
         <translation>Extraire sous QGIS</translation>
     </message>
@@ -84,18 +84,23 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="180"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="244"/>
         <source>stop_id delimiter</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="193"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="263"/>
         <source>_</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="209"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="186"/>
         <source>filter by day</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../gtfs_go_dialog_base.ui" line="228"/>
+        <source>unify similar stops</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
