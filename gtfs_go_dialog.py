@@ -36,17 +36,15 @@ from PyQt5.QtCore import QDate
 from qgis.core import *
 
 from .gtfs_parser import GTFSParser
-
 from .gtfs_go_renderer import Renderer
 from .gtfs_go_labeling import get_labeling_for_stops
+
 from .gtfs_go_settings import (
     FILENAME_RESULT_CSV,
     STOPS_MINIMUM_VISIBLE_SCALE,
 )
-
 DATALIST_JSON_PATH = os.path.join(
     os.path.dirname(__file__), 'gtfs_go_datalist.json')
-
 TEMP_DIR = os.path.join(tempfile.gettempdir(), 'GTFSGo')
 
 
