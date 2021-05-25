@@ -208,5 +208,6 @@ class GTFSGo:
 
     def run(self):
         """Run method that loads and starts the plugin"""
-        self.dialog = GTFSGoDialog(self.iface)
+        if self.dialog is None:
+            self.dialog = GTFSGoDialog(self.iface)
         self.dialog.show()

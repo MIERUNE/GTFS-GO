@@ -36,21 +36,15 @@ from PyQt5.QtCore import QDate
 from qgis.core import *
 
 from .gtfs_parser import GTFSParser
-
 from .gtfs_go_renderer import Renderer
 from .gtfs_go_labeling import get_labeling_for_stops
-from .gtfs_go_settings import (
-    STOPS_MINIMUM_VISIBLE_SCALE,
-    FILENAME_ROUTES_GEOJSON,
-    FILENAME_STOPS_GEOJSON,
-    FILENAME_RESULT_CSV,
-    LAYERNAME_ROUTES,
-    LAYERNAME_STOPS
-)
 
+from .gtfs_go_settings import (
+    FILENAME_RESULT_CSV,
+    STOPS_MINIMUM_VISIBLE_SCALE,
+)
 DATALIST_JSON_PATH = os.path.join(
     os.path.dirname(__file__), 'gtfs_go_datalist.json')
-
 TEMP_DIR = os.path.join(tempfile.gettempdir(), 'GTFSGo')
 
 
@@ -76,6 +70,7 @@ class GTFSGoDialog(QtWidgets.QDialog):
         self.ui.comboBox.currentIndexChanged.connect(self.refresh)
         self.ui.zipFileWidget.fileChanged.connect(self.refresh)
         self.ui.outputDirFileWidget.fileChanged.connect(self.refresh)
+        self.ui.unifyCheckBox.stateChanged.connect(self.refresh)
 
         # change mode by radio button
         self.ui.simpleRadioButton.clicked.connect(self.refresh)
@@ -149,9 +144,15 @@ class GTFSGoDialog(QtWidgets.QDialog):
                 'type': 'FeatureCollection',
                 'features': gtfs_parser.read_stops(ignore_no_route=self.ui.ignoreNoRouteStopsCheckbox.isChecked())
             }
+            route_filename = 'route.geojson'
+            stops_filename = 'stops.geojson'
         else:
             gtfs_parser = GTFSParser(
-                extracted_dir, as_frequency=True, delimiter=self.get_delimiter())
+                extracted_dir,
+                as_frequency=True,
+                as_unify_stops=self.ui.unifyCheckBox.isChecked(),
+                delimiter=self.get_delimiter()
+            )
 
             routes_geojson = {
                 'type': 'FeatureCollection',
@@ -161,17 +162,21 @@ class GTFSGoDialog(QtWidgets.QDialog):
                 'type': 'FeatureCollection',
                 'features': gtfs_parser.read_interpolated_stops()
             }
+
+            route_filename = 'frequency.geojson'
+            stops_filename = 'frequency_stops.geojson'
+
             # write stop_id conversion result csv
             with open(os.path.join(output_dir, FILENAME_RESULT_CSV), mode="w", encoding="cp932", errors="ignore")as f:
                 gtfs_parser.dataframes['stops'][[
                     'stop_id', 'stop_name', 'similar_stop_id', 'similar_stop_name']].to_csv(f, index=False)
 
-        with open(os.path.join(output_dir, FILENAME_ROUTES_GEOJSON), mode='w') as f:
+        with open(os.path.join(output_dir, route_filename), mode='w') as f:
             json.dump(routes_geojson, f, ensure_ascii=False)
-        with open(os.path.join(output_dir, FILENAME_STOPS_GEOJSON), mode='w') as f:
+        with open(os.path.join(output_dir, stops_filename), mode='w') as f:
             json.dump(stops_geojson, f, ensure_ascii=False)
 
-        self.show_geojson(output_dir)
+        self.show_geojson(output_dir, stops_filename, route_filename)
 
         self.ui.close()
 
@@ -185,17 +190,21 @@ class GTFSGoDialog(QtWidgets.QDialog):
         return yyyy + mm + dd
 
     def get_delimiter(self):
+        if not self.ui.unifyCheckBox.isChecked():
+            return ''
         if not self.ui.delimiterCheckBox.isChecked():
             return ''
         return self.ui.delimiterLineEdit.text()
 
-    def show_geojson(self, geojson_dir: str):
+    def show_geojson(self, geojson_dir: str, stops_filename: str, route_filename: str):
         # these geojsons will already have been generated
-        stops_geojson = os.path.join(geojson_dir, FILENAME_STOPS_GEOJSON)
-        routes_geojson = os.path.join(geojson_dir, FILENAME_ROUTES_GEOJSON)
+        stops_geojson = os.path.join(geojson_dir, stops_filename)
+        routes_geojson = os.path.join(geojson_dir, route_filename)
 
-        stops_vlayer = QgsVectorLayer(stops_geojson, LAYERNAME_STOPS, 'ogr')
-        routes_vlayer = QgsVectorLayer(routes_geojson, LAYERNAME_ROUTES, 'ogr')
+        stops_vlayer = QgsVectorLayer(
+            stops_geojson, stops_filename.split('.')[0], 'ogr')
+        routes_vlayer = QgsVectorLayer(
+            routes_geojson, route_filename.split('.')[0], 'ogr')
 
         # make and set labeling for stops
         stops_labeling = get_labeling_for_stops(
@@ -207,21 +216,21 @@ class GTFSGoDialog(QtWidgets.QDialog):
         stops_vlayer.setMinimumScale(STOPS_MINIMUM_VISIBLE_SCALE)
         stops_vlayer.setScaleBasedVisibility(True)
 
-        # make and set renderer
-        stops_renderer = Renderer(stops_vlayer, 'stop_name')
-        stops_vlayer.setRenderer(stops_renderer.make_renderer())
-
         # there are two type route renderer, normal, frequency
         if self.ui.simpleRadioButton.isChecked():
             routes_renderer = Renderer(routes_vlayer, 'route_name')
             routes_vlayer.setRenderer(routes_renderer.make_renderer())
             added_layers = [routes_vlayer, stops_vlayer]
+            stops_renderer = Renderer(stops_vlayer, 'stop_name')
+            stops_vlayer.setRenderer(stops_renderer.make_renderer())
         else:
             # frequency mode
             routes_vlayer.loadNamedStyle(os.path.join(
                 os.path.dirname(__file__), 'frequency.qml'))
+            stops_vlayer.loadNamedStyle(os.path.join(
+                os.path.dirname(__file__), 'frequency_stops.qml'))
             csv_vlayer = QgsVectorLayer(os.path.join(
-                geojson_dir, FILENAME_RESULT_CSV), 'result.csv', 'ogr')
+                geojson_dir, FILENAME_RESULT_CSV), FILENAME_RESULT_CSV, 'ogr')
             added_layers = [routes_vlayer, stops_vlayer, csv_vlayer]
 
         # add two layers as a group
@@ -247,6 +256,12 @@ class GTFSGoDialog(QtWidgets.QDialog):
         self.ui.pushButton.setEnabled((self.get_source() is not None) and
                                       (not self.ui.outputDirFileWidget.filePath() == ''))
 
+        # stops unify mode
+        is_unify = self.ui.unifyCheckBox.isChecked()
+        self.ui.delimiterCheckBox.setEnabled(is_unify)
+        self.ui.delimiterLineEdit.setEnabled(is_unify)
+
+        # radio button - mode toggle
         self.ui.simpleFrame.setEnabled(self.ui.simpleRadioButton.isChecked())
         self.ui.freqFrame.setEnabled(self.ui.freqRadioButton.isChecked())
 
