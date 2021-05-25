@@ -69,10 +69,8 @@ class GTFSParser:
                 self.dataframes['stops']['similar_stop_name'] = self.dataframes['stops']['stop_name']
                 self.dataframes['stops']['similar_stops_centroid'] = self.dataframes['stops'][[
                     'stop_lon', 'stop_lat']].values.tolist()
-                self.dataframes['stops']['position_id'] = self.dataframes['stops']['similar_stops_centroid'].map(
-                    latlon_to_str)
-                self.similar_stops_df = self.dataframes['stops'].drop_duplicates(subset='position_id')[
-                    ['position_id', 'similar_stop_id', 'similar_stop_name', 'similar_stops_centroid']].copy()
+                self.similar_stops_df = self.dataframes['stops'][[
+                    'similar_stop_id', 'similar_stop_name', 'similar_stops_centroid']].copy()
 
     def aggregate_similar_stops(self, delimiter, max_distance_degree):
         parent_ids = self.dataframes['stops']['parent_station'].unique()
@@ -221,7 +219,7 @@ class GTFSParser:
             index=stop_times_df.query('prev_trip_id != next_trip_id').index)
 
         # define path_id by prev-stops-centroid and next-stops-centroid
-        stop_times_df['path_id'] = stop_times_df['prev_similar_stops_centroid'].map(
+        stop_times_df['path_id'] = stop_times_df['prev_stop_id'] + stop_times_df['next_stop_id'] + stop_times_df['prev_similar_stops_centroid'].map(
             latlon_to_str) + stop_times_df['next_similar_stops_centroid'].map(latlon_to_str)
 
         # aggregate path-frequency
