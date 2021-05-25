@@ -20,7 +20,13 @@ def latlon_to_str(latlon):
 
 
 class GTFSParser:
-    def __init__(self, src_dir: str, as_frequency=False, delimiter='', max_distance_degree=0.01):
+    def __init__(self,
+                 src_dir: str,
+                 as_frequency=False,
+                 as_unify_stops=False,
+                 delimiter='',
+                 max_distance_degree=0.01):
+
         txts = glob.glob(os.path.join(
             src_dir, '**', '*.txt'), recursive=True)
         self.dataframes = {}
@@ -55,7 +61,18 @@ class GTFSParser:
 
         if as_frequency:
             self.similar_stops_df = None
-            self.aggregate_similar_stops(delimiter, max_distance_degree)
+            if as_unify_stops:
+                self.aggregate_similar_stops(delimiter, max_distance_degree)
+            else:
+                # no unifying stops
+                self.dataframes['stops']['similar_stop_id'] = self.dataframes['stops']['stop_id']
+                self.dataframes['stops']['similar_stop_name'] = self.dataframes['stops']['stop_name']
+                self.dataframes['stops']['similar_stops_centroid'] = self.dataframes['stops'][[
+                    'stop_lon', 'stop_lat']].values.tolist()
+                self.dataframes['stops']['position_id'] = self.dataframes['stops']['similar_stops_centroid'].map(
+                    latlon_to_str)
+                self.similar_stops_df = self.dataframes['stops'].drop_duplicates(subset='position_id')[
+                    ['position_id', 'similar_stop_id', 'similar_stop_name', 'similar_stops_centroid']].copy()
 
     def aggregate_similar_stops(self, delimiter, max_distance_degree):
         parent_ids = self.dataframes['stops']['parent_station'].unique()

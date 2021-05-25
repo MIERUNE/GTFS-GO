@@ -70,6 +70,7 @@ class GTFSGoDialog(QtWidgets.QDialog):
         self.ui.comboBox.currentIndexChanged.connect(self.refresh)
         self.ui.zipFileWidget.fileChanged.connect(self.refresh)
         self.ui.outputDirFileWidget.fileChanged.connect(self.refresh)
+        self.ui.unifyCheckBox.stateChanged.connect(self.refresh)
 
         # change mode by radio button
         self.ui.simpleRadioButton.clicked.connect(self.refresh)
@@ -147,7 +148,11 @@ class GTFSGoDialog(QtWidgets.QDialog):
             stops_filename = 'stops.geojson'
         else:
             gtfs_parser = GTFSParser(
-                extracted_dir, as_frequency=True, delimiter=self.get_delimiter())
+                extracted_dir,
+                as_frequency=True,
+                as_unify_stops=self.ui.unifyCheckBox.isChecked(),
+                delimiter=self.get_delimiter()
+            )
 
             routes_geojson = {
                 'type': 'FeatureCollection',
@@ -185,6 +190,8 @@ class GTFSGoDialog(QtWidgets.QDialog):
         return yyyy + mm + dd
 
     def get_delimiter(self):
+        if not self.ui.unifyCheckBox.isChecked():
+            return ''
         if not self.ui.delimiterCheckBox.isChecked():
             return ''
         return self.ui.delimiterLineEdit.text()
@@ -249,6 +256,12 @@ class GTFSGoDialog(QtWidgets.QDialog):
         self.ui.pushButton.setEnabled((self.get_source() is not None) and
                                       (not self.ui.outputDirFileWidget.filePath() == ''))
 
+        # stops unify mode
+        is_unify = self.ui.unifyCheckBox.isChecked()
+        self.ui.delimiterCheckBox.setEnabled(is_unify)
+        self.ui.delimiterLineEdit.setEnabled(is_unify)
+
+        # radio button - mode toggle
         self.ui.simpleFrame.setEnabled(self.ui.simpleRadioButton.isChecked())
         self.ui.freqFrame.setEnabled(self.ui.freqRadioButton.isChecked())
 
