@@ -216,19 +216,19 @@ class GTFSGoDialog(QtWidgets.QDialog):
         stops_vlayer.setMinimumScale(STOPS_MINIMUM_VISIBLE_SCALE)
         stops_vlayer.setScaleBasedVisibility(True)
 
-        # make and set renderer
-        stops_renderer = Renderer(stops_vlayer, 'stop_name')
-        stops_vlayer.setRenderer(stops_renderer.make_renderer())
-
         # there are two type route renderer, normal, frequency
         if self.ui.simpleRadioButton.isChecked():
             routes_renderer = Renderer(routes_vlayer, 'route_name')
             routes_vlayer.setRenderer(routes_renderer.make_renderer())
             added_layers = [routes_vlayer, stops_vlayer]
+            stops_renderer = Renderer(stops_vlayer, 'stop_name')
+            stops_vlayer.setRenderer(stops_renderer.make_renderer())
         else:
             # frequency mode
             routes_vlayer.loadNamedStyle(os.path.join(
                 os.path.dirname(__file__), 'frequency.qml'))
+            stops_vlayer.loadNamedStyle(os.path.join(
+                os.path.dirname(__file__), 'frequency_stops.qml'))
             csv_vlayer = QgsVectorLayer(os.path.join(
                 geojson_dir, FILENAME_RESULT_CSV), FILENAME_RESULT_CSV, 'ogr')
             added_layers = [routes_vlayer, stops_vlayer, csv_vlayer]
