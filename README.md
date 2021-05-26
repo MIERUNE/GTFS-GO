@@ -64,7 +64,7 @@ Smaller number of rules is prefered.
 
 3.  stop_name and distance
 
-    -   unifying stops having same stop_name and near to each in certain extent - 0.01 degree in terms of latlon-xy-plane
+    -   unifying stops having same stop_name and near to each in certain extent - 0.01 degree in terms of lonlat-plane
     -   new stop_id is the first stop's one in grouped stops ordered by stop_id ascending.
 
 #### unifying result
