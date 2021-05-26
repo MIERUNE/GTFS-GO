@@ -50,13 +50,20 @@ You can see similar stops unified into one stop.
 
 #### stops unifying rules
 
--   parent_stops
+Smaller number of rules is prefered.
+
+1.  parent_stops
+
     -   if stops have parent_stops value, unifying them into parent station
     -   new stop_id is parent's one
--   stop_id prefix
+
+2.  stop_id prefix
+
     -   by defining delimiter, split stop_name into prefix and suffix, group same prefix stops
     -   new stop_id is the first stop's one in grouped stops ordered by stop_id ascending.
--   stop_name and distance
+
+3.  stop_name and distance
+
     -   unifying stops having same stop_name and near to each in certain extent - 0.01 degree in terms of latlon-xy-plane
     -   new stop_id is the first stop's one in grouped stops ordered by stop_id ascending.
 
