@@ -1,7 +1,9 @@
-GTFS_JP_DATATYPES = {
-    'agency_jp': {
-        'required': False
-    },
+"""
+The GTFS_DATATYPES dict shows the files that are expected to be inside the zip file.
+In case a required file is missing while loading it will raise an error.
+"""
+
+GTFS_DATATYPES = {
     'agency': {
         'required': True
     },
@@ -21,12 +23,6 @@ GTFS_JP_DATATYPES = {
         'required': False
     },
     'frequencies': {
-        'required': False
-    },
-    'office_jp': {
-        'required': False
-    },
-    'routes_jp': {
         'required': False
     },
     'routes': {

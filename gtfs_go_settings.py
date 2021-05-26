@@ -1,10 +1,6 @@
 import os
 
-FILENAME_ROUTES_GEOJSON = "routes.geojson"
-FILENAME_STOPS_GEOJSON = "stops.geojson"
-
-LAYERNAME_ROUTES = "routes"
-LAYERNAME_STOPS = "stops"
+FILENAME_RESULT_CSV = "result.csv"
 
 STOPS_LABEL_FONT = "Arial"
 STOPS_LABEL_SIZE_MM = 9
