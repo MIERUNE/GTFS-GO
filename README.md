@@ -36,7 +36,7 @@ In addition, it is possible to unify SIMILAR stops - having same parent_stop or 
 -   larger number of frequency, lines become bolder
 -   result.csv is a table comparing before and after unified stops.
 
-### unifying algorhythm
+### unifying algorithm
 
 You can see similar stops unified into one stop.
 
