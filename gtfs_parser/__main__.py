@@ -51,8 +51,9 @@ class GTFSParser:
             {'stop_lon': float, 'stop_lat': float})
         self.dataframes['stop_times'] = self.dataframes['stop_times'].astype({
                                                                              'stop_sequence': int})
-        self.dataframes['shapes'] = self.dataframes['shapes'].astype(
-            {'shape_pt_lon': float, 'shape_pt_lat': float, 'shape_pt_sequence': int})
+        if self.dataframes.get('shapes') is not None:
+            self.dataframes['shapes'] = self.dataframes['shapes'].astype(
+                {'shape_pt_lon': float, 'shape_pt_lat': float, 'shape_pt_sequence': int})
 
         if 'parent_station' not in self.dataframes.get('stops').columns:
             # parent_station is optional column on GTFS but use in this module
