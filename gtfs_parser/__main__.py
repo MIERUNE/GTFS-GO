@@ -82,13 +82,15 @@ class GTFSParser:
             lambda stop_id: self.get_similar_stop_tuple(stop_id, delimiter, max_distance_degree)).apply(pd.Series)
         self.dataframes['stops']['position_id'] = self.dataframes['stops']['similar_stops_centroid'].map(
             latlon_to_str)
+        self.dataframes['stops']['unique_id'] = self.dataframes['stops']['similar_stop_id'] + \
+            self.dataframes['stops']['position_id']
 
         # sometimes stop_name accidently becomes pd.Series instead of str.
         self.dataframes['stops']['similar_stop_name'] = self.dataframes['stops']['similar_stop_name'].map(
             lambda val: val if type(val) == str else val.stop_name)
 
         self.similar_stops_df = self.dataframes['stops'].drop_duplicates(
-            subset='position_id')[[
+            subset='unique_id')[[
                 'position_id', 'similar_stop_id', 'similar_stop_name', 'similar_stops_centroid']].copy()
 
     def read_stops(self, ignore_no_route=False) -> list:
