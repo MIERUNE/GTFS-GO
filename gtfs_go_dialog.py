@@ -55,7 +55,7 @@ class GTFSGoDialog(QtWidgets.QDialog):
         super().__init__()
         self.ui = uic.loadUi(os.path.join(os.path.dirname(
             __file__), 'gtfs_go_dialog_base.ui'), self)
-        with open(DATALIST_JSON_PATH) as f:
+        with open(DATALIST_JSON_PATH, encoding='utf-8') as f:
             self.datalist = json.load(f)
         self.iface = iface
         self.combobox_zip_text = self.tr('---Load local ZipFile---')
