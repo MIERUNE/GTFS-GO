@@ -73,6 +73,10 @@ In result.csv, you can see stops unifying result.
 
 <img src="doc_imgs/resultcsv.png" width="80%">
 
+## Acknowledgements
+
+Version2.0.0, which is added the frequency aggregating function, got technically and financialy supported by [Toyota Mobility Foundation](https://toyotamobilityfoundation.jp/) and [Traffic Brain](https://t-brain.jp/).
+
 ## Want to add new data sources?
 
 -   Some data sources can be added from [here](https://transitfeeds.com/search?q=gtfs) however you need to check they have all the [required](https://github.com/MIERUNE/GTFS-GO/blob/master/gtfs_parser/constants.py) .txt files
