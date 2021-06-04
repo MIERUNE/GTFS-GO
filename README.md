@@ -75,7 +75,7 @@ In result.csv, you can see stops unifying result.
 
 ## Acknowledgements
 
-Version2.0.0, which is added the frequency aggregating function, got technically and financially supported by [Toyota Mobility Foundation](https://toyotamobilityfoundation.jp/) and [Traffic Brain](https://t-brain.jp/). Thank you for great contributions!
+Version2.0.0, in which the frequency aggregating function is added, got technically and financially supported by [Toyota Mobility Foundation](https://toyotamobilityfoundation.jp/) and [Traffic Brain](https://t-brain.jp/). Thank you for great contributions!
 
 ## Contribution
 
