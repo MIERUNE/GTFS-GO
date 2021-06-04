@@ -171,9 +171,9 @@ class GTFSGoDialog(QtWidgets.QDialog):
                 gtfs_parser.dataframes['stops'][[
                     'stop_id', 'stop_name', 'similar_stop_id', 'similar_stop_name']].to_csv(f, index=False)
 
-        with open(os.path.join(output_dir, route_filename), mode='w') as f:
+        with open(os.path.join(output_dir, route_filename), mode='w', encoding='utf-8') as f:
             json.dump(routes_geojson, f, ensure_ascii=False)
-        with open(os.path.join(output_dir, stops_filename), mode='w') as f:
+        with open(os.path.join(output_dir, stops_filename), mode='w', encoding='utf-8') as f:
             json.dump(stops_geojson, f, ensure_ascii=False)
 
         self.show_geojson(output_dir, stops_filename, route_filename)
