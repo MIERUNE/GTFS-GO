@@ -75,11 +75,7 @@ In result.csv, you can see stops unifying result.
 
 ## Acknowledgements
 
-Version2.0.0, which is added the frequency aggregating function, got technically and financialy supported by [Toyota Mobility Foundation](https://toyotamobilityfoundation.jp/) and [Traffic Brain](https://t-brain.jp/).
-
-## Want to add new data sources?
-
--   Some data sources can be added from [here](https://transitfeeds.com/search?q=gtfs) however you need to check they have all the [required](https://github.com/MIERUNE/GTFS-GO/blob/master/gtfs_parser/constants.py) .txt files
+Version2.0.0, which is added the frequency aggregating function, got technically and financially supported by [Toyota Mobility Foundation](https://toyotamobilityfoundation.jp/) and [Traffic Brain](https://t-brain.jp/). Thank you for great contributions!
 
 ## Contribution
 
@@ -90,3 +86,7 @@ Version2.0.0, which is added the frequency aggregating function, got technically
 3. generate the translation files with `pylupdate5 ../gtfs_go.pro` on debian you have to install pylupdate with `apt install pyqt5-dev-tools`
 4. edit the newly generated file GTFSGO_lang.ts to contain the new translations
 5. generate qm file with `lrelease GTFSGO_lang_encoding.ts`
+
+## new data sources
+
+-   Some data sources can be added from [here](https://transitfeeds.com/search?q=gtfs) however you need to check they have all the [required](https://github.com/MIERUNE/GTFS-GO/blob/master/gtfs_parser/constants.py) .txt files
