@@ -5,7 +5,7 @@
       <symbol alpha="1" type="marker" force_rhr="0" name="0" clip_to_extent="1">
         <layer locked="0" enabled="1" class="SimpleMarker" pass="0">
           <prop k="angle" v="0"/>
-          <prop k="color" v="248,248,248,255"/>
+          <prop k="color" v="48,48,48,255"/>
           <prop k="horizontal_anchor_point" v="1"/>
           <prop k="joinstyle" v="bevel"/>
           <prop k="name" v="circle"/>
@@ -13,12 +13,12 @@
           <prop k="offset_map_unit_scale" v="3x:0,0,0,0,0,0"/>
           <prop k="offset_unit" v="MM"/>
           <prop k="outline_color" v="35,35,35,255"/>
-          <prop k="outline_style" v="solid"/>
+          <prop k="outline_style" v="no"/>
           <prop k="outline_width" v="0.4"/>
           <prop k="outline_width_map_unit_scale" v="3x:0,0,0,0,0,0"/>
           <prop k="outline_width_unit" v="MM"/>
           <prop k="scale_method" v="diameter"/>
-          <prop k="size" v="3"/>
+          <prop k="size" v="1.2"/>
           <prop k="size_map_unit_scale" v="3x:0,0,0,0,0,0"/>
           <prop k="size_unit" v="MM"/>
           <prop k="vertical_anchor_point" v="1"/>
@@ -37,8 +37,8 @@
   </renderer-v2>
   <labeling type="simple">
     <settings calloutType="simple">
-      <text-style fontSizeUnit="Point" textColor="0,0,0,255" fontKerning="1" isExpression="0" allowHtml="0" fontUnderline="0" fontWordSpacing="0" textOrientation="horizontal" fieldName="similar_stop_name" fontSizeMapUnitScale="3x:0,0,0,0,0,0" multilineHeight="1" fontSize="9" fontItalic="0" fontWeight="50" textOpacity="1" fontLetterSpacing="0" previewBkgrdColor="255,255,255,255" namedStyle="Regular" useSubstitutions="0" fontStrikeout="0" blendMode="0" capitalization="0" fontFamily="Arial">
-        <text-buffer bufferJoinStyle="128" bufferDraw="1" bufferSizeUnits="MM" bufferColor="255,255,255,255" bufferBlendMode="0" bufferSize="1" bufferSizeMapUnitScale="3x:0,0,0,0,0,0" bufferNoFill="1" bufferOpacity="1"/>
+      <text-style fontSizeUnit="Point" textColor="48,48,48,255" fontKerning="1" isExpression="0" allowHtml="0" fontUnderline="0" fontWordSpacing="0" textOrientation="horizontal" fieldName="similar_stop_name" fontSizeMapUnitScale="3x:0,0,0,0,0,0" multilineHeight="1" fontSize="9" fontItalic="0" fontWeight="50" textOpacity="1" fontLetterSpacing="0" previewBkgrdColor="255,255,255,255" namedStyle="Regular" useSubstitutions="0" fontStrikeout="0" blendMode="0" capitalization="0" fontFamily="Arial">
+        <text-buffer bufferJoinStyle="128" bufferDraw="1" bufferSizeUnits="MM" bufferColor="255,255,255,255" bufferBlendMode="0" bufferSize="0.7" bufferSizeMapUnitScale="3x:0,0,0,0,0,0" bufferNoFill="1" bufferOpacity="1"/>
         <text-mask maskOpacity="1" maskSize="1.5" maskJoinStyle="128" maskSizeUnits="MM" maskSizeMapUnitScale="3x:0,0,0,0,0,0" maskEnabled="0" maskType="0" maskedSymbolLayers=""/>
         <background shapeBlendMode="0" shapeRadiiX="0" shapeOffsetMapUnitScale="3x:0,0,0,0,0,0" shapeBorderWidth="0" shapeJoinStyle="64" shapeSizeUnit="MM" shapeRotation="0" shapeBorderWidthMapUnitScale="3x:0,0,0,0,0,0" shapeSizeMapUnitScale="3x:0,0,0,0,0,0" shapeRadiiY="0" shapeBorderWidthUnit="MM" shapeRadiiMapUnitScale="3x:0,0,0,0,0,0" shapeType="0" shapeOffsetY="0" shapeRadiiUnit="MM" shapeDraw="0" shapeSizeY="0" shapeSizeType="0" shapeRotationType="0" shapeOffsetUnit="MM" shapeSizeX="0" shapeOpacity="1" shapeOffsetX="0" shapeFillColor="255,255,255,255" shapeBorderColor="128,128,128,255" shapeSVGFile="">
           <symbol alpha="1" type="marker" force_rhr="0" name="markerSymbol" clip_to_extent="1">
@@ -83,7 +83,7 @@
       </text-style>
       <text-format rightDirectionSymbol=">" autoWrapLength="0" plussign="0" wrapChar="" useMaxLineLengthForAutoWrap="1" multilineAlign="3" addDirectionSymbol="0" formatNumbers="0" reverseDirectionSymbol="0" placeDirectionSymbol="0" decimals="3" leftDirectionSymbol="&lt;"/>
       <placement labelOffsetMapUnitScale="3x:0,0,0,0,0,0" placement="6" repeatDistanceUnits="MM" layerType="PointGeometry" geometryGeneratorType="PointGeometry" yOffset="0" offsetUnits="MM" polygonPlacementFlags="2" maxCurvedCharAngleOut="-25" overrunDistanceUnit="MM" lineAnchorPercent="0.5" repeatDistance="0" distUnits="MM" xOffset="0" rotationAngle="0" predefinedPositionOrder="TR,TL,BR,BL,R,L,TSR,BSR" distMapUnitScale="3x:0,0,0,0,0,0" centroidInside="0" placementFlags="10" priority="5" lineAnchorType="0" offsetType="0" centroidWhole="0" preserveRotation="1" overrunDistance="0" geometryGeneratorEnabled="0" overrunDistanceMapUnitScale="3x:0,0,0,0,0,0" dist="2" fitInPolygonOnly="0" geometryGenerator="" maxCurvedCharAngleIn="25" quadOffset="4" repeatDistanceMapUnitScale="3x:0,0,0,0,0,0"/>
-      <rendering zIndex="0" fontMaxPixelSize="10000" fontLimitPixelSize="0" obstacle="1" displayAll="0" limitNumLabels="0" scaleMax="50000" obstacleFactor="1" upsidedownLabels="0" maxNumLabels="2000" mergeLines="0" drawLabels="1" scaleMin="0" labelPerPart="0" scaleVisibility="1" fontMinPixelSize="3" minFeatureSize="0" obstacleType="1"/>
+      <rendering zIndex="0" fontMaxPixelSize="10000" fontLimitPixelSize="0" obstacle="1" displayAll="0" limitNumLabels="0" scaleMax="500000" obstacleFactor="1" upsidedownLabels="0" maxNumLabels="2000" mergeLines="0" drawLabels="1" scaleMin="0" labelPerPart="0" scaleVisibility="1" fontMinPixelSize="3" minFeatureSize="0" obstacleType="1"/>
       <dd_properties>
         <Option type="Map">
           <Option type="QString" name="name" value=""/>
