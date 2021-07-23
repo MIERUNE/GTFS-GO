@@ -71,6 +71,7 @@ class GTFSGoDialog(QtWidgets.QDialog):
         self.ui.zipFileWidget.fileChanged.connect(self.refresh)
         self.ui.outputDirFileWidget.fileChanged.connect(self.refresh)
         self.ui.unifyCheckBox.stateChanged.connect(self.refresh)
+        self.ui.timeFilterCheckBox.stateChanged.connect(self.refresh)
 
         # change mode by radio button
         self.ui.simpleRadioButton.clicked.connect(self.refresh)
@@ -156,7 +157,9 @@ class GTFSGoDialog(QtWidgets.QDialog):
 
             routes_geojson = {
                 'type': 'FeatureCollection',
-                'features': gtfs_parser.read_route_frequency(yyyymmdd=self.get_yyyymmdd())
+                'features': gtfs_parser.read_route_frequency(yyyymmdd=self.get_yyyymmdd(),
+                                                             begin_time=self.get_time_filter(self.ui.beginTimeLineEdit),
+                                                             end_time=self.get_time_filter(self.ui.endTimeLineEdit))
             }
             stops_geojson = {
                 'type': 'FeatureCollection',
@@ -195,6 +198,11 @@ class GTFSGoDialog(QtWidgets.QDialog):
         if not self.ui.delimiterCheckBox.isChecked():
             return ''
         return self.ui.delimiterLineEdit.text()
+
+    def get_time_filter(self, lineEdit):
+        if not self.ui.timeFilterCheckBox.isChecked():
+            return ''
+        return lineEdit.text().replace(':', '')
 
     def show_geojson(self, geojson_dir: str, stops_filename: str, route_filename: str):
         # these geojsons will already have been generated
@@ -260,6 +268,11 @@ class GTFSGoDialog(QtWidgets.QDialog):
         is_unify = self.ui.unifyCheckBox.isChecked()
         self.ui.delimiterCheckBox.setEnabled(is_unify)
         self.ui.delimiterLineEdit.setEnabled(is_unify)
+
+        # filter by times mode
+        has_time_filter = self.ui.timeFilterCheckBox.isChecked()
+        self.ui.beginTimeLineEdit.setEnabled(has_time_filter)
+        self.ui.endTimeLineEdit.setEnabled(has_time_filter)
 
         # radio button - mode toggle
         self.ui.simpleFrame.setEnabled(self.ui.simpleRadioButton.isChecked())
