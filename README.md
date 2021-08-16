@@ -90,3 +90,15 @@ Version2.0.0, in which the frequency aggregating function is added, got technica
 ### new data sources
 
 -   Some data sources can be added from [here](https://transitfeeds.com/search?q=gtfs) however you need to check they have all the [required](https://github.com/MIERUNE/GTFS-GO/blob/master/gtfs_parser/constants.py) .txt files
+
+### Tests
+
+-   needs pandas
+
+```
+pip install pandas
+```
+
+```
+python -m unittest discover gtfs_parser/tests
+```
