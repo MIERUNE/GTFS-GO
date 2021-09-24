@@ -77,6 +77,12 @@ class GTFSGoDialog(QtWidgets.QDialog):
         self.ui.simpleRadioButton.clicked.connect(self.refresh)
         self.ui.freqRadioButton.clicked.connect(self.refresh)
 
+        # time filter - validate user input
+        self.ui.beginTimeLineEdit.editingFinished.connect(
+            lambda: self.validate_time_lineedit(self.ui.beginTimeLineEdit))
+        self.ui.endTimeLineEdit.editingFinished.connect(
+            lambda: self.validate_time_lineedit(self.ui.endTimeLineEdit))
+
         # set today DateEdit
         now = datetime.datetime.now()
         self.ui.filterByDateDateEdit.setDate(
@@ -158,7 +164,8 @@ class GTFSGoDialog(QtWidgets.QDialog):
             routes_geojson = {
                 'type': 'FeatureCollection',
                 'features': gtfs_parser.read_route_frequency(yyyymmdd=self.get_yyyymmdd(),
-                                                             begin_time=self.get_time_filter(self.ui.beginTimeLineEdit),
+                                                             begin_time=self.get_time_filter(
+                                                                 self.ui.beginTimeLineEdit),
                                                              end_time=self.get_time_filter(self.ui.endTimeLineEdit))
             }
             stops_geojson = {
@@ -306,3 +313,16 @@ class GTFSGoDialog(QtWidgets.QDialog):
         for layer in layers:
             QgsProject.instance().addMapLayer(layer, False)
             group.insertLayer(0, layer)
+
+    @staticmethod
+    def validate_time_lineedit(lineedit):
+        digits = ''.join(
+            list(filter(lambda char: char.isdigit(), list(lineedit.text())))).ljust(6, "0")[-6:]
+
+        # limit to 29:59:59
+        hh = str(min(29, int(digits[0:2]))).zfill(2)
+        mm = str(min(59, int(digits[2:4]))).zfill(2)
+        ss = str(min(59, int(digits[4:6]))).zfill(2)
+
+        formatted_time_text = hh + ":" + mm + ":" + ss
+        lineedit.setText(formatted_time_text)
