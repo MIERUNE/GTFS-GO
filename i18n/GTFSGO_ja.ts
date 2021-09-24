@@ -22,12 +22,12 @@
         <translation>---ZIPファイルから読み込み---</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="243"/>
+        <location filename="../gtfs_go_dialog.py" line="248"/>
         <source>finish</source>
         <translation>完了</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="243"/>
+        <location filename="../gtfs_go_dialog.py" line="248"/>
         <source>generated geojson files: </source>
         <translation>GeoJSONファイルが出力されました: </translation>
     </message>
@@ -50,7 +50,7 @@
         <translation>出力先フォルダ</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="68"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="41"/>
         <source>Options</source>
         <translation type="obsolete">オプション</translation>
     </message>
@@ -65,12 +65,32 @@
         <translation>経路を持たないstopsを無視する</translation>
     </message>
     <message>
+        <location filename="../gtfs_go_dialog_base.ui" line="283"/>
+        <source>time filter</source>
+        <translation>発時刻で抽出</translation>
+    </message>
+    <message>
+        <location filename="../gtfs_go_dialog_base.ui" line="302"/>
+        <source>00:00:00</source>
+        <translation></translation>
+    </message>
+    <message>
         <location filename="../gtfs_go_dialog_base.ui" line="312"/>
+        <source>&lt;=departure_time&lt;</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="../gtfs_go_dialog_base.ui" line="331"/>
+        <source>28:00:00</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="../gtfs_go_dialog_base.ui" line="393"/>
         <source>Extract on QGIS</source>
         <translation>QGISに読み込む</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_loader_base.ui" line="52"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="393"/>
         <source>Abort</source>
         <translation type="obsolete">中断</translation>
     </message>

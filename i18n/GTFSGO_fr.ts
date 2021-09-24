@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS><TS version="2.0" language="fr" sourcelanguage="en">
+<!DOCTYPE TS>
+<TS version="2.1" language="fr" sourcelanguage="en">
 <context>
     <name>GTFSGo</name>
     <message>
@@ -21,12 +22,12 @@
         <translation>---Charger un fichier zip local---</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="243"/>
+        <location filename="../gtfs_go_dialog.py" line="248"/>
         <source>finish</source>
         <translation>Terminer</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="243"/>
+        <location filename="../gtfs_go_dialog.py" line="248"/>
         <source>generated geojson files: </source>
         <translation>Fichiers GeoJSON générés: </translation>
     </message>
@@ -49,7 +50,7 @@
         <translation>Répertoire de sortie</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="68"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="41"/>
         <source>Options</source>
         <translation type="obsolete">Paramètres</translation>
     </message>
@@ -64,12 +65,32 @@
         <translation>Ignorer les arrêts isolés</translation>
     </message>
     <message>
+        <location filename="../gtfs_go_dialog_base.ui" line="283"/>
+        <source>time filter</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../gtfs_go_dialog_base.ui" line="302"/>
+        <source>00:00:00</source>
+        <translation></translation>
+    </message>
+    <message>
         <location filename="../gtfs_go_dialog_base.ui" line="312"/>
+        <source>&lt;=departure_time&lt;</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="../gtfs_go_dialog_base.ui" line="331"/>
+        <source>28:00:00</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="../gtfs_go_dialog_base.ui" line="393"/>
         <source>Extract on QGIS</source>
         <translation>Extraire sous QGIS</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_loader_base.ui" line="52"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="393"/>
         <source>Abort</source>
         <translation type="obsolete">Interrompre</translation>
     </message>
@@ -91,7 +112,7 @@
     <message>
         <location filename="../gtfs_go_dialog_base.ui" line="263"/>
         <source>_</source>
-        <translation type="unfinished"></translation>
+        <translation></translation>
     </message>
     <message>
         <location filename="../gtfs_go_dialog_base.ui" line="186"/>

@@ -71,10 +71,17 @@ class GTFSGoDialog(QtWidgets.QDialog):
         self.ui.zipFileWidget.fileChanged.connect(self.refresh)
         self.ui.outputDirFileWidget.fileChanged.connect(self.refresh)
         self.ui.unifyCheckBox.stateChanged.connect(self.refresh)
+        self.ui.timeFilterCheckBox.stateChanged.connect(self.refresh)
 
         # change mode by radio button
         self.ui.simpleRadioButton.clicked.connect(self.refresh)
         self.ui.freqRadioButton.clicked.connect(self.refresh)
+
+        # time filter - validate user input
+        self.ui.beginTimeLineEdit.editingFinished.connect(
+            lambda: self.validate_time_lineedit(self.ui.beginTimeLineEdit))
+        self.ui.endTimeLineEdit.editingFinished.connect(
+            lambda: self.validate_time_lineedit(self.ui.endTimeLineEdit))
 
         # set today DateEdit
         now = datetime.datetime.now()
@@ -156,7 +163,10 @@ class GTFSGoDialog(QtWidgets.QDialog):
 
             routes_geojson = {
                 'type': 'FeatureCollection',
-                'features': gtfs_parser.read_route_frequency(yyyymmdd=self.get_yyyymmdd())
+                'features': gtfs_parser.read_route_frequency(yyyymmdd=self.get_yyyymmdd(),
+                                                             begin_time=self.get_time_filter(
+                                                                 self.ui.beginTimeLineEdit),
+                                                             end_time=self.get_time_filter(self.ui.endTimeLineEdit))
             }
             stops_geojson = {
                 'type': 'FeatureCollection',
@@ -195,6 +205,11 @@ class GTFSGoDialog(QtWidgets.QDialog):
         if not self.ui.delimiterCheckBox.isChecked():
             return ''
         return self.ui.delimiterLineEdit.text()
+
+    def get_time_filter(self, lineEdit):
+        if not self.ui.timeFilterCheckBox.isChecked():
+            return ''
+        return lineEdit.text().replace(':', '')
 
     def show_geojson(self, geojson_dir: str, stops_filename: str, route_filename: str):
         # these geojsons will already have been generated
@@ -261,6 +276,11 @@ class GTFSGoDialog(QtWidgets.QDialog):
         self.ui.delimiterCheckBox.setEnabled(is_unify)
         self.ui.delimiterLineEdit.setEnabled(is_unify)
 
+        # filter by times mode
+        has_time_filter = self.ui.timeFilterCheckBox.isChecked()
+        self.ui.beginTimeLineEdit.setEnabled(has_time_filter)
+        self.ui.endTimeLineEdit.setEnabled(has_time_filter)
+
         # radio button - mode toggle
         self.ui.simpleFrame.setEnabled(self.ui.simpleRadioButton.isChecked())
         self.ui.freqFrame.setEnabled(self.ui.freqRadioButton.isChecked())
@@ -293,3 +313,16 @@ class GTFSGoDialog(QtWidgets.QDialog):
         for layer in layers:
             QgsProject.instance().addMapLayer(layer, False)
             group.insertLayer(0, layer)
+
+    @staticmethod
+    def validate_time_lineedit(lineedit):
+        digits = ''.join(
+            list(filter(lambda char: char.isdigit(), list(lineedit.text())))).ljust(6, "0")[-6:]
+
+        # limit to 29:59:59
+        hh = str(min(29, int(digits[0:2]))).zfill(2)
+        mm = str(min(59, int(digits[2:4]))).zfill(2)
+        ss = str(min(59, int(digits[4:6]))).zfill(2)
+
+        formatted_time_text = hh + ":" + mm + ":" + ss
+        lineedit.setText(formatted_time_text)

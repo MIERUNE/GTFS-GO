@@ -170,21 +170,21 @@ class GTFSParser:
             }
         } for stop in stop_dicts]
 
-    def read_route_frequency(self, yyyymmdd=''):
+    def read_route_frequency(self, yyyymmdd='', begin_time='', end_time=''):
         """
         By grouped stops, aggregate route frequency.
         Filtering trips by a date, you can aggregate frequency only route serviced on the date.
 
         Args:
             yyyymmdd (str, optional): date, like 20210401. Defaults to ''.
-            delimiter (str, optional): stop_id delimiter, sample_A, sample_B, then delimiter is '_'. Defaults to ''.
-            max_distance_degree (float, optional): distance limit in grouping by stop_name. Defaults to 0.01.
+            begin_time (str, optional): 'hhmmss' <= departure time, like 030000. Defaults to ''.
+            end_time (str, optional): 'hhmmss' > departure time, like 280000. Defaults to ''.
 
         Returns:
             [type]: [description]
         """
         stop_times_df = self.dataframes.get(
-            'stop_times')[['stop_id', 'trip_id', 'stop_sequence']].sort_values(
+            'stop_times')[['stop_id', 'trip_id', 'stop_sequence', 'departure_time']].sort_values(
             ['trip_id', 'stop_sequence']).copy()
 
         # filter stop_times by whether serviced or not
@@ -221,6 +221,10 @@ class GTFSParser:
         stop_times_df = stop_times_df.drop(
             index=stop_times_df.query('prev_trip_id != next_trip_id').index)
 
+        # time filter
+        if begin_time and end_time:
+            stop_times_df = self.stop_time_filter(stop_times_df, begin_time, end_time)
+
         # define path_id by prev-stops-centroid and next-stops-centroid
         stop_times_df['path_id'] = stop_times_df['prev_stop_id'] + stop_times_df['next_stop_id'] + stop_times_df['prev_similar_stops_centroid'].map(
             latlon_to_str) + stop_times_df['next_similar_stops_centroid'].map(latlon_to_str)
@@ -250,6 +254,14 @@ class GTFSParser:
                 'agency_name': path['agency_name']
             }
         } for path in path_data_dict]
+
+    def stop_time_filter(self, stop_time_df, begin_time, end_time):
+        # departure_time is nullable and expressed in "hh:mm:ss" or "h:mm:ss" format.
+        # Hour can be mor than 24.
+        # Therefore, drop null records and convert times to integers.
+        df = stop_time_df[stop_time_df.departure_time != '']
+        int_dep_times = stop_time_df.departure_time.str.replace(':', '').astype(int)
+        return df[(int_dep_times >= int(begin_time)) & (int_dep_times < int(end_time))]
 
     @ lru_cache(maxsize=None)
     def get_similar_stop_tuple(self, stop_id: str, delimiter='', max_distance_degree=0.01):
@@ -518,7 +530,10 @@ if __name__ == "__main__":
     parser.add_argument('--ignore_no_route', action='store_true')
     parser.add_argument('--frequency', action='store_true')
     parser.add_argument('--yyyymmdd')
+    parser.add_argument('--as_unify_stops', action='store_true')
     parser.add_argument('--delimiter')
+    parser.add_argument('--begin_time')
+    parser.add_argument('--end_time')
     args = parser.parse_args()
 
     if args.zip is None and args.src_dir is None:
@@ -528,6 +543,20 @@ if __name__ == "__main__":
         if len(args.yyyymmdd) != 8:
             raise RuntimeError(
                 f'yyyymmdd must be 8 characters string, for example 20210401, your is {args.yyyymmdd} ({len(args.yyyymmdd)} characters)')
+
+    if args.begin_time:
+        if len(args.begin_time) != 6:
+            raise RuntimeError(
+                f'begin_time must be "hhmmss", your is {args.begin_time}')
+        if not args.end_time:
+            raise RuntimeError('end_time is not set.')
+
+    if args.end_time:
+        if len(args.end_time) != 6:
+            raise RuntimeError(
+                f'end_time must be "hhmmss", your is {args.end_time}')
+        if not args.begin_time:
+            raise RuntimeError('begin_time is not set.')
 
     if args.zip:
         print('extracting zipfile...')
@@ -541,7 +570,7 @@ if __name__ == "__main__":
     else:
         output_dir = args.src_dir
     gtfs_parser = GTFSParser(
-        output_dir, as_frequency=args.frequency, delimiter=args.delimiter)
+        output_dir, as_frequency=args.frequency, as_unify_stops=args.as_unify_stops, delimiter=args.delimiter)
 
     print('GTFS loaded.')
 
@@ -555,7 +584,7 @@ if __name__ == "__main__":
             'features': stops_features
         }
         routes_features = gtfs_parser.read_route_frequency(
-            yyyymmdd=args.yyyymmdd)
+            yyyymmdd=args.yyyymmdd, begin_time=args.begin_time, end_time=args.end_time)
         routes_geojson = {
             'type': 'FeatureCollection',
             'features': routes_features
