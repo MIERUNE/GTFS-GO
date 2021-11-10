@@ -31,13 +31,18 @@ import zipfile
 import tempfile
 import datetime
 
-from qgis.PyQt import QtWidgets, uic
-from PyQt5.QtCore import QDate
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 from qgis.core import *
+from qgis.gui import *
+from qgis.PyQt import uic
 
 from .gtfs_parser import GTFSParser
 from .gtfs_go_renderer import Renderer
 from .gtfs_go_labeling import get_labeling_for_stops
+from .japan_dpf_table_model import JapanDpfTableModel
+from . import constants
 
 from .gtfs_go_settings import (
     FILENAME_RESULT_CSV,
@@ -47,8 +52,18 @@ DATALIST_JSON_PATH = os.path.join(
     os.path.dirname(__file__), 'gtfs_go_datalist.json')
 TEMP_DIR = os.path.join(tempfile.gettempdir(), 'GTFSGo')
 
+REPOSITORY_ENUM = {
+    "preset": 0,
+    "japanDpf": 1
+}
 
-class GTFSGoDialog(QtWidgets.QDialog):
+WINDOW_HEIGHT = {
+    0: 400,
+    1: 800
+}
+
+
+class GTFSGoDialog(QDialog):
 
     def __init__(self, iface):
         """Constructor."""
@@ -62,13 +77,22 @@ class GTFSGoDialog(QtWidgets.QDialog):
         self.init_gui()
 
     def init_gui(self):
+        # repository combobox
+        self.repositoryCombobox.addItem(
+            self.tr('Preset'), REPOSITORY_ENUM['preset'])
+        self.repositoryCombobox.addItem(
+            self.tr('Japanese GTFS data platform'), REPOSITORY_ENUM['japanDpf'])
+
+        # local repository data select combobox
         self.ui.comboBox.addItem(self.combobox_zip_text, None)
         for data in self.datalist:
             self.ui.comboBox.addItem(self.make_combobox_text(data), data)
 
+        self.init_local_repository_gui()
+        self.init_japan_dpf_gui()
+
         # set refresh event on some ui
-        self.ui.comboBox.currentIndexChanged.connect(self.refresh)
-        self.ui.zipFileWidget.fileChanged.connect(self.refresh)
+        self.ui.repositoryCombobox.currentIndexChanged.connect(self.refresh)
         self.ui.outputDirFileWidget.fileChanged.connect(self.refresh)
         self.ui.unifyCheckBox.stateChanged.connect(self.refresh)
         self.ui.timeFilterCheckBox.stateChanged.connect(self.refresh)
@@ -85,12 +109,28 @@ class GTFSGoDialog(QtWidgets.QDialog):
 
         # set today DateEdit
         now = datetime.datetime.now()
+        self.ui.japanDpfTargetDateEdit.setDate(
+            QDate(now.year, now.month, now.day))
         self.ui.filterByDateDateEdit.setDate(
             QDate(now.year, now.month, now.day))
 
         self.refresh()
 
         self.ui.pushButton.clicked.connect(self.execution)
+
+    def init_local_repository_gui(self):
+        self.ui.comboBox.currentIndexChanged.connect(self.refresh)
+        self.ui.zipFileWidget.fileChanged.connect(self.refresh)
+
+    def init_japan_dpf_gui(self):
+        self.japanDpfResultTableView.setSelectionBehavior(
+            QAbstractItemView.SelectRows)
+        self.japan_dpf_set_table([])
+        self.japanDpfPrefectureCombobox.addItem(self.tr("any"), None)
+        for prefname in constants.JAPAN_PREFS:
+            self.japanDpfPrefectureCombobox.addItem(prefname)
+
+        self.japanDpfSearchButton.clicked.connect(self.japan_dpf_search)
 
     def make_combobox_text(self, data):
         """
@@ -266,6 +306,14 @@ class GTFSGoDialog(QtWidgets.QDialog):
             return None
 
     def refresh(self):
+        self.localDataSelectAreaWidget.setVisible(
+            self.repositoryCombobox.currentData() == REPOSITORY_ENUM['preset'])
+        self.japanDpfDataSelectAreaWidget.setVisible(
+            self.repositoryCombobox.currentData() == REPOSITORY_ENUM['japanDpf'])
+
+        self.setFixedHeight(
+            WINDOW_HEIGHT[self.repositoryCombobox.currentData()])
+
         self.ui.zipFileWidget.setEnabled(
             self.ui.comboBox.currentText() == self.combobox_zip_text)
         self.ui.pushButton.setEnabled((self.get_source() is not None) and
@@ -326,3 +374,103 @@ class GTFSGoDialog(QtWidgets.QDialog):
 
         formatted_time_text = hh + ":" + mm + ":" + ss
         lineedit.setText(formatted_time_text)
+
+    def japan_dpf_search(self):
+        results = [
+            {
+                "gtfs_id": "takaokashibus",
+                "gtfs_name": "高岡市公営バス",
+                "agency_id": "takaokacity",
+                "agency_name": "富山県高岡市",
+                "agency_prefecture": "富山県",
+                "from_date": "20210401",
+                "to_date": "20220331",
+                "gtfs_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/feed.zip?rid=current",
+                "stops_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/stops.geojson?rid=current",
+                "route_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/routes.geojson?rid=current",
+                "tracking_url": "https://api.gtfs-repo.jp/gtfs/takaokacity/takaokashibus/tracking.geojson?rid=current"
+            },
+            {
+                "gtfs_id": "takaokashibus",
+                "gtfs_name": "高岡市公営バス",
+                "agency_id": "takaokacity",
+                "agency_name": "富山県高岡市",
+                "agency_prefecture": "富山県",
+                "from_date": "20210401",
+                "to_date": "20220331",
+                "gtfs_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/feed.zip?rid=current",
+                "stops_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/stops.geojson?rid=current",
+                "route_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/routes.geojson?rid=current",
+                "tracking_url": "https://api.gtfs-repo.jp/gtfs/takaokacity/takaokashibus/tracking.geojson?rid=current"
+            },
+            {
+                "gtfs_id": "takaokashibus",
+                "gtfs_name": "高岡市公営バス",
+                "agency_id": "takaokacity",
+                "agency_name": "富山県高岡市",
+                "agency_prefecture": "富山県",
+                "from_date": "20210401",
+                "to_date": "20220331",
+                "gtfs_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/feed.zip?rid=current",
+                "stops_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/stops.geojson?rid=current",
+                "route_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/routes.geojson?rid=current",
+                "tracking_url": "https://api.gtfs-repo.jp/gtfs/takaokacity/takaokashibus/tracking.geojson?rid=current"
+            },
+            {
+                "gtfs_id": "takaokashibus",
+                "gtfs_name": "高岡市公営バス",
+                "agency_id": "takaokacity",
+                "agency_name": "富山県高岡市",
+                "agency_prefecture": "富山県",
+                "from_date": "20210401",
+                "to_date": "20220331",
+                "gtfs_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/feed.zip?rid=current",
+                "stops_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/stops.geojson?rid=current",
+                "route_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/routes.geojson?rid=current",
+                "tracking_url": "https://api.gtfs-repo.jp/gtfs/takaokacity/takaokashibus/tracking.geojson?rid=current"
+            },
+            {
+                "gtfs_id": "takaokashibus",
+                "gtfs_name": "高岡市公営バス",
+                "agency_id": "takaokacity",
+                "agency_name": "富山県高岡市",
+                "agency_prefecture": "富山県",
+                "from_date": "20210401",
+                "to_date": "20220331",
+                "gtfs_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/feed.zip?rid=current",
+                "stops_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/stops.geojson?rid=current",
+                "route_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/routes.geojson?rid=current",
+                "tracking_url": "https://api.gtfs-repo.jp/gtfs/takaokacity/takaokashibus/tracking.geojson?rid=current"
+            },
+        ]
+        self.japan_dpf_set_table(results)
+
+    def japan_dpf_set_table(self, results: list):
+        headers = (
+            "gtfs_id",
+            "gtfs_name",
+            "agency_id",
+            "agency_name",
+            "agency_prefecture",
+            "from_date",
+            "to_date",
+            "gtfs_url",
+            "stops_url",
+            "route_url",
+            "tracking_url"
+        )
+
+        # データモデルを生成
+        model = JapanDpfTableModel(results, headers)
+        # ソート機能を使う場合ProxyModelというクラスを間にかませる
+        proxyModel = QSortFilterProxyModel()
+        proxyModel.setDynamicSortFilter(True)
+        proxyModel.setSortCaseSensitivity(Qt.CaseInsensitive)
+        proxyModel.setSourceModel(model)
+
+        # テーブルビューにデータを適用する
+        self.japanDpfResultTableView.setModel(proxyModel)
+        # 左上をクリックすると全選択
+        self.japanDpfResultTableView.setCornerButtonEnabled(True)
+        # ソート機能を有効化
+        self.japanDpfResultTableView.setSortingEnabled(True)
