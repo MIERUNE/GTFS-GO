@@ -43,7 +43,7 @@ from .gtfs_parser import GTFSParser
 from .gtfs_go_renderer import Renderer
 from .gtfs_go_labeling import get_labeling_for_stops
 
-from .japan_dpf_table_model import JapanDpfTableModel
+from . import japan_dpf_table
 from .japan_dpf_api import get_feeds
 
 from . import constants
@@ -129,6 +129,9 @@ class GTFSGoDialog(QDialog):
         self.japanDpfResultTableView.setSelectionBehavior(
             QAbstractItemView.SelectRows)
         self.japan_dpf_set_table([])
+        for idx, header in enumerate(japan_dpf_table.HEADERS):
+            if header in japan_dpf_table.HEADERS_TO_HIDE:
+                self.japanDpfResultTableView.hideColumn(idx)
 
         self.japanDpfPrefectureCombobox.addItem(self.tr("any"), None)
         for prefname in constants.JAPAN_PREFS:
@@ -178,68 +181,96 @@ class GTFSGoDialog(QDialog):
             z.extractall(extracted_dir)
         return extracted_dir
 
+    def get_target_feed_infos(self):
+        feed_infos = []
+        if self.repositoryCombobox.currentData() == REPOSITORY_ENUM['preset']:
+            if self.ui.comboBox.currentData():
+                feed_infos.append({
+                    "path": self.ui.comboBox.currentData().get("url"),
+                    "group": self.ui.comboBox.currentData().get("name"),
+                    "dir": self.ui.comboBox.currentData().get("name")
+                })
+            elif self.ui.comboBox.currentData() is None and self.ui.zipFileWidget.filePath():
+                feed_infos.append({
+                    "path": self.ui.zipFileWidget.filePath(),
+                    "group": os.path.basename(self.ui.zipFileWidget.filePath()).split(".")[0],
+                    "dir": os.path.basename(self.ui.zipFileWidget.filePath()).split(".")[0]
+                })
+        elif self.repositoryCombobox.currentData() == REPOSITORY_ENUM['japanDpf']:
+            selected_rows = self.japanDpfResultTableView.selectionModel().selectedRows()
+            for row in selected_rows:
+                row_data = self.get_selected_row_data_in_japan_dpf_table(
+                    row.row())
+                feed_infos.append({
+                    "path": row_data["gtfs_url"],
+                    "group": row_data["agency_name"] + "-" + row_data["gtfs_name"],
+                    "dir": row_data["agency_id"] + "-" + row_data["gtfs_id"],
+                })
+        return feed_infos
+
     def execution(self):
         if os.path.exists(TEMP_DIR):
             shutil.rmtree(TEMP_DIR)
         os.makedirs(TEMP_DIR, exist_ok=True)
 
-        zip_src = self.get_source()
-        if zip_src.startswith('http'):
-            zip_path = self.download_zip(zip_src)
-        else:
-            zip_path = zip_src
+        for feed_info in self.get_target_feed_infos():
+            if feed_info["path"].startswith('http'):
+                feed_info["path"] = self.download_zip(feed_info["path"])
 
-        extracted_dir = self.extract_zip(zip_path)
-        output_dir = os.path.join(
-            self.outputDirFileWidget.filePath(), self.get_group_name())
-        os.makedirs(output_dir, exist_ok=True)
+            extracted_dir = self.extract_zip(feed_info["path"])
+            output_dir = os.path.join(self.outputDirFileWidget.filePath(),
+                                      feed_info["dir"])
+            os.makedirs(output_dir, exist_ok=True)
 
-        if self.ui.simpleRadioButton.isChecked():
-            gtfs_parser = GTFSParser(extracted_dir)
-            routes_geojson = {
-                'type': 'FeatureCollection',
-                'features': gtfs_parser.read_routes(no_shapes=self.ui.ignoreShapesCheckbox.isChecked())
-            }
-            stops_geojson = {
-                'type': 'FeatureCollection',
-                'features': gtfs_parser.read_stops(ignore_no_route=self.ui.ignoreNoRouteStopsCheckbox.isChecked())
-            }
-            route_filename = 'route.geojson'
-            stops_filename = 'stops.geojson'
-        else:
-            gtfs_parser = GTFSParser(
-                extracted_dir,
-                as_frequency=True,
-                as_unify_stops=self.ui.unifyCheckBox.isChecked(),
-                delimiter=self.get_delimiter()
-            )
+            if self.ui.simpleRadioButton.isChecked():
+                gtfs_parser = GTFSParser(extracted_dir)
+                routes_geojson = {
+                    'type': 'FeatureCollection',
+                    'features': gtfs_parser.read_routes(no_shapes=self.ui.ignoreShapesCheckbox.isChecked())
+                }
+                stops_geojson = {
+                    'type': 'FeatureCollection',
+                    'features': gtfs_parser.read_stops(ignore_no_route=self.ui.ignoreNoRouteStopsCheckbox.isChecked())
+                }
+                route_filename = 'route.geojson'
+                stops_filename = 'stops.geojson'
+            else:
+                gtfs_parser = GTFSParser(
+                    extracted_dir,
+                    as_frequency=True,
+                    as_unify_stops=self.ui.unifyCheckBox.isChecked(),
+                    delimiter=self.get_delimiter()
+                )
 
-            routes_geojson = {
-                'type': 'FeatureCollection',
-                'features': gtfs_parser.read_route_frequency(yyyymmdd=self.get_yyyymmdd(),
-                                                             begin_time=self.get_time_filter(
-                                                                 self.ui.beginTimeLineEdit),
-                                                             end_time=self.get_time_filter(self.ui.endTimeLineEdit))
-            }
-            stops_geojson = {
-                'type': 'FeatureCollection',
-                'features': gtfs_parser.read_interpolated_stops()
-            }
+                routes_geojson = {
+                    'type': 'FeatureCollection',
+                    'features': gtfs_parser.read_route_frequency(yyyymmdd=self.get_yyyymmdd(),
+                                                                 begin_time=self.get_time_filter(
+                        self.ui.beginTimeLineEdit),
+                        end_time=self.get_time_filter(self.ui.endTimeLineEdit))
+                }
+                stops_geojson = {
+                    'type': 'FeatureCollection',
+                    'features': gtfs_parser.read_interpolated_stops()
+                }
 
-            route_filename = 'frequency.geojson'
-            stops_filename = 'frequency_stops.geojson'
+                route_filename = 'frequency.geojson'
+                stops_filename = 'frequency_stops.geojson'
 
-            # write stop_id conversion result csv
-            with open(os.path.join(output_dir, FILENAME_RESULT_CSV), mode="w", encoding="cp932", errors="ignore")as f:
-                gtfs_parser.dataframes['stops'][[
-                    'stop_id', 'stop_name', 'similar_stop_id', 'similar_stop_name']].to_csv(f, index=False)
+                # write stop_id conversion result csv
+                with open(os.path.join(output_dir, FILENAME_RESULT_CSV), mode="w", encoding="cp932", errors="ignore")as f:
+                    gtfs_parser.dataframes['stops'][[
+                        'stop_id', 'stop_name', 'similar_stop_id', 'similar_stop_name']].to_csv(f, index=False)
 
-        with open(os.path.join(output_dir, route_filename), mode='w', encoding='utf-8') as f:
-            json.dump(routes_geojson, f, ensure_ascii=False)
-        with open(os.path.join(output_dir, stops_filename), mode='w', encoding='utf-8') as f:
-            json.dump(stops_geojson, f, ensure_ascii=False)
+            with open(os.path.join(output_dir, route_filename), mode='w', encoding='utf-8') as f:
+                json.dump(routes_geojson, f, ensure_ascii=False)
+            with open(os.path.join(output_dir, stops_filename), mode='w', encoding='utf-8') as f:
+                json.dump(stops_geojson, f, ensure_ascii=False)
 
-        self.show_geojson(output_dir, stops_filename, route_filename)
+            self.show_geojson(output_dir,
+                              stops_filename,
+                              route_filename,
+                              feed_info["group"])
 
         self.ui.close()
 
@@ -264,7 +295,7 @@ class GTFSGoDialog(QDialog):
             return ''
         return lineEdit.text().replace(':', '')
 
-    def show_geojson(self, geojson_dir: str, stops_filename: str, route_filename: str):
+    def show_geojson(self, geojson_dir: str, stops_filename: str, route_filename: str, group_name: str):
         # these geojsons will already have been generated
         stops_geojson = os.path.join(geojson_dir, stops_filename)
         routes_geojson = os.path.join(geojson_dir, route_filename)
@@ -302,21 +333,12 @@ class GTFSGoDialog(QDialog):
             added_layers = [routes_vlayer, stops_vlayer, csv_vlayer]
 
         # add two layers as a group
-        group_name = self.get_group_name()
         self.add_layers_as_group(group_name, added_layers)
 
         self.iface.messageBar().pushInfo(
             self.tr('finish'),
             self.tr('generated geojson files: ') + geojson_dir)
         self.ui.close()
-
-    def get_source(self):
-        if self.ui.comboBox.currentData():
-            return self.ui.comboBox.currentData().get("url")
-        elif self.ui.comboBox.currentData() is None and self.ui.zipFileWidget.filePath():
-            return self.ui.zipFileWidget.filePath()
-        else:
-            return None
 
     def refresh(self):
         self.localDataSelectAreaWidget.setVisible(
@@ -329,8 +351,8 @@ class GTFSGoDialog(QDialog):
 
         self.ui.zipFileWidget.setEnabled(
             self.ui.comboBox.currentText() == self.combobox_zip_text)
-        self.ui.pushButton.setEnabled((self.get_source() is not None) and
-                                      (not self.ui.outputDirFileWidget.filePath() == ''))
+        self.ui.pushButton.setEnabled((len(self.get_target_feed_infos()) > 0) and
+                                      (self.ui.outputDirFileWidget.filePath() != ''))
 
         # stops unify mode
         is_unify = self.ui.unifyCheckBox.isChecked()
@@ -345,14 +367,6 @@ class GTFSGoDialog(QDialog):
         # radio button - mode toggle
         self.ui.simpleFrame.setEnabled(self.ui.simpleRadioButton.isChecked())
         self.ui.freqFrame.setEnabled(self.ui.freqRadioButton.isChecked())
-
-    def get_group_name(self):
-        if self.ui.comboBox.currentData():
-            return self.ui.comboBox.currentData().get("name")
-        elif self.ui.comboBox.currentData() is None and self.ui.zipFileWidget.filePath():
-            return os.path.basename(self.ui.zipFileWidget.filePath()).split(".")[0]
-        else:
-            return "no named group"
 
     def add_layers_as_group(self, group_name: str, layers: [QgsMapLayer]):
         """
@@ -406,31 +420,19 @@ class GTFSGoDialog(QDialog):
         self.japan_dpf_set_table(results)
 
     def japan_dpf_set_table(self, results: list):
-        headers = (
-            "gtfs_id",
-            "gtfs_name",
-            "agency_id",
-            "agency_name",
-            "agency_prefecture",
-            "from_date",
-            "to_date",
-            "gtfs_url",
-            "stops_url",
-            "route_url",
-            "tracking_url"
-        )
-
-        # データモデルを生成
-        model = JapanDpfTableModel(results, headers)
-        # ソート機能を使う場合ProxyModelというクラスを間にかませる
+        model = japan_dpf_table.Model(results)
         proxyModel = QSortFilterProxyModel()
         proxyModel.setDynamicSortFilter(True)
         proxyModel.setSortCaseSensitivity(Qt.CaseInsensitive)
         proxyModel.setSourceModel(model)
 
-        # テーブルビューにデータを適用する
         self.japanDpfResultTableView.setModel(proxyModel)
-        # 左上をクリックすると全選択
         self.japanDpfResultTableView.setCornerButtonEnabled(True)
-        # ソート機能を有効化
         self.japanDpfResultTableView.setSortingEnabled(True)
+
+    def get_selected_row_data_in_japan_dpf_table(self, row: int):
+        data = {}
+        for col_idx, col_name in enumerate(japan_dpf_table.HEADERS):
+            data[col_name] = self.japanDpfResultTableView.model().index(row,
+                                                                        col_idx).data()
+        return data

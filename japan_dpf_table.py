@@ -4,12 +4,35 @@ from PyQt5.QtWidgets import *
 from qgis.core import *
 from qgis.gui import *
 
+HEADERS = (
+    "agency_prefecture",
+    "agency_name",
+    "gtfs_name",
+    "from_date",
+    "to_date",
+    "gtfs_url",
+    "stops_url",
+    "route_url",
+    "tracking_url",
+    "gtfs_id",
+    "agency_id",
+)
 
-class JapanDpfTableModel(QAbstractTableModel):
-    def __init__(self, datalist: list, headers: list, parent=None):
+HEADERS_TO_HIDE = (
+    "gtfs_url",
+    "stops_url",
+    "route_url",
+    "tracking_url",
+    "gtfs_id",
+    "agency_id",
+)
+
+
+class Model(QAbstractTableModel):
+    def __init__(self, datalist: list, parent=None):
         QAbstractTableModel.__init__(self, parent)
         self.datalist = datalist
-        self.headers = headers
+        self.headers = HEADERS
 
     # テーブルの行数
     def rowCount(self, parent):
