@@ -37,11 +37,15 @@ from PyQt5.QtWidgets import *
 from qgis.core import *
 from qgis.gui import *
 from qgis.PyQt import uic
+from qgis.utils import iface
 
 from .gtfs_parser import GTFSParser
 from .gtfs_go_renderer import Renderer
 from .gtfs_go_labeling import get_labeling_for_stops
+
 from .japan_dpf_table_model import JapanDpfTableModel
+from .japan_dpf_api import get_feeds
+
 from . import constants
 
 from .gtfs_go_settings import (
@@ -58,8 +62,9 @@ REPOSITORY_ENUM = {
 }
 
 WINDOW_HEIGHT = {
-    0: 400,
-    1: 800
+    # key is linked to values of REPOSITORY_ENUM
+    0: 400,  # preset
+    1: 800  # japanDpf
 }
 
 
@@ -109,8 +114,6 @@ class GTFSGoDialog(QDialog):
 
         # set today DateEdit
         now = datetime.datetime.now()
-        self.ui.japanDpfTargetDateEdit.setDate(
-            QDate(now.year, now.month, now.day))
         self.ui.filterByDateDateEdit.setDate(
             QDate(now.year, now.month, now.day))
 
@@ -126,9 +129,19 @@ class GTFSGoDialog(QDialog):
         self.japanDpfResultTableView.setSelectionBehavior(
             QAbstractItemView.SelectRows)
         self.japan_dpf_set_table([])
+
         self.japanDpfPrefectureCombobox.addItem(self.tr("any"), None)
         for prefname in constants.JAPAN_PREFS:
-            self.japanDpfPrefectureCombobox.addItem(prefname)
+            self.japanDpfPrefectureCombobox.addItem(
+                prefname, prefname)
+
+        now = datetime.datetime.now()
+        self.ui.japanDpfTargetDateEdit.setDate(
+            QDate(now.year, now.month, now.day))
+
+        self.japanDpfExtentGroupBox.setMapCanvas(iface.mapCanvas())
+        self.japanDpfExtentGroupBox.setOutputCrs(
+            QgsCoordinateReferenceSystem("EPSG:4326"))
 
         self.japanDpfSearchButton.clicked.connect(self.japan_dpf_search)
 
@@ -376,73 +389,20 @@ class GTFSGoDialog(QDialog):
         lineedit.setText(formatted_time_text)
 
     def japan_dpf_search(self):
-        results = [
-            {
-                "gtfs_id": "takaokashibus",
-                "gtfs_name": "高岡市公営バス",
-                "agency_id": "takaokacity",
-                "agency_name": "富山県高岡市",
-                "agency_prefecture": "富山県",
-                "from_date": "20210401",
-                "to_date": "20220331",
-                "gtfs_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/feed.zip?rid=current",
-                "stops_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/stops.geojson?rid=current",
-                "route_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/routes.geojson?rid=current",
-                "tracking_url": "https://api.gtfs-repo.jp/gtfs/takaokacity/takaokashibus/tracking.geojson?rid=current"
-            },
-            {
-                "gtfs_id": "takaokashibus",
-                "gtfs_name": "高岡市公営バス",
-                "agency_id": "takaokacity",
-                "agency_name": "富山県高岡市",
-                "agency_prefecture": "富山県",
-                "from_date": "20210401",
-                "to_date": "20220331",
-                "gtfs_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/feed.zip?rid=current",
-                "stops_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/stops.geojson?rid=current",
-                "route_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/routes.geojson?rid=current",
-                "tracking_url": "https://api.gtfs-repo.jp/gtfs/takaokacity/takaokashibus/tracking.geojson?rid=current"
-            },
-            {
-                "gtfs_id": "takaokashibus",
-                "gtfs_name": "高岡市公営バス",
-                "agency_id": "takaokacity",
-                "agency_name": "富山県高岡市",
-                "agency_prefecture": "富山県",
-                "from_date": "20210401",
-                "to_date": "20220331",
-                "gtfs_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/feed.zip?rid=current",
-                "stops_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/stops.geojson?rid=current",
-                "route_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/routes.geojson?rid=current",
-                "tracking_url": "https://api.gtfs-repo.jp/gtfs/takaokacity/takaokashibus/tracking.geojson?rid=current"
-            },
-            {
-                "gtfs_id": "takaokashibus",
-                "gtfs_name": "高岡市公営バス",
-                "agency_id": "takaokacity",
-                "agency_name": "富山県高岡市",
-                "agency_prefecture": "富山県",
-                "from_date": "20210401",
-                "to_date": "20220331",
-                "gtfs_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/feed.zip?rid=current",
-                "stops_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/stops.geojson?rid=current",
-                "route_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/routes.geojson?rid=current",
-                "tracking_url": "https://api.gtfs-repo.jp/gtfs/takaokacity/takaokashibus/tracking.geojson?rid=current"
-            },
-            {
-                "gtfs_id": "takaokashibus",
-                "gtfs_name": "高岡市公営バス",
-                "agency_id": "takaokacity",
-                "agency_name": "富山県高岡市",
-                "agency_prefecture": "富山県",
-                "from_date": "20210401",
-                "to_date": "20220331",
-                "gtfs_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/feed.zip?rid=current",
-                "stops_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/stops.geojson?rid=current",
-                "route_url": "https://mlit-platform.s3.ap-northeast-1.amazonaws.com/gtfsdatarepo/toyama/routes.geojson?rid=current",
-                "tracking_url": "https://api.gtfs-repo.jp/gtfs/takaokacity/takaokashibus/tracking.geojson?rid=current"
-            },
-        ]
+        target_date = self.ui.japanDpfTargetDateEdit.date()
+        yyyy = str(target_date.year()).zfill(4)
+        mm = str(target_date.month()).zfill(2)
+        dd = str(target_date.day()).zfill(2)
+
+        extent = None if self.japanDpfExtentGroupBox.outputExtent().isEmpty(
+        ) else self.japanDpfExtentGroupBox.outputExtent().toString().replace(" : ", ",")
+
+        pref = None if self.japanDpfPrefectureCombobox.currentData(
+        ) is None else urllib.parse.quote(self.japanDpfPrefectureCombobox.currentData())
+
+        results = get_feeds(yyyy+mm+dd,
+                            extent=extent,
+                            pref=pref)
         self.japan_dpf_set_table(results)
 
     def japan_dpf_set_table(self, results: list):
