@@ -34,21 +34,16 @@ class Model(QAbstractTableModel):
         self.datalist = datalist
         self.headers = HEADERS
 
-    # テーブルの行数
     def rowCount(self, parent):
         return len(self.datalist)
 
-    # テーブルの列数
     def columnCount(self, parent):
         return len(self.headers)
 
     def flags(self, index):
-        # 編集可能(Editable)とすることも可能
         # return Qt.ItemIsEditable | Qt.ItemIsEnabled | Qt.ItemIsSelectable
         return Qt.ItemIsEnabled | Qt.ItemIsSelectable
 
-    # 表示すべきデータ定義
-    # Roleごとに書き分けないと表示が崩れる
     def data(self, index, role):
         """
         if role == Qt.EditRole:
@@ -63,8 +58,6 @@ class Model(QAbstractTableModel):
             key = self.headers[column]
             return self.datalist[row].get(key, "")
 
-    # 編集可能にする場合必要な関数
-    # 編集されたセルの値を取得し、シグナルをemitする
     """
     def setData(self, index, value, role=Qt.EditRole):
         row = index.row()
@@ -77,15 +70,12 @@ class Model(QAbstractTableModel):
         return False
     """
 
-    # テーブルのヘッダー設定
     def headerData(self, section, orientation, role):
         if role == Qt.DisplayRole:
-            # テーブル上部のヘッダー設定
             if orientation == Qt.Horizontal:
                 if section < len(self.headers):
                     return self.headers[section]
                 else:
                     return "not implemented"
-            # テーブル左部のヘッダー設定
             else:
                 return section + 1

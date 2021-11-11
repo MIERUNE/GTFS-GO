@@ -14,8 +14,8 @@ DPF_API_URL = "https://7nnkztqg4i.execute-api.ap-northeast-1.amazonaws.com/mock/
 
 def fetch(url: str) -> dict:
     """
-    QGIS-APIのお作法による非同期通信
-    戻り値がJSON文字列であることが前提
+    Fetch data via http in QGIS-manner
+    reponse must be  JSON-text
 
     Args:
         url (str): [description]
@@ -24,7 +24,7 @@ def fetch(url: str) -> dict:
         Exception: [description]
 
     Returns:
-        [type]: [description]
+        dict: decode JSON-text as python-dictionary
     """
     eventLoop = QEventLoop()
     networkAccessManager = QgsNetworkAccessManager.instance()
