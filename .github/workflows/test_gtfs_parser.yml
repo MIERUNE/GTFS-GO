@@ -1,7 +1,11 @@
 name: test gtfs_parser
 
 on:
-  # Run tests for any PRs.
+  push:
+    branches: [ master, develop ]
+    paths:
+      - "gtfs_parser/**"
+  
   pull_request:
     branches: [ master, develop ]
     paths: 
