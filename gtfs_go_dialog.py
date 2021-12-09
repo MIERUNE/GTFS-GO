@@ -43,9 +43,7 @@ from .gtfs_parser import GTFSParser
 from .gtfs_go_renderer import Renderer
 from .gtfs_go_labeling import get_labeling_for_stops
 
-from . import japan_dpf_table
-from .japan_dpf_api import get_feeds
-
+from . import repository
 from . import constants
 
 from .gtfs_go_settings import (
@@ -129,8 +127,8 @@ class GTFSGoDialog(QDialog):
         self.japanDpfResultTableView.setSelectionBehavior(
             QAbstractItemView.SelectRows)
         self.japan_dpf_set_table([])
-        for idx, header in enumerate(japan_dpf_table.HEADERS):
-            if header in japan_dpf_table.HEADERS_TO_HIDE:
+        for idx, header in enumerate(repository.japan_dpf.table.HEADERS):
+            if header in repository.japan_dpf.table.HEADERS_TO_HIDE:
                 self.japanDpfResultTableView.hideColumn(idx)
 
         self.japanDpfPrefectureCombobox.addItem(self.tr("any"), None)
@@ -414,13 +412,13 @@ class GTFSGoDialog(QDialog):
         pref = None if self.japanDpfPrefectureCombobox.currentData(
         ) is None else urllib.parse.quote(self.japanDpfPrefectureCombobox.currentData())
 
-        results = get_feeds(yyyy+mm+dd,
-                            extent=extent,
-                            pref=pref)
+        results = repository.japan_dpf.api.get_feeds(yyyy+mm+dd,
+                                                     extent=extent,
+                                                     pref=pref)
         self.japan_dpf_set_table(results)
 
     def japan_dpf_set_table(self, results: list):
-        model = japan_dpf_table.Model(results)
+        model = repository.japan_dpf.table.Model(results)
         proxyModel = QSortFilterProxyModel()
         proxyModel.setDynamicSortFilter(True)
         proxyModel.setSortCaseSensitivity(Qt.CaseInsensitive)
@@ -432,7 +430,7 @@ class GTFSGoDialog(QDialog):
 
     def get_selected_row_data_in_japan_dpf_table(self, row: int):
         data = {}
-        for col_idx, col_name in enumerate(japan_dpf_table.HEADERS):
+        for col_idx, col_name in enumerate(repository.japan_dpf.table.HEADERS):
             data[col_name] = self.japanDpfResultTableView.model().index(row,
                                                                         col_idx).data()
         return data
