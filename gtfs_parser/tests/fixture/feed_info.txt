@@ -1,0 +1,2 @@
+﻿feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date,feed_version
+北海道拓殖バス株式会社,https://www.takubus.com/,ja,20210721,20220720,20210601_2021年06月01日（★一般路線改正 仕業入り全体4.3） その筋屋 1.500

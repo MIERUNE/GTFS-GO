@@ -1,0 +1,4 @@
+﻿service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date
+平日,1,1,1,1,1,0,0,20210721,20220720
+土曜,0,0,0,0,0,1,0,20210721,20220720
+日祝,0,0,0,0,0,0,1,20210721,20220720
