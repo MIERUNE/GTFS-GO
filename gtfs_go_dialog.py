@@ -30,6 +30,7 @@ import shutil
 import zipfile
 import tempfile
 import datetime
+import uuid
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -166,14 +167,14 @@ class GTFSGoDialog(QDialog):
 
     def download_zip(self, url: str) -> str:
         data = urllib.request.urlopen(url).read()
-        download_path = os.path.join(TEMP_DIR, str(int(time.time())) + '.zip')
+        download_path = os.path.join(TEMP_DIR, str(uuid.uuid4()) + '.zip')
         with open(download_path, mode='wb') as f:
             f.write(data)
 
         return download_path
 
     def extract_zip(self, zip_path: str) -> str:
-        extracted_dir = os.path.join(TEMP_DIR, 'extract')
+        extracted_dir = os.path.join(TEMP_DIR, 'extract', str(uuid.uuid4()))
         os.makedirs(extracted_dir, exist_ok=True)
         with zipfile.ZipFile(zip_path) as z:
             z.extractall(extracted_dir)
