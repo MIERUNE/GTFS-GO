@@ -402,6 +402,8 @@ class GTFSGoDialog(QDialog):
         lineedit.setText(formatted_time_text)
 
     def japan_dpf_search(self):
+        self.japanDpfSearchButton.setEnabled(False)
+
         target_date = self.ui.japanDpfTargetDateEdit.date()
         yyyy = str(target_date.year()).zfill(4)
         mm = str(target_date.month()).zfill(2)
@@ -413,10 +415,16 @@ class GTFSGoDialog(QDialog):
         pref = None if self.japanDpfPrefectureCombobox.currentData(
         ) is None else urllib.parse.quote(self.japanDpfPrefectureCombobox.currentData())
 
-        results = repository.japan_dpf.api.get_feeds(yyyy+mm+dd,
-                                                     extent=extent,
-                                                     pref=pref)
-        self.japan_dpf_set_table(results)
+        try:
+            results = repository.japan_dpf.api.get_feeds(yyyy+mm+dd,
+                                                         extent=extent,
+                                                         pref=pref)
+            self.japan_dpf_set_table(results)
+        except Exception as e:
+            QMessageBox.information(
+                self, self.tr('Error'), self.tr('Error occured, please check:\n- Internet connection.\n- Repository-server'))
+        finally:
+            self.japanDpfSearchButton.setEnabled(True)
 
     def japan_dpf_set_table(self, results: list):
         model = repository.japan_dpf.table.Model(results)
