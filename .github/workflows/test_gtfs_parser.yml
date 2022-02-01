@@ -27,5 +27,5 @@ jobs:
         run: python -m pip install pandas
       
       - name: unittest
-        run: python -m unittest discover
+        run: python -m unittest discover gtfs_parser
         continue-on-error: true
