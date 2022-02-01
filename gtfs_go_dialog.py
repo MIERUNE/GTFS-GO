@@ -23,7 +23,6 @@
 """
 
 import os
-import time
 import json
 import urllib
 import shutil
@@ -100,8 +99,6 @@ class GTFSGoDialog(QDialog):
         self.ui.outputDirFileWidget.fileChanged.connect(self.refresh)
         self.ui.unifyCheckBox.stateChanged.connect(self.refresh)
         self.ui.timeFilterCheckBox.stateChanged.connect(self.refresh)
-
-        # change mode by radio button
         self.ui.simpleRadioButton.clicked.connect(self.refresh)
         self.ui.freqRadioButton.clicked.connect(self.refresh)
 
@@ -125,6 +122,8 @@ class GTFSGoDialog(QDialog):
         self.ui.zipFileWidget.fileChanged.connect(self.refresh)
 
     def init_japan_dpf_gui(self):
+        self.japanDpfResultTableView.clicked.connect(self.refresh)
+
         self.japanDpfResultTableView.setSelectionBehavior(
             QAbstractItemView.SelectRows)
         self.japan_dpf_set_table([])
@@ -402,7 +401,9 @@ class GTFSGoDialog(QDialog):
         lineedit.setText(formatted_time_text)
 
     def japan_dpf_search(self):
+        self.ui.pushButton.setEnabled(False)
         self.japanDpfSearchButton.setEnabled(False)
+        self.japanDpfSearchButton.setText(self.tr("Searching..."))
 
         target_date = self.ui.japanDpfTargetDateEdit.date()
         yyyy = str(target_date.year()).zfill(4)
@@ -422,9 +423,11 @@ class GTFSGoDialog(QDialog):
             self.japan_dpf_set_table(results)
         except Exception as e:
             QMessageBox.information(
-                self, self.tr('Error'), self.tr('Error occured, please check:\n- Internet connection.\n- Repository-server'))
+                self, self.tr('Error'), self.tr('Error occured, please check:\n- Internet connection.\n- Repository-server') + "\n\n" + e)
         finally:
             self.japanDpfSearchButton.setEnabled(True)
+            self.japanDpfSearchButton.setText(self.tr("Search"))
+            self.refresh()
 
     def japan_dpf_set_table(self, results: list):
         model = repository.japan_dpf.table.Model(results)
