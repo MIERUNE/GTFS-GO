@@ -9,7 +9,7 @@ from qgis.core import *
 from qgis.gui import *
 from qgis.utils import iface
 
-DPF_API_URL = "https://7nnkztqg4i.execute-api.ap-northeast-1.amazonaws.com/mock/gtfs"
+DPF_API_URL = "https://api.gtfs-data.jp/gtfs"
 
 
 def fetch(url: str) -> dict:
@@ -38,9 +38,7 @@ def fetch(url: str) -> dict:
         text = text_stream.readAll()
         return json.loads(text)
     else:
-        iface.messageBar().pushWarning("エラー", "サーバーとの通信に失敗しました")
-        print(reply.error())
-        return {}
+        raise Exception(reply.error())
 
 
 def get_feeds(target_date: str, extent=None, pref=None):
