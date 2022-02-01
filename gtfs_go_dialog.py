@@ -270,8 +270,6 @@ class GTFSGoDialog(QDialog):
                               route_filename,
                               feed_info["group"])
 
-        self.ui.close()
-
     def get_yyyymmdd(self):
         if not self.ui.filterByDateCheckBox.isChecked():
             return ''
