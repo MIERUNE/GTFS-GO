@@ -84,7 +84,7 @@ class GTFSGoDialog(QDialog):
         self.repositoryCombobox.addItem(
             self.tr('Preset'), REPOSITORY_ENUM['preset'])
         self.repositoryCombobox.addItem(
-            self.tr('Japanese GTFS data platform'), REPOSITORY_ENUM['japanDpf'])
+            self.tr('[Japan]GTFS data repository'), REPOSITORY_ENUM['japanDpf'])
 
         # local repository data select combobox
         self.ui.comboBox.addItem(self.combobox_zip_text, None)
