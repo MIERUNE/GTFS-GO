@@ -25,6 +25,10 @@
   <property name="windowTitle">
    <string>GTFS GO</string>
   </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>imgs/busstop.png</normaloff>imgs/busstop.png</iconset>
+  </property>
   <layout class="QVBoxLayout" name="verticalLayout_2">
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
