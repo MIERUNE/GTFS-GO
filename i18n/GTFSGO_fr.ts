@@ -21,12 +21,12 @@
         <translation>---Charger un fichier zip local---</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="338"/>
+        <location filename="../gtfs_go_dialog.py" line="340"/>
         <source>finish</source>
         <translation>Terminer</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="338"/>
+        <location filename="../gtfs_go_dialog.py" line="340"/>
         <source>generated geojson files: </source>
         <translation>Fichiers GeoJSON générés: </translation>
     </message>
@@ -36,35 +36,35 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="86"/>
-        <source>Japanese GTFS data platform</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <location filename="../gtfs_go_dialog.py" line="134"/>
         <source>any</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="408"/>
+        <location filename="../gtfs_go_dialog.py" line="410"/>
         <source>Searching...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="427"/>
+        <location filename="../gtfs_go_dialog.py" line="429"/>
         <source>Error</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="427"/>
+        <location filename="../gtfs_go_dialog.py" line="429"/>
         <source>Error occured, please check:
 - Internet connection.
 - Repository-server</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="431"/>
+        <location filename="../gtfs_go_dialog.py" line="433"/>
         <source>Search</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../gtfs_go_dialog.py" line="86"/>
+        <source>[Japan]GTFS data repository</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -76,12 +76,12 @@
         <translation></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="92"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="96"/>
         <source>GTFS-Datasource</source>
         <translation>Source de données GTFS</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="208"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="212"/>
         <source>Output directory</source>
         <translation>Répertoire de sortie</translation>
     </message>
@@ -91,32 +91,32 @@
         <translation type="obsolete">Paramètres</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="266"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="270"/>
         <source>ignore shapes.txt</source>
         <translation>Ignorer le fichier shapes.txt</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="279"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="283"/>
         <source>ignore isolated stops</source>
         <translation>Ignorer les arrêts isolés</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="421"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="425"/>
         <source>time filter</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="440"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="444"/>
         <source>00:00:00</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="450"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="454"/>
         <source>&lt;=departure_time&lt;</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="531"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="535"/>
         <source>Extract on QGIS</source>
         <translation>Extraire sous QGIS</translation>
     </message>
@@ -126,62 +126,62 @@
         <translation type="obsolete">Interrompre</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="230"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="234"/>
         <source>simple routes and stops</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="291"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="295"/>
         <source>aggregate route frequency</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="382"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="386"/>
         <source>stop_id delimiter</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="401"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="405"/>
         <source>_</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="324"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="328"/>
         <source>filter by day</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="366"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="370"/>
         <source>unify similar stops</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="34"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="38"/>
         <source>Repository: </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="53"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="57"/>
         <source>Feed Selection</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="133"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="137"/>
         <source>Search</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="142"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="146"/>
         <source>target_date</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="152"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="156"/>
         <source>prefecture</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="469"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="473"/>
         <source>11:59:59</source>
         <translation type="unfinished"></translation>
     </message>
