@@ -62,7 +62,7 @@ REPOSITORY_ENUM = {
 WINDOW_HEIGHT = {
     # key is linked to values of REPOSITORY_ENUM
     0: 400,  # preset
-    1: 800  # japanDpf
+    1: 600  # japanDpf
 }
 
 
@@ -143,6 +143,8 @@ class GTFSGoDialog(QDialog):
         self.japanDpfExtentGroupBox.setMapCanvas(iface.mapCanvas())
         self.japanDpfExtentGroupBox.setOutputCrs(
             QgsCoordinateReferenceSystem("EPSG:4326"))
+        # TODO: APIでextentパラメータが未実装なので一時的にUIを非表示
+        self.japanDpfExtentGroupBox.setVisible(False)
 
         self.japanDpfSearchButton.clicked.connect(self.japan_dpf_search)
 
