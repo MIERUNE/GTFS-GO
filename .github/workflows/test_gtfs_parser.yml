@@ -1,7 +1,11 @@
 name: test gtfs_parser
 
 on:
-  # Run tests for any PRs.
+  push:
+    branches: [ master, develop ]
+    paths:
+      - "gtfs_parser/**"
+  
   pull_request:
     branches: [ master, develop ]
     paths: 
@@ -23,5 +27,5 @@ jobs:
         run: python -m pip install pandas
       
       - name: unittest
-        run: python -m unittest discover
+        run: python -m unittest discover gtfs_parser
         continue-on-error: true
