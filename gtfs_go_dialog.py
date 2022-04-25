@@ -59,12 +59,6 @@ REPOSITORY_ENUM = {
     "japanDpf": 1
 }
 
-WINDOW_HEIGHT = {
-    # key is linked to values of REPOSITORY_ENUM
-    0: 400,  # preset
-    1: 600  # japanDpf
-}
-
 
 class GTFSGoDialog(QDialog):
 
@@ -344,8 +338,9 @@ class GTFSGoDialog(QDialog):
         self.japanDpfDataSelectAreaWidget.setVisible(
             self.repositoryCombobox.currentData() == REPOSITORY_ENUM['japanDpf'])
 
-        self.setFixedHeight(
-            WINDOW_HEIGHT[self.repositoryCombobox.currentData()])
+        # idiom to shrink window to fit its content
+        self.resize(0, 0)
+        self.adjustSize()
 
         self.ui.zipFileWidget.setEnabled(
             self.ui.comboBox.currentText() == self.combobox_zip_text)
