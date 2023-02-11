@@ -5,9 +5,9 @@ import zipfile
 import tempfile
 from functools import lru_cache
 import datetime
+import time
 
 import pandas as pd
-import geopandas as gpd
 
 try:
     # QGIS-import
@@ -459,8 +459,8 @@ class GTFSParser:
         )
         return stops_df_with_centroid
 
-    @classmethod
-    def get_route_name_from_tupple(cls, route):
+    @staticmethod
+    def __get_route_name_from_tupple(route):
         if not pd.isna(route.route_short_name):
             return route.route_short_name
         elif not pd.isna(route.route_long_name):
@@ -476,8 +476,7 @@ class GTFSParser:
             shape_ids = self.dataframes.get("shapes")["shape_id"].unique()
             return len(shape_ids)
 
-    @lru_cache(maxsize=None)
-    def get_shape_ids_on_routes(self):
+    def __get_shape_ids_on_routes(self):
         trips_with_shape_df = self.dataframes["trips"][["route_id", "shape_id"]].dropna(
             subset=["shape_id"]
         )
@@ -485,12 +484,11 @@ class GTFSParser:
         group.apply(lambda x: x.sort())
         return group
 
-    @lru_cache(maxsize=None)
-    def get_shapes_coordinates(self):
+    def __get_shapes_coordinates(self):
         shapes_df = self.dataframes["shapes"].copy()
         shapes_df.sort_values("shape_pt_sequence")
         shapes_df["pt"] = shapes_df[["shape_pt_lon", "shape_pt_lat"]].values.tolist()
-        return shapes_df.groupby("shape_id")["pt"].apply(list)
+        return shapes_df.groupby("shape_id")["pt"].apply(tuple)
 
     def get_trips_on_a_date(self, yyyymmdd: str):
         """
@@ -560,37 +558,33 @@ class GTFSParser:
         Returns:
             [list]: list of GeoJSON-Feature-dict
         """
-        if self.dataframes.get("shapes") is None or no_shapes:
-            # no-shape routes
+        features = []
 
+        if self.dataframes.get("shapes") is None or no_shapes:
             # trip-route-merge:A
-            trips_df = self.dataframes["trips"][["trip_id", "route_id"]]
-            routes_df = self.dataframes["routes"][
-                ["route_id", "route_long_name", "route_short_name"]
-            ]
-            trips_routes = pd.merge(trips_df, routes_df, on="route_id")
+            trips_routes = pd.merge(
+                self.dataframes["trips"][["trip_id", "route_id"]],
+                self.dataframes["routes"][
+                    ["route_id", "route_long_name", "route_short_name"]
+                ],
+                on="route_id",
+            )
 
             # stop_times-stops-merge:B
-            stop_times_df = self.dataframes["stop_times"][
-                ["stop_id", "trip_id", "stop_sequence"]
-            ]
-            stops_df = self.dataframes.get("stops")[["stop_id", "stop_lon", "stop_lat"]]
-            merged = pd.merge(
-                stop_times_df,
-                stops_df[["stop_id", "stop_lon", "stop_lat"]],
+            stop_times_stop = pd.merge(
+                self.dataframes["stop_times"][["stop_id", "trip_id", "stop_sequence"]],
+                self.dataframes.get("stops")[["stop_id", "stop_lon", "stop_lat"]],
                 on="stop_id",
             )
 
             # A-B-merge
-            merged = pd.merge(merged, trips_routes, on="trip_id")
+            merged = pd.merge(stop_times_stop, trips_routes, on="trip_id")
             merged["route_concat_name"] = merged["route_long_name"].fillna("") + merged[
                 "route_short_name"
             ].fillna("")
 
             # parse routes
-            route_ids = merged["route_id"].unique()
-            features = []
-            for route_id in route_ids:
+            for route_id in merged["route_id"].unique():
                 route = merged[merged["route_id"] == route_id]
                 trip_id = route["trip_id"].unique()[0]
                 route = route[route["trip_id"] == trip_id].sort_values("stop_sequence")
@@ -609,19 +603,23 @@ class GTFSParser:
                         },
                     }
                 )
-            return features
         else:
-            shape_coords = self.get_shapes_coordinates()
-            shape_ids_on_routes = self.get_shape_ids_on_routes()
-            features = []
+            # parse shape.txt to GeoJSON-Features
+            shape_coords = self.__get_shapes_coordinates()
+            shape_ids_on_routes = self.__get_shape_ids_on_routes()
+            # list-up already loaded shape_ids
+            loaded_shape_ids = set()
             for route in self.dataframes.get("routes").itertuples():
                 if shape_ids_on_routes.get(route.route_id) is None:
                     continue
-                coordinates = [
-                    shape_coords.at[shape_id]
-                    for shape_id in shape_ids_on_routes[route.route_id]
-                ]
-                route_name = self.get_route_name_from_tupple(route)
+
+                # get coords by route_id
+                coordinates = []
+                for shape_id in shape_ids_on_routes[route.route_id]:
+                    coordinates.append(shape_coords.at[shape_id])
+                    loaded_shape_ids.add(shape_id)  # update loaded shape_ids
+
+                route_name = self.__get_route_name_from_tupple(route)
                 features.append(
                     {
                         "type": "Feature",
@@ -636,15 +634,10 @@ class GTFSParser:
                     }
                 )
 
-            # list-up already loaded shape_ids, dropping dupulicates
-            loaded_shape_ids = list(
-                set(sum([list(val) for val in shape_ids_on_routes], []))
-            )
-
-            # load shape_ids unloaded yet
-            for shape_id in shape_coords.index:
-                if shape_id in loaded_shape_ids:
-                    continue
+            # load shapes unloaded yet
+            for shape_id in list(
+                filter(lambda id: id not in loaded_shape_ids, shape_coords.index)
+            ):
                 features.append(
                     {
                         "type": "Feature",
@@ -658,7 +651,8 @@ class GTFSParser:
                         },
                     }
                 )
-            return features
+
+        return features
 
 
 if __name__ == "__main__":
