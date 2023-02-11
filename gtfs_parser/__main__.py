@@ -5,7 +5,6 @@ import zipfile
 import tempfile
 from functools import lru_cache
 import datetime
-import time
 
 import pandas as pd
 
@@ -467,14 +466,6 @@ class GTFSParser:
             return route.route_long_name
         else:
             ValueError(f'{route} have neither "route_long_name" or "route_short_time".')
-
-    def routes_count(self, no_shapes=False):
-        if self.dataframes.get("shapes") is None or no_shapes:
-            route_ids = self.dataframes.get("trips")["route_id"].unique()
-            return len(route_ids)
-        else:
-            shape_ids = self.dataframes.get("shapes")["shape_id"].unique()
-            return len(shape_ids)
 
     def __get_shape_ids_on_routes(self):
         trips_with_shape_df = self.dataframes["trips"][["route_id", "shape_id"]].dropna(
