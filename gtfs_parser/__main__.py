@@ -139,26 +139,35 @@ class GTFSParser:
             list: [description]
         """
 
-        stops_df = self.dataframes["stops"][
-            ["stop_id", "stop_lat", "stop_lon", "stop_name"]
-        ]
-        route_id_on_stops = self.get_route_ids_on_stops()
+        # get unique list of route_id related to each stop
+        stop_times_trip_df = pd.merge(
+            self.dataframes["stop_times"],
+            self.dataframes["trips"],
+            on="trip_id",
+        )
+        route_ids_on_stops = stop_times_trip_df.groupby("stop_id")["route_id"].unique()
+        route_ids_on_stops.apply(lambda x: x.sort())
 
+        # parse stops to GeoJSON-Features
         features = []
-        for stop in stops_df.itertuples():
-            if stop.stop_id in route_id_on_stops:
-                route_ids = route_id_on_stops.at[stop.stop_id].tolist()
-            else:
-                if ignore_no_route:
-                    continue
-                route_ids = []
+        for stop in self.dataframes["stops"][
+            ["stop_id", "stop_lat", "stop_lon", "stop_name"]
+        ].itertuples():
+            # get all route_id related to the stop
+            route_ids = []
+            if stop.stop_id in route_ids_on_stops:
+                route_ids = route_ids_on_stops.at[stop.stop_id].tolist()
+
+            if len(route_ids) == 0 and ignore_no_route:
+                # skip to output the stop
+                continue
 
             features.append(
                 {
                     "type": "Feature",
                     "geometry": {
                         "type": "Point",
-                        "coordinates": [stop.stop_lon, stop.stop_lat],
+                        "coordinates": (stop.stop_lon, stop.stop_lat),
                     },
                     "properties": {
                         "stop_id": stop.stop_id,
@@ -168,16 +177,6 @@ class GTFSParser:
                 }
             )
         return features
-
-    def get_route_ids_on_stops(self):
-        stop_times_trip_df = pd.merge(
-            self.dataframes["stop_times"],
-            self.dataframes["trips"],
-            on="trip_id",
-        )
-        group = stop_times_trip_df.groupby("stop_id")["route_id"].unique()
-        group.apply(lambda x: x.sort())
-        return group
 
     def read_interpolated_stops(self):
         """
