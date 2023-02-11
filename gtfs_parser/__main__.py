@@ -293,7 +293,15 @@ class GTFSParser:
 
         # time filter
         if begin_time and end_time:
-            stop_times_df = self.stop_time_filter(stop_times_df, begin_time, end_time)
+            # departure_time is nullable and expressed in "hh:mm:ss" or "h:mm:ss" format.
+            # Hour can be mor than 24.
+            # Therefore, drop null records and convert times to integers.
+            int_dep_times = stop_times_df.departure_time.str.replace(":", "").astype(
+                int
+            )
+            stop_times_df = stop_times_df[stop_times_df.departure_time != ""][
+                (int_dep_times >= int(begin_time)) & (int_dep_times < int(end_time))
+            ]
 
         # define path_id by prev-stops-centroid and next-stops-centroid
         stop_times_df["path_id"] = (
@@ -340,14 +348,6 @@ class GTFSParser:
             }
             for path in path_data_dict
         ]
-
-    def stop_time_filter(self, stop_time_df, begin_time, end_time):
-        # departure_time is nullable and expressed in "hh:mm:ss" or "h:mm:ss" format.
-        # Hour can be mor than 24.
-        # Therefore, drop null records and convert times to integers.
-        df = stop_time_df[stop_time_df.departure_time != ""]
-        int_dep_times = stop_time_df.departure_time.str.replace(":", "").astype(int)
-        return df[(int_dep_times >= int(begin_time)) & (int_dep_times < int(end_time))]
 
     @lru_cache(maxsize=None)
     def get_similar_stop_tuple(
