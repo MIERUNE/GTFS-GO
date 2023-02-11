@@ -424,15 +424,6 @@ class GTFSParser:
         similar_stop_name = stop["stop_name"]
         return similar_stop_id, similar_stop_name, similar_stop_centroid
 
-    def get_similar_stops_by_name_and_distance(self, stop_name, distance):
-        similar_stops = self.stops_df[self.stops_df["stop_name"] == stop["stop_name"]][
-            ["stop_lon", "stop_lat"]
-        ].copy()
-        similar_stops = similar_stops.query(
-            f'(stop_lon - {stop["stop_lon"]}) ** 2 + (stop_lat - {stop["stop_lat"]}) ** 2  < {max_distance_degree ** 2}'
-        )
-        return similar_stops
-
     @lru_cache(maxsize=None)
     def get_stops_id_delimited(self, delimiter):
         stops_df = self.dataframes.get("stops")[
