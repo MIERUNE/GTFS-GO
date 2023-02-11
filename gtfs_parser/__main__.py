@@ -7,6 +7,7 @@ from functools import lru_cache
 import datetime
 
 import pandas as pd
+import geopandas as gpd
 
 try:
     # QGIS-import
@@ -30,38 +31,7 @@ class GTFSParser:
     ):
 
         txts = glob.glob(os.path.join(src_dir, "**", "*.txt"), recursive=True)
-        self.dataframes = {}
-        for txt in txts:
-            datatype = os.path.basename(txt).split(".")[0]
-            if os.path.basename(datatype) not in GTFS_DATATYPES:
-                print(f"{datatype} is not specified in GTFS, skipping...")
-                continue
-            with open(txt, encoding="utf-8_sig") as t:
-                df = pd.read_csv(t, dtype=str)
-                if len(df) == 0:
-                    print(f"{datatype}.txt is empty, skipping...")
-                    continue
-                self.dataframes[os.path.basename(txt).split(".")[0]] = df
-        for datatype in GTFS_DATATYPES:
-            if GTFS_DATATYPES[datatype]["required"] and datatype not in self.dataframes:
-                raise FileNotFoundError(f"{datatype} is not exists.")
-
-        # cast some numeric value columns to int or float
-        self.dataframes["stops"] = self.dataframes["stops"].astype(
-            {"stop_lon": float, "stop_lat": float}
-        )
-        self.dataframes["stop_times"] = self.dataframes["stop_times"].astype(
-            {"stop_sequence": int}
-        )
-        if self.dataframes.get("shapes") is not None:
-            self.dataframes["shapes"] = self.dataframes["shapes"].astype(
-                {"shape_pt_lon": float, "shape_pt_lat": float, "shape_pt_sequence": int}
-            )
-
-        if "parent_station" not in self.dataframes.get("stops").columns:
-            # parent_station is optional column on GTFS but use in this module
-            # when parent_station is not in stops, fill by 'nan' (not NaN)
-            self.dataframes["stops"]["parent_station"] = "nan"
+        self.dataframes = self.__load_tables(txts)
 
         if as_frequency:
             self.similar_stops_df = None
@@ -81,6 +51,39 @@ class GTFSParser:
                 self.similar_stops_df = self.dataframes["stops"][
                     ["similar_stop_id", "similar_stop_name", "similar_stops_centroid"]
                 ].copy()
+
+    @staticmethod
+    def __load_tables(text_files: list[str]) -> dict:
+        tables = {}
+        for txt in text_files:
+            datatype = os.path.basename(txt).split(".")[0]
+            if datatype not in GTFS_DATATYPES:
+                print(f"{datatype} is not specified in GTFS, skipping...")
+                continue
+            with open(txt, encoding="utf-8_sig") as f:
+                df = pd.read_csv(f, dtype=str)
+                if len(df) == 0:
+                    print(f"{datatype}.txt is empty, skipping...")
+                    continue
+                tables[os.path.basename(txt).split(".")[0]] = df
+        for datatype in GTFS_DATATYPES:
+            if GTFS_DATATYPES[datatype]["required"] and datatype not in tables:
+                raise FileNotFoundError(f"{datatype} is not exists.")
+
+        # cast some numeric columns from str to numeric
+        tables["stops"] = tables["stops"].astype({"stop_lon": float, "stop_lat": float})
+        tables["stop_times"] = tables["stop_times"].astype({"stop_sequence": int})
+        if tables.get("shapes") is not None:
+            tables["shapes"] = tables["shapes"].astype(
+                {"shape_pt_lon": float, "shape_pt_lat": float, "shape_pt_sequence": int}
+            )
+
+        # parent_station is optional column on GTFS but use in this module
+        # when parent_station is not in stops, fill by 'nan' (not NaN)
+        if "parent_station" not in tables.get("stops").columns:
+            tables["stops"]["parent_station"] = "nan"
+
+        return tables
 
     def aggregate_similar_stops(self, delimiter, max_distance_degree):
         parent_ids = self.dataframes["stops"]["parent_station"].unique()
