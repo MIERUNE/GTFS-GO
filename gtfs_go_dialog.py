@@ -349,24 +349,32 @@ class GTFSGoDialog(QDialog):
     def show_geojson(
         self,
         group_name: str,
-        stops_geojson: str = "",
-        routes_geojson: str = "",
-        aggregated_stops_geojson: str = "",
-        aggregated_routes_geojson: str = "",
-        aggregated_csv: str = "",
+        stops_geojson: str,
+        routes_geojson: str,
+        aggregated_stops_geojson: str,
+        aggregated_routes_geojson: str,
+        aggregated_csv: str,
     ):
-        added_layers = []
+        root = QgsProject().instance().layerTreeRoot()
+        group = root.insertGroup(0, group_name)
+        group.setExpanded(True)
 
-        if stops_geojson:
+        if routes_geojson != "":
+            routes_vlayer = QgsVectorLayer(
+                routes_geojson, os.path.basename(routes_geojson).split(".")[0], "ogr"
+            )
+            routes_renderer = Renderer(routes_vlayer, "route_name")
+            routes_vlayer.setRenderer(routes_renderer.make_renderer())
+
+            QgsProject.instance().addMapLayer(routes_vlayer, False)
+            group.insertLayer(0, routes_vlayer)
+
+        if stops_geojson != "":
             stops_vlayer = QgsVectorLayer(
                 stops_geojson, os.path.basename(stops_geojson).split(".")[0], "ogr"
             )
             # make and set labeling for stops
-            stops_labeling = get_labeling_for_stops(
-                target_field_name="stop_name"
-                if self.ui.simpleCheckbox.isChecked()
-                else "similar_stop_name"
-            )
+            stops_labeling = get_labeling_for_stops("stop_names")
             stops_vlayer.setLabelsEnabled(True)
             stops_vlayer.setLabeling(stops_labeling)
 
@@ -377,30 +385,10 @@ class GTFSGoDialog(QDialog):
             stops_renderer = Renderer(stops_vlayer, "stop_name")
             stops_vlayer.setRenderer(stops_renderer.make_renderer())
 
-            added_layers.append(stops_vlayer)
+            QgsProject.instance().addMapLayer(stops_vlayer, False)
+            group.insertLayer(0, stops_vlayer)
 
-        if routes_geojson:
-            routes_vlayer = QgsVectorLayer(
-                routes_geojson, os.path.basename(routes_geojson).split(".")[0], "ogr"
-            )
-            routes_renderer = Renderer(routes_vlayer, "route_name")
-            routes_vlayer.setRenderer(routes_renderer.make_renderer())
-
-            added_layers.append(routes_vlayer)
-
-        if aggregated_stops_geojson:
-            aggregated_stops_vlayer = QgsVectorLayer(
-                aggregated_stops_geojson,
-                os.path.basename(aggregated_stops_geojson).split(".")[0],
-                "ogr",
-            )
-            aggregated_stops_vlayer.loadNamedStyle(
-                os.path.join(os.path.dirname(__file__), "aggregated_stops.qml")
-            )
-
-            added_layers.append(aggregated_stops_vlayer)
-
-        if aggregated_routes_geojson:
+        if aggregated_routes_geojson != "":
             aggregated_routes_vlayer = QgsVectorLayer(
                 aggregated_routes_geojson,
                 os.path.basename(aggregated_routes_geojson).split(".")[0],
@@ -410,43 +398,36 @@ class GTFSGoDialog(QDialog):
                 os.path.join(os.path.dirname(__file__), "aggregated_routes.qml")
             )
 
-            added_layers.append(aggregated_routes_vlayer)
+            QgsProject.instance().addMapLayer(aggregated_routes_vlayer, False)
+            group.insertLayer(0, aggregated_routes_vlayer)
 
-        if aggregated_csv:
+        if aggregated_stops_geojson != "":
+            aggregated_stops_vlayer = QgsVectorLayer(
+                aggregated_stops_geojson,
+                os.path.basename(aggregated_stops_geojson).split(".")[0],
+                "ogr",
+            )
+            aggregated_stops_vlayer.loadNamedStyle(
+                os.path.join(os.path.dirname(__file__), "aggregated_stops.qml")
+            )
+
+            QgsProject.instance().addMapLayer(aggregated_stops_vlayer, False)
+            group.insertLayer(0, aggregated_stops_vlayer)
+
+        if aggregated_csv != "":
             aggregated_csv_vlayer = QgsVectorLayer(
                 aggregated_csv,
                 os.path.basename(aggregated_csv).split(".")[0],
                 "ogr",
             )
 
-            added_layers.append(aggregated_csv_vlayer)
-
-        self.add_layers_as_group(group_name, added_layers)
+            QgsProject.instance().addMapLayer(aggregated_csv_vlayer, False)
+            group.insertLayer(0, aggregated_csv_vlayer)
 
         self.iface.messageBar().pushInfo(
             self.tr("finish"), self.tr("generated geojson files: ")
         )
         self.ui.close()
-
-    def add_layers_as_group(self, group_name: str, layers: [QgsMapLayer]):
-        """
-        add layers into project as a group.
-        the order of layers is reverse to layers list order.
-        if layers: [layer_A, layer_B, layer_C]
-        then in tree:
-        - layer_C
-        - layer_B
-        - layer_A
-        Args:
-            group_name (str): [description]
-            layers ([type]): [description]
-        """
-        root = QgsProject().instance().layerTreeRoot()
-        group = root.insertGroup(0, group_name)
-        group.setExpanded(True)
-        for layer in layers:
-            QgsProject.instance().addMapLayer(layer, False)
-            group.insertLayer(0, layer)
 
     def refresh(self):
         self.localDataSelectAreaWidget.setVisible(
