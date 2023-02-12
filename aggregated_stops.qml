@@ -38,7 +38,7 @@
               <Option name="properties" type="Map">
                 <Option name="size" type="Map">
                   <Option name="active" type="bool" value="true"/>
-                  <Option name="expression" type="QString" value="0.3 * &quot;count&quot; ^ 0.5"/>
+                  <Option name="expression" type="QString" value="1 + 0.3 * &quot;count&quot; ^ 0.5"/>
                   <Option name="type" type="int" value="3"/>
                 </Option>
               </Option>
