@@ -286,17 +286,27 @@ class GTFSParser:
                 "similar_stop_name"
             ].map(lambda val: val if type(val) == str else val.stop_name)
 
-            self.similar_stops_df = (
+            position_count = (
                 self.dataframes["stops"]
-                .drop_duplicates(subset="unique_id")[
+                .groupby("position_id")
+                .size()
+                .to_frame()
+                .reset_index()
+            )
+            position_count.columns = ["position_id", "position_count"]
+
+            self.similar_stops_df = pd.merge(
+                self.dataframes["stops"].drop_duplicates(subset="position_id")[
                     [
                         "position_id",
                         "similar_stop_id",
                         "similar_stop_name",
                         "similar_stops_centroid",
                     ]
-                ]
-                .copy()
+                ],
+                position_count,
+                on="position_id",
+                how="left",
             )
         else:
             # no unifying stops
@@ -309,8 +319,14 @@ class GTFSParser:
             self.dataframes["stops"]["similar_stops_centroid"] = self.dataframes[
                 "stops"
             ][["stop_lon", "stop_lat"]].values.tolist()
+            self.dataframes["stops"]["position_count"] = 1
             self.similar_stops_df = self.dataframes["stops"][
-                ["similar_stop_id", "similar_stop_name", "similar_stops_centroid"]
+                [
+                    "similar_stop_id",
+                    "similar_stop_name",
+                    "similar_stops_centroid",
+                    "position_count",
+                ]
             ].copy()
 
     @lru_cache(maxsize=None)
@@ -429,7 +445,12 @@ class GTFSParser:
         """
 
         stop_dicts = self.similar_stops_df[
-            ["similar_stop_id", "similar_stop_name", "similar_stops_centroid"]
+            [
+                "similar_stop_id",
+                "similar_stop_name",
+                "similar_stops_centroid",
+                "position_count",
+            ]
         ].to_dict(orient="records")
         return [
             {
@@ -441,6 +462,7 @@ class GTFSParser:
                 "properties": {
                     "similar_stop_name": stop["similar_stop_name"],
                     "similar_stop_id": stop["similar_stop_id"],
+                    "count": stop["position_count"],
                 },
             }
             for stop in stop_dicts
