@@ -27,6 +27,9 @@ class GTFSParser:
         as_unify_stops=False,
         delimiter="",
         max_distance_degree=0.01,
+        yyyymmdd="",
+        begin_time="",
+        end_time="",
     ):
 
         txts = glob.glob(os.path.join(src_dir, "**", "*.txt"), recursive=True)
@@ -35,7 +38,12 @@ class GTFSParser:
         self.similar_stops_df = None
         if as_frequency:
             self.__aggregate_similar_stops(
-                delimiter, max_distance_degree, as_unify_stops
+                delimiter,
+                max_distance_degree,
+                as_unify_stops,
+                yyyymmdd=yyyymmdd,
+                begin_time=begin_time,
+                end_time=end_time,
             )
 
     @staticmethod
