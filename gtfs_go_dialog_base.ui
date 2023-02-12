@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>543</width>
-    <height>808</height>
+    <width>592</width>
+    <height>1074</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -123,10 +123,10 @@
         <layout class="QVBoxLayout" name="verticalLayout_4">
          <item>
           <widget class="QTableView" name="japanDpfResultTableView">
-           <attribute name="verticalHeaderDefaultSectionSize">
+           <attribute name="verticalHeaderMinimumSectionSize">
             <number>20</number>
            </attribute>
-           <attribute name="verticalHeaderMinimumSectionSize">
+           <attribute name="verticalHeaderDefaultSectionSize">
             <number>20</number>
            </attribute>
           </widget>
@@ -229,7 +229,7 @@
     </layout>
    </item>
    <item>
-    <widget class="QRadioButton" name="simpleRadioButton">
+    <widget class="QCheckBox" name="simpleCheckbox">
      <property name="text">
       <string>simple routes and stops</string>
      </property>
@@ -290,12 +290,9 @@
     </widget>
    </item>
    <item>
-    <widget class="QRadioButton" name="freqRadioButton">
+    <widget class="QCheckBox" name="aggregateCheckbox">
      <property name="text">
       <string>aggregate route frequency</string>
-     </property>
-     <property name="checked">
-      <bool>false</bool>
      </property>
     </widget>
    </item>
