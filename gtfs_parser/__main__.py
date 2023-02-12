@@ -27,6 +27,9 @@ class GTFSParser:
         as_unify_stops=False,
         delimiter="",
         max_distance_degree=0.01,
+        yyyymmdd="",
+        begin_time="",
+        end_time="",
     ):
 
         txts = glob.glob(os.path.join(src_dir, "**", "*.txt"), recursive=True)
@@ -35,7 +38,12 @@ class GTFSParser:
         self.similar_stops_df = None
         if as_frequency:
             self.__aggregate_similar_stops(
-                delimiter, max_distance_degree, as_unify_stops
+                delimiter,
+                max_distance_degree,
+                as_unify_stops,
+                yyyymmdd=yyyymmdd,
+                begin_time=begin_time,
+                end_time=end_time,
             )
 
     @staticmethod
@@ -254,8 +262,41 @@ class GTFSParser:
         return shapes_df.groupby("shape_id")["pt"].apply(tuple)
 
     def __aggregate_similar_stops(
-        self, delimiter: str, max_distance_degree: float, as_unify_stops: bool
+        self,
+        delimiter: str,
+        max_distance_degree: float,
+        as_unify_stops: bool,
+        yyyymmdd="",
+        begin_time="",
+        end_time="",
     ):
+        # filter stop_times by whether serviced or not
+        if yyyymmdd:
+            trips_filtered_by_day = self.__get_trips_on_a_date(yyyymmdd)
+            self.dataframes["stop_times"] = pd.merge(
+                self.dataframes["stop_times"],
+                trips_filtered_by_day,
+                on="trip_id",
+                how="left",
+            )
+            self.dataframes["stop_times"] = self.dataframes["stop_times"][
+                self.dataframes["stop_times"]["service_flag"] == 1
+            ]
+
+        # time filter
+        if begin_time and end_time:
+            # departure_time is nullable and expressed in "hh:mm:ss" or "h:mm:ss" format.
+            # Hour can be mor than 24.
+            # Therefore, drop null records and convert times to integers.
+            int_dep_times = (
+                self.dataframes["stop_times"]
+                .departure_time.str.replace(":", "")
+                .astype(int)
+            )
+            self.dataframes["stop_times"] = self.dataframes["stop_times"][
+                self.dataframes["stop_times"].departure_time != ""
+            ][(int_dep_times >= int(begin_time)) & (int_dep_times < int(end_time))]
+
         if as_unify_stops:
             parent_ids = self.dataframes["stops"]["parent_station"].unique()
             self.dataframes["stops"]["is_parent"] = self.dataframes["stops"][
@@ -287,7 +328,8 @@ class GTFSParser:
             ].map(lambda val: val if type(val) == str else val.stop_name)
 
             position_count = (
-                self.dataframes["stops"]
+                self.dataframes["stop_times"]
+                .merge(self.dataframes["stops"], on="stop_id", how="left")
                 .groupby("position_id")
                 .size()
                 .to_frame()
@@ -468,7 +510,7 @@ class GTFSParser:
             for stop in stop_dicts
         ]
 
-    def read_route_frequency(self, yyyymmdd="", begin_time="", end_time=""):
+    def read_route_frequency(self):
         """
         By grouped stops, aggregate route frequency.
         Filtering trips by a date, you can aggregate frequency only route serviced on the date.
@@ -488,14 +530,6 @@ class GTFSParser:
             .sort_values(["trip_id", "stop_sequence"])
             .copy()
         )
-
-        # filter stop_times by whether serviced or not
-        if yyyymmdd:
-            trips_filtered_by_day = self.__get_trips_on_a_date(yyyymmdd)
-            stop_times_df = pd.merge(
-                stop_times_df, trips_filtered_by_day, on="trip_id", how="left"
-            )
-            stop_times_df = stop_times_df[stop_times_df["service_flag"] == 1]
 
         # join agency info)
         stop_times_df = pd.merge(
@@ -548,18 +582,6 @@ class GTFSParser:
         stop_times_df = stop_times_df.drop(
             index=stop_times_df.query("prev_trip_id != next_trip_id").index
         )
-
-        # time filter
-        if begin_time and end_time:
-            # departure_time is nullable and expressed in "hh:mm:ss" or "h:mm:ss" format.
-            # Hour can be mor than 24.
-            # Therefore, drop null records and convert times to integers.
-            int_dep_times = stop_times_df.departure_time.str.replace(":", "").astype(
-                int
-            )
-            stop_times_df = stop_times_df[stop_times_df.departure_time != ""][
-                (int_dep_times >= int(begin_time)) & (int_dep_times < int(end_time))
-            ]
 
         # define path_id by prev-stops-centroid and next-stops-centroid
         stop_times_df["path_id"] = (
