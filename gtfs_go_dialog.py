@@ -233,8 +233,14 @@ class GTFSGoDialog(QDialog):
                 "aggregated_csv": "",
             }
 
+            gtfs_parser = GTFSParser(
+                extracted_dir,
+                as_frequency=self.ui.aggregateCheckbox.isChecked(),
+                as_unify_stops=self.ui.unifyCheckBox.isChecked(),
+                delimiter=self.get_delimiter(),
+            )
+
             if self.ui.simpleCheckbox.isChecked():
-                gtfs_parser = GTFSParser(extracted_dir)
                 routes_geojson = {
                     "type": "FeatureCollection",
                     "features": gtfs_parser.read_routes(
@@ -265,13 +271,6 @@ class GTFSGoDialog(QDialog):
                     json.dump(stops_geojson, f, ensure_ascii=False)
 
             if self.ui.aggregateCheckbox.isChecked():
-                gtfs_parser = GTFSParser(
-                    extracted_dir,
-                    as_frequency=True,
-                    as_unify_stops=self.ui.unifyCheckBox.isChecked(),
-                    delimiter=self.get_delimiter(),
-                )
-
                 aggregated_routes_geojson = {
                     "type": "FeatureCollection",
                     "features": gtfs_parser.read_route_frequency(
