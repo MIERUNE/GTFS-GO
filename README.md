@@ -101,5 +101,5 @@ pip install pandas
 
 ```
 cd GTFS-GO
-python -m unittest discover
+python -m unittest discover gtfs_parser/tests
 ```
