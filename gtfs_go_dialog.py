@@ -287,21 +287,20 @@ class GTFSGoDialog(QDialog):
 
                 # write
                 written_files["aggregated_routes"] = os.path.join(
-                    output_dir, "aggregated_stops.geojson"
+                    output_dir, "aggregated_routes.geojson"
                 )
                 written_files["aggregated_stops"] = os.path.join(
-                    output_dir, "aggregated_routes.geojson"
+                    output_dir, "aggregated_stops.geojson"
                 )
                 written_files["aggregated_csv"] = os.path.join(output_dir, "result.csv")
                 with open(
-                    written_files["aggregated_routes"],
+                    written_files["aggregated_stops"],
                     mode="w",
                     encoding="utf-8",
                 ) as f:
                     json.dump(aggregated_stops_geojson, f, ensure_ascii=False)
-
                 with open(
-                    written_files["aggregated_stops"],
+                    written_files["aggregated_routes"],
                     mode="w",
                     encoding="utf-8",
                 ) as f:
