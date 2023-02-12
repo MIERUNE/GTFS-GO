@@ -62,7 +62,7 @@ class TestGtfsParser(unittest.TestCase):
             32, len(self.gtfs_parser_frequency_unify.read_routes(no_shapes=True)))
 
     def test_read_interpolated_stops(self):
-        with self.assertRaises(AttributeError):
+        with self.assertRaises(TypeError):
             # read_interpolated_stops() needs as_frequency=True
             self.gtfs_parser.read_interpolated_stops()
 

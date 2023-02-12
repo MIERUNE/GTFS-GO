@@ -32,24 +32,11 @@ class GTFSParser:
         txts = glob.glob(os.path.join(src_dir, "**", "*.txt"), recursive=True)
         self.dataframes = self.__load_tables(txts)
 
+        self.similar_stops_df = None
         if as_frequency:
-            self.similar_stops_df = None
-            if as_unify_stops:
-                self.aggregate_similar_stops(delimiter, max_distance_degree)
-            else:
-                # no unifying stops
-                self.dataframes["stops"]["similar_stop_id"] = self.dataframes["stops"][
-                    "stop_id"
-                ]
-                self.dataframes["stops"]["similar_stop_name"] = self.dataframes[
-                    "stops"
-                ]["stop_name"]
-                self.dataframes["stops"]["similar_stops_centroid"] = self.dataframes[
-                    "stops"
-                ][["stop_lon", "stop_lat"]].values.tolist()
-                self.similar_stops_df = self.dataframes["stops"][
-                    ["similar_stop_id", "similar_stop_name", "similar_stops_centroid"]
-                ].copy()
+            self.__aggregate_similar_stops(
+                delimiter, max_distance_degree, as_unify_stops
+            )
 
     @staticmethod
     def __load_tables(text_files: list[str]) -> dict:
@@ -83,49 +70,6 @@ class GTFSParser:
             tables["stops"]["parent_station"] = "nan"
 
         return tables
-
-    def aggregate_similar_stops(self, delimiter, max_distance_degree):
-        parent_ids = self.dataframes["stops"]["parent_station"].unique()
-        self.dataframes["stops"]["is_parent"] = self.dataframes["stops"]["stop_id"].map(
-            lambda stop_id: 1 if stop_id in parent_ids else 0
-        )
-
-        self.dataframes["stops"][
-            ["similar_stop_id", "similar_stop_name", "similar_stops_centroid"]
-        ] = (
-            self.dataframes["stops"]["stop_id"]
-            .map(
-                lambda stop_id: self.get_similar_stop_tuple(
-                    stop_id, delimiter, max_distance_degree
-                )
-            )
-            .apply(pd.Series)
-        )
-        self.dataframes["stops"]["position_id"] = self.dataframes["stops"][
-            "similar_stops_centroid"
-        ].map(latlon_to_str)
-        self.dataframes["stops"]["unique_id"] = (
-            self.dataframes["stops"]["similar_stop_id"]
-            + self.dataframes["stops"]["position_id"]
-        )
-
-        # sometimes stop_name accidently becomes pd.Series instead of str.
-        self.dataframes["stops"]["similar_stop_name"] = self.dataframes["stops"][
-            "similar_stop_name"
-        ].map(lambda val: val if type(val) == str else val.stop_name)
-
-        self.similar_stops_df = (
-            self.dataframes["stops"]
-            .drop_duplicates(subset="unique_id")[
-                [
-                    "position_id",
-                    "similar_stop_id",
-                    "similar_stop_name",
-                    "similar_stops_centroid",
-                ]
-            ]
-            .copy()
-        )
 
     def read_stops(self, ignore_no_route=False) -> list:
         """
@@ -176,6 +120,298 @@ class GTFSParser:
                 }
             )
         return features
+
+    def read_routes(self, no_shapes=False) -> list:
+        """
+        read routes by shapes or stop_times
+        First, this method try to load shapes and parse it into routes,
+        but shapes is optional table in GTFS. Then is shapes does not exist or no_shapes is True,
+        this parse routes by stop_time, stops, trips, and routes.
+
+        Args:
+            no_shapes (bool, optional): ignore shapes table. Defaults to False.
+
+        Returns:
+            [list]: list of GeoJSON-Feature-dict
+        """
+        features = []
+
+        if self.dataframes.get("shapes") is None or no_shapes:
+            # trip-route-merge:A
+            trips_routes = pd.merge(
+                self.dataframes["trips"][["trip_id", "route_id"]],
+                self.dataframes["routes"][
+                    ["route_id", "route_long_name", "route_short_name"]
+                ],
+                on="route_id",
+            )
+
+            # stop_times-stops-merge:B
+            stop_times_stop = pd.merge(
+                self.dataframes["stop_times"][["stop_id", "trip_id", "stop_sequence"]],
+                self.dataframes.get("stops")[["stop_id", "stop_lon", "stop_lat"]],
+                on="stop_id",
+            )
+
+            # A-B-merge
+            merged = pd.merge(stop_times_stop, trips_routes, on="trip_id")
+            merged["route_concat_name"] = merged["route_long_name"].fillna("") + merged[
+                "route_short_name"
+            ].fillna("")
+
+            # parse routes
+            for route_id in merged["route_id"].unique():
+                route = merged[merged["route_id"] == route_id]
+                trip_id = route["trip_id"].unique()[0]
+                route = route[route["trip_id"] == trip_id].sort_values("stop_sequence")
+                features.append(
+                    {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "LineString",
+                            "coordinates": route[
+                                ["stop_lon", "stop_lat"]
+                            ].values.tolist(),
+                        },
+                        "properties": {
+                            "route_id": str(route_id),
+                            "route_name": route.route_concat_name.values.tolist()[0],
+                        },
+                    }
+                )
+        else:
+            # parse shape.txt to GeoJSON-Features
+            shape_coords = self.__get_shapes_coordinates()
+            shape_ids_on_routes = self.__get_shape_ids_on_routes()
+            # list-up already loaded shape_ids
+            loaded_shape_ids = set()
+            for route in self.dataframes.get("routes").itertuples():
+                if shape_ids_on_routes.get(route.route_id) is None:
+                    continue
+
+                # get coords by route_id
+                coordinates = []
+                for shape_id in shape_ids_on_routes[route.route_id]:
+                    coordinates.append(shape_coords.at[shape_id])
+                    loaded_shape_ids.add(shape_id)  # update loaded shape_ids
+
+                route_name = self.__get_route_name_from_tupple(route)
+                features.append(
+                    {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "MultiLineString",
+                            "coordinates": coordinates,
+                        },
+                        "properties": {
+                            "route_id": str(route.route_id),
+                            "route_name": route_name,
+                        },
+                    }
+                )
+
+            # load shapes unloaded yet
+            for shape_id in list(
+                filter(lambda id: id not in loaded_shape_ids, shape_coords.index)
+            ):
+                features.append(
+                    {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "MultiLineString",
+                            "coordinates": [shape_coords.at[shape_id]],
+                        },
+                        "properties": {
+                            "route_id": None,
+                            "route_name": str(shape_id),
+                        },
+                    }
+                )
+
+        return features
+
+    @staticmethod
+    def __get_route_name_from_tupple(route):
+        if not pd.isna(route.route_short_name):
+            return route.route_short_name
+        elif not pd.isna(route.route_long_name):
+            return route.route_long_name
+        else:
+            ValueError(f'{route} have neither "route_long_name" or "route_short_time".')
+
+    def __get_shape_ids_on_routes(self):
+        trips_with_shape_df = self.dataframes["trips"][["route_id", "shape_id"]].dropna(
+            subset=["shape_id"]
+        )
+        group = trips_with_shape_df.groupby("route_id")["shape_id"].unique()
+        group.apply(lambda x: x.sort())
+        return group
+
+    def __get_shapes_coordinates(self):
+        shapes_df = self.dataframes["shapes"].copy()
+        shapes_df.sort_values("shape_pt_sequence")
+        shapes_df["pt"] = shapes_df[["shape_pt_lon", "shape_pt_lat"]].values.tolist()
+        return shapes_df.groupby("shape_id")["pt"].apply(tuple)
+
+    def __aggregate_similar_stops(
+        self, delimiter: str, max_distance_degree: float, as_unify_stops: bool
+    ):
+        if as_unify_stops:
+            parent_ids = self.dataframes["stops"]["parent_station"].unique()
+            self.dataframes["stops"]["is_parent"] = self.dataframes["stops"][
+                "stop_id"
+            ].map(lambda stop_id: 1 if stop_id in parent_ids else 0)
+
+            self.dataframes["stops"][
+                ["similar_stop_id", "similar_stop_name", "similar_stops_centroid"]
+            ] = (
+                self.dataframes["stops"]["stop_id"]
+                .map(
+                    lambda stop_id: self.__get_similar_stop_tuple(
+                        stop_id, delimiter, max_distance_degree
+                    )
+                )
+                .apply(pd.Series)
+            )
+            self.dataframes["stops"]["position_id"] = self.dataframes["stops"][
+                "similar_stops_centroid"
+            ].map(latlon_to_str)
+            self.dataframes["stops"]["unique_id"] = (
+                self.dataframes["stops"]["similar_stop_id"]
+                + self.dataframes["stops"]["position_id"]
+            )
+
+            # sometimes stop_name accidently becomes pd.Series instead of str.
+            self.dataframes["stops"]["similar_stop_name"] = self.dataframes["stops"][
+                "similar_stop_name"
+            ].map(lambda val: val if type(val) == str else val.stop_name)
+
+            self.similar_stops_df = (
+                self.dataframes["stops"]
+                .drop_duplicates(subset="unique_id")[
+                    [
+                        "position_id",
+                        "similar_stop_id",
+                        "similar_stop_name",
+                        "similar_stops_centroid",
+                    ]
+                ]
+                .copy()
+            )
+        else:
+            # no unifying stops
+            self.dataframes["stops"]["similar_stop_id"] = self.dataframes["stops"][
+                "stop_id"
+            ]
+            self.dataframes["stops"]["similar_stop_name"] = self.dataframes["stops"][
+                "stop_name"
+            ]
+            self.dataframes["stops"]["similar_stops_centroid"] = self.dataframes[
+                "stops"
+            ][["stop_lon", "stop_lat"]].values.tolist()
+            self.similar_stops_df = self.dataframes["stops"][
+                ["similar_stop_id", "similar_stop_name", "similar_stops_centroid"]
+            ].copy()
+
+    @lru_cache(maxsize=None)
+    def __get_similar_stop_tuple(
+        self, stop_id: str, delimiter="", max_distance_degree=0.01
+    ):
+        """
+        With one stop_id, group stops by parent, stop_id, or stop_name and each distance.
+        - parent: if stop has parent_station, the 'centroid' is parent_station lat-lon
+        - stop_id: by delimiter seperate stop_id into prefix and suffix, and group stops having same stop_id-prefix
+        - name and distance: group stops by stop_name, excluding stops are far than max_distance_degree
+
+        Args:
+            stop_id (str): target stop_id
+            max_distance_degree (float, optional): distance limit on grouping, Defaults to 0.01.
+        Returns:
+            str, str, [float, float]: similar_stop_id, similar_stop_name, similar_stops_centroid
+        """
+        stops_df = self.dataframes["stops"].sort_values("stop_id")
+        stop = stops_df[stops_df["stop_id"] == stop_id].iloc[0]
+
+        if stop["is_parent"] == 1:
+            return (
+                stop["stop_id"],
+                stop["stop_name"],
+                [stop["stop_lon"], stop["stop_lat"]],
+            )
+
+        if str(stop["parent_station"]) != "nan":
+            similar_stop_id = stop["parent_station"]
+            similar_stop = stops_df[stops_df["stop_id"] == similar_stop_id]
+            similar_stop_name = similar_stop[["stop_name"]].iloc[0]
+            similar_stop_centroid = (
+                similar_stop[["stop_lon", "stop_lat"]].iloc[0].values.tolist()
+            )
+            return similar_stop_id, similar_stop_name, similar_stop_centroid
+
+        if delimiter:
+            stops_df_id_delimited = self.__get_stops_id_delimited(delimiter)
+            stop_id_prefix = stop_id.rsplit(delimiter, 1)[0]
+            if stop_id_prefix != stop_id:
+                similar_stop_id = stop_id_prefix
+                seperated_only_stops = stops_df_id_delimited[
+                    stops_df_id_delimited["delimited"]
+                ]
+                similar_stops = seperated_only_stops[
+                    seperated_only_stops["stop_id_prefix"] == stop_id_prefix
+                ][
+                    [
+                        "stop_name",
+                        "similar_stops_centroid_lon",
+                        "similar_stops_centroid_lat",
+                    ]
+                ]
+                similar_stop_name = similar_stops[["stop_name"]].iloc[0]
+                similar_stop_centroid = similar_stops[
+                    ["similar_stops_centroid_lon", "similar_stops_centroid_lat"]
+                ].values.tolist()[0]
+                return similar_stop_id, similar_stop_name, similar_stop_centroid
+            else:
+                # when cannot seperate stop_id, grouping by name and distance
+                stops_df = stops_df_id_delimited[~stops_df_id_delimited["delimited"]]
+
+        # grouping by name and distance
+        similar_stops = stops_df[stops_df["stop_name"] == stop["stop_name"]][
+            ["stop_id", "stop_name", "stop_lon", "stop_lat"]
+        ]
+        similar_stops = similar_stops.query(
+            f'(stop_lon - {stop["stop_lon"]}) ** 2 + (stop_lat - {stop["stop_lat"]}) ** 2  < {max_distance_degree ** 2}'
+        )
+        similar_stop_centroid = (
+            similar_stops[["stop_lon", "stop_lat"]].mean().values.tolist()
+        )
+        similar_stop_id = similar_stops["stop_id"].iloc[0]
+        similar_stop_name = stop["stop_name"]
+        return similar_stop_id, similar_stop_name, similar_stop_centroid
+
+    @lru_cache(maxsize=None)
+    def __get_stops_id_delimited(self, delimiter: str):
+        stops_df = self.dataframes.get("stops")[
+            ["stop_id", "stop_name", "stop_lon", "stop_lat", "parent_station"]
+        ].copy()
+        stops_df["stop_id_prefix"] = stops_df["stop_id"].map(
+            lambda stop_id: stop_id.rsplit(delimiter, 1)[0]
+        )
+        stops_df["delimited"] = stops_df["stop_id"] != stops_df["stop_id_prefix"]
+        grouped_by_prefix = (
+            stops_df[["stop_id_prefix", "stop_lon", "stop_lat"]]
+            .groupby("stop_id_prefix")
+            .mean()
+            .reset_index()
+        )
+        grouped_by_prefix.columns = [
+            "stop_id_prefix",
+            "similar_stops_centroid_lon",
+            "similar_stops_centroid_lat",
+        ]
+        stops_df_with_centroid = pd.merge(
+            stops_df, grouped_by_prefix, on="stop_id_prefix", how="left"
+        )
+        return stops_df_with_centroid
 
     def read_interpolated_stops(self):
         """
@@ -233,7 +469,7 @@ class GTFSParser:
 
         # filter stop_times by whether serviced or not
         if yyyymmdd:
-            trips_filtered_by_day = self.get_trips_on_a_date(yyyymmdd)
+            trips_filtered_by_day = self.__get_trips_on_a_date(yyyymmdd)
             stop_times_df = pd.merge(
                 stop_times_df, trips_filtered_by_day, on="trip_id", how="left"
             )
@@ -349,130 +585,7 @@ class GTFSParser:
             for path in path_data_dict
         ]
 
-    @lru_cache(maxsize=None)
-    def get_similar_stop_tuple(
-        self, stop_id: str, delimiter="", max_distance_degree=0.01
-    ):
-        """
-        With one stop_id, group stops by parent, stop_id, or stop_name and each distance.
-        - parent: if stop has parent_station, the 'centroid' is parent_station lat-lon
-        - stop_id: by delimiter seperate stop_id into prefix and suffix, and group stops having same stop_id-prefix
-        - name and distance: group stops by stop_name, excluding stops are far than max_distance_degree
-
-        Args:
-            stop_id (str): target stop_id
-            max_distance_degree (float, optional): distance limit on grouping, Defaults to 0.01.
-        Returns:
-            str, str, [float, float]: similar_stop_id, similar_stop_name, similar_stops_centroid
-        """
-        stops_df = self.dataframes["stops"].sort_values("stop_id")
-        stop = stops_df[stops_df["stop_id"] == stop_id].iloc[0]
-
-        if stop["is_parent"] == 1:
-            return (
-                stop["stop_id"],
-                stop["stop_name"],
-                [stop["stop_lon"], stop["stop_lat"]],
-            )
-
-        if str(stop["parent_station"]) != "nan":
-            similar_stop_id = stop["parent_station"]
-            similar_stop = stops_df[stops_df["stop_id"] == similar_stop_id]
-            similar_stop_name = similar_stop[["stop_name"]].iloc[0]
-            similar_stop_centroid = (
-                similar_stop[["stop_lon", "stop_lat"]].iloc[0].values.tolist()
-            )
-            return similar_stop_id, similar_stop_name, similar_stop_centroid
-
-        if delimiter:
-            stops_df_id_delimited = self.get_stops_id_delimited(delimiter)
-            stop_id_prefix = stop_id.rsplit(delimiter, 1)[0]
-            if stop_id_prefix != stop_id:
-                similar_stop_id = stop_id_prefix
-                seperated_only_stops = stops_df_id_delimited[
-                    stops_df_id_delimited["delimited"]
-                ]
-                similar_stops = seperated_only_stops[
-                    seperated_only_stops["stop_id_prefix"] == stop_id_prefix
-                ][
-                    [
-                        "stop_name",
-                        "similar_stops_centroid_lon",
-                        "similar_stops_centroid_lat",
-                    ]
-                ]
-                similar_stop_name = similar_stops[["stop_name"]].iloc[0]
-                similar_stop_centroid = similar_stops[
-                    ["similar_stops_centroid_lon", "similar_stops_centroid_lat"]
-                ].values.tolist()[0]
-                return similar_stop_id, similar_stop_name, similar_stop_centroid
-            else:
-                # when cannot seperate stop_id, grouping by name and distance
-                stops_df = stops_df_id_delimited[~stops_df_id_delimited["delimited"]]
-
-        # grouping by name and distance
-        similar_stops = stops_df[stops_df["stop_name"] == stop["stop_name"]][
-            ["stop_id", "stop_name", "stop_lon", "stop_lat"]
-        ]
-        similar_stops = similar_stops.query(
-            f'(stop_lon - {stop["stop_lon"]}) ** 2 + (stop_lat - {stop["stop_lat"]}) ** 2  < {max_distance_degree ** 2}'
-        )
-        similar_stop_centroid = (
-            similar_stops[["stop_lon", "stop_lat"]].mean().values.tolist()
-        )
-        similar_stop_id = similar_stops["stop_id"].iloc[0]
-        similar_stop_name = stop["stop_name"]
-        return similar_stop_id, similar_stop_name, similar_stop_centroid
-
-    @lru_cache(maxsize=None)
-    def get_stops_id_delimited(self, delimiter):
-        stops_df = self.dataframes.get("stops")[
-            ["stop_id", "stop_name", "stop_lon", "stop_lat", "parent_station"]
-        ].copy()
-        stops_df["stop_id_prefix"] = stops_df["stop_id"].map(
-            lambda stop_id: stop_id.rsplit(delimiter, 1)[0]
-        )
-        stops_df["delimited"] = stops_df["stop_id"] != stops_df["stop_id_prefix"]
-        grouped_by_prefix = (
-            stops_df[["stop_id_prefix", "stop_lon", "stop_lat"]]
-            .groupby("stop_id_prefix")
-            .mean()
-            .reset_index()
-        )
-        grouped_by_prefix.columns = [
-            "stop_id_prefix",
-            "similar_stops_centroid_lon",
-            "similar_stops_centroid_lat",
-        ]
-        stops_df_with_centroid = pd.merge(
-            stops_df, grouped_by_prefix, on="stop_id_prefix", how="left"
-        )
-        return stops_df_with_centroid
-
-    @staticmethod
-    def __get_route_name_from_tupple(route):
-        if not pd.isna(route.route_short_name):
-            return route.route_short_name
-        elif not pd.isna(route.route_long_name):
-            return route.route_long_name
-        else:
-            ValueError(f'{route} have neither "route_long_name" or "route_short_time".')
-
-    def __get_shape_ids_on_routes(self):
-        trips_with_shape_df = self.dataframes["trips"][["route_id", "shape_id"]].dropna(
-            subset=["shape_id"]
-        )
-        group = trips_with_shape_df.groupby("route_id")["shape_id"].unique()
-        group.apply(lambda x: x.sort())
-        return group
-
-    def __get_shapes_coordinates(self):
-        shapes_df = self.dataframes["shapes"].copy()
-        shapes_df.sort_values("shape_pt_sequence")
-        shapes_df["pt"] = shapes_df[["shape_pt_lon", "shape_pt_lat"]].values.tolist()
-        return shapes_df.groupby("shape_id")["pt"].apply(tuple)
-
-    def get_trips_on_a_date(self, yyyymmdd: str):
+    def __get_trips_on_a_date(self, yyyymmdd: str):
         """
         get trips are on service on a date.
 
@@ -526,115 +639,6 @@ class GTFSParser:
         trip_service = trip_service[trip_service["service_flag"] == 1]
 
         return trip_service[["trip_id", "service_flag"]]
-
-    def read_routes(self, no_shapes=False) -> list:
-        """
-        read routes by shapes or stop_times
-        First, this method try to load shapes and parse it into routes,
-        but shapes is optional table in GTFS. Then is shapes does not exist or no_shapes is True,
-        this parse routes by stop_time, stops, trips, and routes.
-
-        Args:
-            no_shapes (bool, optional): ignore shapes table. Defaults to False.
-
-        Returns:
-            [list]: list of GeoJSON-Feature-dict
-        """
-        features = []
-
-        if self.dataframes.get("shapes") is None or no_shapes:
-            # trip-route-merge:A
-            trips_routes = pd.merge(
-                self.dataframes["trips"][["trip_id", "route_id"]],
-                self.dataframes["routes"][
-                    ["route_id", "route_long_name", "route_short_name"]
-                ],
-                on="route_id",
-            )
-
-            # stop_times-stops-merge:B
-            stop_times_stop = pd.merge(
-                self.dataframes["stop_times"][["stop_id", "trip_id", "stop_sequence"]],
-                self.dataframes.get("stops")[["stop_id", "stop_lon", "stop_lat"]],
-                on="stop_id",
-            )
-
-            # A-B-merge
-            merged = pd.merge(stop_times_stop, trips_routes, on="trip_id")
-            merged["route_concat_name"] = merged["route_long_name"].fillna("") + merged[
-                "route_short_name"
-            ].fillna("")
-
-            # parse routes
-            for route_id in merged["route_id"].unique():
-                route = merged[merged["route_id"] == route_id]
-                trip_id = route["trip_id"].unique()[0]
-                route = route[route["trip_id"] == trip_id].sort_values("stop_sequence")
-                features.append(
-                    {
-                        "type": "Feature",
-                        "geometry": {
-                            "type": "LineString",
-                            "coordinates": route[
-                                ["stop_lon", "stop_lat"]
-                            ].values.tolist(),
-                        },
-                        "properties": {
-                            "route_id": str(route_id),
-                            "route_name": route.route_concat_name.values.tolist()[0],
-                        },
-                    }
-                )
-        else:
-            # parse shape.txt to GeoJSON-Features
-            shape_coords = self.__get_shapes_coordinates()
-            shape_ids_on_routes = self.__get_shape_ids_on_routes()
-            # list-up already loaded shape_ids
-            loaded_shape_ids = set()
-            for route in self.dataframes.get("routes").itertuples():
-                if shape_ids_on_routes.get(route.route_id) is None:
-                    continue
-
-                # get coords by route_id
-                coordinates = []
-                for shape_id in shape_ids_on_routes[route.route_id]:
-                    coordinates.append(shape_coords.at[shape_id])
-                    loaded_shape_ids.add(shape_id)  # update loaded shape_ids
-
-                route_name = self.__get_route_name_from_tupple(route)
-                features.append(
-                    {
-                        "type": "Feature",
-                        "geometry": {
-                            "type": "MultiLineString",
-                            "coordinates": coordinates,
-                        },
-                        "properties": {
-                            "route_id": str(route.route_id),
-                            "route_name": route_name,
-                        },
-                    }
-                )
-
-            # load shapes unloaded yet
-            for shape_id in list(
-                filter(lambda id: id not in loaded_shape_ids, shape_coords.index)
-            ):
-                features.append(
-                    {
-                        "type": "Feature",
-                        "geometry": {
-                            "type": "MultiLineString",
-                            "coordinates": [shape_coords.at[shape_id]],
-                        },
-                        "properties": {
-                            "route_id": None,
-                            "route_name": str(shape_id),
-                        },
-                    }
-                )
-
-        return features
 
 
 if __name__ == "__main__":
