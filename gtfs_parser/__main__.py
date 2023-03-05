@@ -31,7 +31,6 @@ class GTFSParser:
         begin_time="",
         end_time="",
     ):
-
         txts = glob.glob(os.path.join(src_dir, "**", "*.txt"), recursive=True)
         self.dataframes = self.__load_tables(txts)
 
@@ -47,7 +46,7 @@ class GTFSParser:
             )
 
     @staticmethod
-    def __load_tables(text_files: list[str]) -> dict:
+    def __load_tables(text_files: list) -> dict:
         tables = {}
         for txt in text_files:
             datatype = os.path.basename(txt).split(".")[0]
