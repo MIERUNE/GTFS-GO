@@ -28,4 +28,3 @@ jobs:
       
       - name: unittest
         run: python -m unittest discover gtfs_parser
-        continue-on-error: true
