@@ -44,6 +44,7 @@ from .gtfs_go_renderer import Renderer
 from .gtfs_go_labeling import get_labeling_for_stops
 
 from . import repository
+from .repository.japan_dpf.table import HEADERS, HEADERS_TO_HIDE
 from . import constants
 
 from .gtfs_go_settings import (
@@ -118,12 +119,15 @@ class GTFSGoDialog(QDialog):
 
         self.japanDpfResultTableView.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.japan_dpf_set_table([])
-        for idx, header in enumerate(repository.japan_dpf.table.HEADERS):
-            if header in repository.japan_dpf.table.HEADERS_TO_HIDE:
+        for idx, header in enumerate(HEADERS):
+            if header in HEADERS_TO_HIDE:
                 self.japanDpfResultTableView.hideColumn(idx)
+        # set default column width
+        self.japanDpfResultTableView.setColumnWidth(HEADERS.index("organization"), 110)
+        self.japanDpfResultTableView.setColumnWidth(HEADERS.index("feed"), 150)
 
         self.japanDpfPrefectureCombobox.addItem(self.tr("any"), None)
-        for prefname in constants.JAPAN_PREFS:
+        for prefname in constants.JAPAN_PREFS_NAME_TO_CODE.keys():
             self.japanDpfPrefectureCombobox.addItem(prefname, prefname)
 
         now = datetime.datetime.now()
@@ -133,8 +137,6 @@ class GTFSGoDialog(QDialog):
         self.japanDpfExtentGroupBox.setOutputCrs(
             QgsCoordinateReferenceSystem("EPSG:4326")
         )
-        # TODO: APIでextentパラメータが未実装なので一時的にUIを非表示
-        self.japanDpfExtentGroupBox.setVisible(False)
 
         self.japanDpfSearchButton.clicked.connect(self.japan_dpf_search)
 
@@ -203,9 +205,13 @@ class GTFSGoDialog(QDialog):
                 row_data = self.get_selected_row_data_in_japan_dpf_table(row.row())
                 feed_infos.append(
                     {
-                        "path": row_data["gtfs_url"],
-                        "group": row_data["agency_name"] + "-" + row_data["gtfs_name"],
-                        "dir": row_data["agency_id"] + "-" + row_data["gtfs_id"],
+                        "path": row_data["file_url"],
+                        "group": row_data["organization"] + "-" + row_data["feed"],
+                        "dir": row_data["organization_id"]
+                        + "-"
+                        + row_data["feed_id"]
+                        + "-"
+                        + row_data["file_uid"],
                     }
                 )
         return feed_infos
@@ -498,15 +504,19 @@ class GTFSGoDialog(QDialog):
             .replace(" : ", ",")
         )
 
-        pref = (
+        pref_code = (
             None
             if self.japanDpfPrefectureCombobox.currentData() is None
-            else urllib.parse.quote(self.japanDpfPrefectureCombobox.currentData())
+            else constants.JAPAN_PREFS_NAME_TO_CODE.get(
+                self.japanDpfPrefectureCombobox.currentData()
+            )
         )
 
         try:
             results = repository.japan_dpf.api.get_feeds(
-                yyyy + mm + dd, extent=extent, pref=pref
+                f"{yyyy}-{mm}-{dd}",
+                extent=extent,
+                pref=pref_code,
             )
             self.japan_dpf_set_table(results)
         except Exception as e:
@@ -525,6 +535,11 @@ class GTFSGoDialog(QDialog):
             self.refresh()
 
     def japan_dpf_set_table(self, results: list):
+        # replace pref code to pref name
+        for result in results:
+            result["feed_pref"] = constants.JAPAN_PREFS_CODE_TO_NAME[
+                result["feed_pref_id"]
+            ]
         model = repository.japan_dpf.table.Model(results)
         proxyModel = QSortFilterProxyModel()
         proxyModel.setDynamicSortFilter(True)
@@ -534,6 +549,15 @@ class GTFSGoDialog(QDialog):
         self.japanDpfResultTableView.setModel(proxyModel)
         self.japanDpfResultTableView.setCornerButtonEnabled(True)
         self.japanDpfResultTableView.setSortingEnabled(True)
+        # -1 is no sort indicator
+        self.japanDpfResultTableView.sortByColumn(-1, Qt.AscendingOrder)
+
+        # resize columns and rows
+        self.japanDpfResultTableView.resizeColumnToContents(HEADERS.index("pref"))
+        self.japanDpfResultTableView.resizeColumnToContents(HEADERS.index("license"))
+        self.japanDpfResultTableView.resizeColumnToContents(HEADERS.index("from_date"))
+        self.japanDpfResultTableView.resizeColumnToContents(HEADERS.index("to_date"))
+        self.japanDpfResultTableView.resizeRowsToContents()
 
     def get_selected_row_data_in_japan_dpf_table(self, row: int):
         data = {}

@@ -5,28 +5,70 @@ from qgis.core import *
 from qgis.gui import *
 
 HEADERS = (
-    "agency_prefecture",
-    "agency_name",
-    "gtfs_name",
+    "organization_id",
+    "organization",
+    "organization_web_url",
+    "organization_email",
+    "feed_id",
+    "feed",
+    "feed_pref_id",
+    "pref",
+    "feed_license_url",
+    "feed_url",
+    "feed_page_url",
+    "file_uid",
+    "file_rid",
     "from_date",
     "to_date",
-    "gtfs_url",
-    "stops_url",
-    "route_url",
-    "tracking_url",
-    "gtfs_id",
-    "agency_id",
+    "license",
+    "file_url",
+    "file_stop_url",
+    "file_route_url",
+    "file_tracking_url",
+    "file_last_updated_at",
 )
+
+HEADER_TO_DATAHEADER = {
+    "organization_id": "organization_id",
+    "organization": "organization_name",
+    "organization_web_url": "organization_web_url",
+    "organization_email": "organization_email",
+    "feed_id": "feed_id",
+    "feed": "feed_name",
+    "feed_pref_id": "feed_pref_id",
+    "pref": "feed_pref",
+    "license": "feed_license_id",
+    "feed_license_url": "feed_license_url",
+    "feed_url": "feed_url",
+    "feed_page_url": "feed_page_url",
+    "file_uid": "file_uid",
+    "file_rid": "file_rid",
+    "from_date": "file_from_date",
+    "to_date": "file_to_date",
+    "file_url": "file_url",
+    "file_stop_url": "file_stop_url",
+    "file_route_url": "file_route_url",
+    "file_tracking_url": "file_tracking_url",
+    "file_last_updated_at": "file_last_updated_at",
+}
 
 HEADERS_TO_HIDE = (
-    "gtfs_url",
-    "stops_url",
-    "route_url",
-    "tracking_url",
-    "gtfs_id",
-    "agency_id",
+    "organization_id",
+    "organization_web_url",
+    "organization_email",
+    "feed_id",
+    "feed_pref_id",
+    "feed_license_url",
+    "feed_url",
+    "feed_page_url",
+    "file_uid",
+    "file_rid",
+    "file_url",
+    "file_stop_url",
+    "file_route_url",
+    "file_tracking_url",
+    "file_last_updated_at",
 )
-
 
 class Model(QAbstractTableModel):
     def __init__(self, datalist: list, parent=None):
@@ -56,7 +98,8 @@ class Model(QAbstractTableModel):
             row = index.row()
             column = index.column()
             key = self.headers[column]
-            return self.datalist[row].get(key, "")
+            dataheader = HEADER_TO_DATAHEADER[key]
+            return self.datalist[row].get(dataheader, "")
 
     """
     def setData(self, index, value, role=Qt.EditRole):
