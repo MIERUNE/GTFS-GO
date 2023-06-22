@@ -18,6 +18,7 @@ jobs:
           -ve '.github' \
           -ve './.vscode' \
           -ve '__pycache__/' \
+          -ve 'doc_imgs/' \
           -ve './tests' \
           -ve './pyproject.toml' \
           -ve './poetry.toml' \
