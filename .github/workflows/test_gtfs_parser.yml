@@ -1,13 +1,8 @@
 name: test gtfs_parser
 
 on:
-  push:
-    branches: [ master, develop ]
-    paths:
-      - "gtfs_parser/**"
-  
   pull_request:
-    branches: [ master, develop ]
+    branches: [ main ]
     paths: 
       - "gtfs_parser/**"
 
