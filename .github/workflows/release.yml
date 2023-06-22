@@ -5,7 +5,7 @@ on:
     types: [published]
 
 env:
-  PLUGIN_NAME: qgis-plugin-template
+  PLUGIN_NAME: GTFS-GO-master
 jobs:
   release:
     runs-on: ubuntu-latest
