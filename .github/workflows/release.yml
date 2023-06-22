@@ -1,0 +1,32 @@
+name:
+  release
+on:
+  release:
+    types: [published]
+
+env:
+  PLUGIN_NAME: qgis-plugin-template
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Create Plugin Directory
+      run: |
+        mkdir ${{env.PLUGIN_NAME}}
+        find . -type f | grep -ve './.git' \
+          -ve '.github' \
+          -ve './.vscode' \
+          -ve '__pycache__/' \
+          -ve './tests' \
+          -ve './pyproject.toml' \
+          -ve './poetry.toml' \
+          -ve './poetry.lock' | xargs -I src cp --parents src ${{env.PLUGIN_NAME}}
+    - name: Create Archive
+      run: |
+        zip -r ${{env.PLUGIN_NAME}}.zip ./${{env.PLUGIN_NAME}}
+    - name: Upload release asset
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release upload ${{ github.event.release.tag_name }} ${{env.PLUGIN_NAME}}.zip#${{env.PLUGIN_NAME}}

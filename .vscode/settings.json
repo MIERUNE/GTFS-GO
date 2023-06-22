@@ -1,0 +1,10 @@
+{
+    "python.linting.flake8Enabled": false,
+    "python.linting.enabled": false,
+    "python.formatting.provider": "black",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.autoFix": true,
+        "source.organizeImports": true
+    }
+}
