@@ -9,7 +9,7 @@ from qgis.core import *
 from qgis.gui import *
 from qgis.utils import iface
 
-DPF_API_URL = "https://api.gtfs-data.jp/gtfs"
+DPF_API_URL = "https://api.gtfs-data.jp/v2"
 
 
 def fetch(url: str) -> dict:
@@ -42,11 +42,11 @@ def fetch(url: str) -> dict:
 
 
 def get_feeds(target_date: str, extent=None, pref=None):
-    url = DPF_API_URL + "/findByAttributes?"
+    url = DPF_API_URL + "/files?"
     url += f"target_date={target_date}"
     url += "" if extent is None else "&extent=" + extent
-    url += "" if pref is None else "&pref=" + pref
+    url += "" if pref is None else f"&pref={pref}"
 
     res = fetch(url)
-    feeds = res.get("data", [])
+    feeds = res.get("body", [])
     return feeds
