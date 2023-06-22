@@ -1,3 +1,4 @@
 .DS_Store
 Desktop.ini
 __pycache__/
+.venv/
