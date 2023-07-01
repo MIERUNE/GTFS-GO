@@ -414,6 +414,11 @@ class GTFSGoDialog(QDialog):
                 os.path.join(os.path.dirname(__file__), "aggregated_stops.qml")
             )
 
+            scale_stop_size = self.ui.scaleStopSizeCheckBox.isChecked()
+            dd_props = aggregated_stops_vlayer.renderer().symbol().symbolLayers()[0].dataDefinedProperties()
+            if dd_props.hasProperty(QgsSymbolLayer.PropertySize):
+                dd_props.property(QgsSymbolLayer.PropertySize).setActive(scale_stop_size)
+
             QgsProject.instance().addMapLayer(aggregated_stops_vlayer, False)
             group.insertLayer(0, aggregated_stops_vlayer)
 

@@ -27,7 +27,7 @@
             <Option name="outline_width_map_unit_scale" type="QString" value="3x:0,0,0,0,0,0"/>
             <Option name="outline_width_unit" type="QString" value="MM"/>
             <Option name="scale_method" type="QString" value="diameter"/>
-            <Option name="size" type="QString" value="1.2"/>
+            <Option name="size" type="QString" value="1.0"/>
             <Option name="size_map_unit_scale" type="QString" value="3x:0,0,0,0,0,0"/>
             <Option name="size_unit" type="QString" value="MM"/>
             <Option name="vertical_anchor_point" type="QString" value="1"/>
@@ -37,8 +37,8 @@
               <Option name="name" type="QString" value=""/>
               <Option name="properties" type="Map">
                 <Option name="size" type="Map">
-                  <Option name="active" type="bool" value="true"/>
-                  <Option name="expression" type="QString" value="1 + 0.3 * &quot;count&quot; ^ 0.5"/>
+                  <Option name="active" type="bool" value="false"/>
+                  <Option name="expression" type="QString" value="0.8 + 0.2 * &quot;count&quot; ^ 0.5"/>
                   <Option name="type" type="int" value="3"/>
                 </Option>
               </Option>
