@@ -433,7 +433,7 @@
           </property>
           <property name="maximumSize">
            <size>
-            <width>16777215</width>
+            <width>55</width>
             <height>16777215</height>
            </size>
           </property>
@@ -462,12 +462,12 @@
           </property>
           <property name="maximumSize">
            <size>
-            <width>16777215</width>
+            <width>55</width>
             <height>16777215</height>
            </size>
           </property>
           <property name="text">
-           <string>11:59:59</string>
+           <string>27:00:00</string>
           </property>
           <property name="placeholderText">
            <string/>
@@ -486,6 +486,13 @@
            </size>
           </property>
          </spacer>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="scaleStopSizeCheckBox">
+          <property name="text">
+           <string>scale stop size to count</string>
+          </property>
+         </widget>
         </item>
        </layout>
       </item>
