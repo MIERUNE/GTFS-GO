@@ -6,7 +6,7 @@
 name=GTFS-GO
 qgisMinimumVersion=3.0
 description=The plugin to extract GTFS data and to show routes and stops.
-version=3.2.1
+version=3.2.2
 author=MIERUNE Inc.
 email=info@mierune.co.jp
 
