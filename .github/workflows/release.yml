@@ -11,6 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - name: pull submodules
+      run: |
+        git submodule update --init --recursive
     - name: Create Plugin Directory
       run: |
         mkdir ${{env.PLUGIN_NAME}}

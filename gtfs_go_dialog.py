@@ -22,14 +22,14 @@
  ***************************************************************************/
 """
 
-import os
-import json
-import urllib
-import shutil
-import zipfile
-import tempfile
 import datetime
+import json
+import os
+import shutil
+import tempfile
+import urllib
 import uuid
+import zipfile
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -39,18 +39,14 @@ from qgis.gui import *
 from qgis.PyQt import uic
 from qgis.utils import iface
 
-from .gtfs_parser import GTFSParser
-from .gtfs_go_renderer import Renderer
+from . import constants, repository
 from .gtfs_go_labeling import get_labeling_for_stops
-
-from . import repository
-from .repository.japan_dpf.table import HEADERS, HEADERS_TO_HIDE
-from . import constants
-
+from .gtfs_go_renderer import Renderer
 from .gtfs_go_settings import (
-    FILENAME_RESULT_CSV,
     STOPS_MINIMUM_VISIBLE_SCALE,
 )
+from .gtfs_parser import gtfs_parser
+from .repository.japan_dpf.table import HEADERS, HEADERS_TO_HIDE
 
 DATALIST_JSON_PATH = os.path.join(os.path.dirname(__file__), "gtfs_go_datalist.json")
 TEMP_DIR = os.path.join(tempfile.gettempdir(), "GTFSGo")
@@ -240,17 +236,18 @@ class GTFSGoDialog(QDialog):
             }
 
             if self.ui.simpleCheckbox.isChecked():
-                gtfs_parser = GTFSParser(extracted_dir)
+                gtfs = gtfs_parser.GTFS(extracted_dir)
                 routes_geojson = {
                     "type": "FeatureCollection",
-                    "features": gtfs_parser.read_routes(
-                        no_shapes=self.ui.ignoreShapesCheckbox.isChecked()
+                    "features": gtfs_parser.parse.read_routes(
+                        gtfs, ignore_shapes=self.ui.ignoreShapesCheckbox.isChecked()
                     ),
                 }
                 stops_geojson = {
                     "type": "FeatureCollection",
-                    "features": gtfs_parser.read_stops(
-                        ignore_no_route=self.ui.ignoreNoRouteStopsCheckbox.isChecked()
+                    "features": gtfs_parser.parse.read_stops(
+                        gtfs,
+                        ignore_no_route=self.ui.ignoreNoRouteStopsCheckbox.isChecked(),
                     ),
                 }
                 # write
@@ -271,10 +268,10 @@ class GTFSGoDialog(QDialog):
                     json.dump(stops_geojson, f, ensure_ascii=False)
 
             if self.ui.aggregateCheckbox.isChecked():
-                gtfs_parser = GTFSParser(
-                    extracted_dir,
-                    as_frequency=self.ui.aggregateCheckbox.isChecked(),
-                    as_unify_stops=self.ui.unifyCheckBox.isChecked(),
+                gtfs = gtfs_parser.GTFS(extracted_dir)
+                aggregator = gtfs_parser.aggregate.Aggregator(
+                    gtfs,
+                    no_unify_stops=not self.ui.unifyCheckBox.isChecked(),
                     delimiter=self.get_delimiter(),
                     yyyymmdd=self.get_yyyymmdd(),
                     begin_time=self.get_time_filter(self.ui.beginTimeLineEdit),
@@ -282,11 +279,11 @@ class GTFSGoDialog(QDialog):
                 )
                 aggregated_routes_geojson = {
                     "type": "FeatureCollection",
-                    "features": gtfs_parser.read_route_frequency(),
+                    "features": aggregator.read_route_frequency(),
                 }
                 aggregated_stops_geojson = {
                     "type": "FeatureCollection",
-                    "features": gtfs_parser.read_interpolated_stops(),
+                    "features": aggregator.read_interpolated_stops(),
                 }
 
                 # write
@@ -315,7 +312,7 @@ class GTFSGoDialog(QDialog):
                     encoding="cp932",
                     errors="ignore",
                 ) as f:
-                    gtfs_parser.dataframes["stops"][
+                    aggregator.gtfs["stops"][
                         ["stop_id", "stop_name", "similar_stop_id", "similar_stop_name"]
                     ].to_csv(f, index=False)
 
@@ -415,9 +412,16 @@ class GTFSGoDialog(QDialog):
             )
 
             scale_stop_size = self.ui.scaleStopSizeCheckBox.isChecked()
-            dd_props = aggregated_stops_vlayer.renderer().symbol().symbolLayers()[0].dataDefinedProperties()
+            dd_props = (
+                aggregated_stops_vlayer.renderer()
+                .symbol()
+                .symbolLayers()[0]
+                .dataDefinedProperties()
+            )
             if dd_props.hasProperty(QgsSymbolLayer.PropertySize):
-                dd_props.property(QgsSymbolLayer.PropertySize).setActive(scale_stop_size)
+                dd_props.property(QgsSymbolLayer.PropertySize).setActive(
+                    scale_stop_size
+                )
 
             QgsProject.instance().addMapLayer(aggregated_stops_vlayer, False)
             group.insertLayer(0, aggregated_stops_vlayer)

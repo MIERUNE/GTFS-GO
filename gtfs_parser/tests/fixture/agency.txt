@@ -1,2 +1,0 @@
-﻿agency_id,agency_name,agency_url,agency_timezone,agency_lang,agency_phone,agency_fare_url,agency_email
-8460101001629,北海道拓殖バス株式会社,https://www.takubus.com/,Asia/Tokyo,ja,0155-31-8811,,info@takubus.com

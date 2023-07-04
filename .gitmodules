@@ -1,0 +1,3 @@
+[submodule "gtfs_parser"]
+	path = gtfs_parser
+	url = https://github.com/MIERUNE/gtfs-parser.git
