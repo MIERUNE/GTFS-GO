@@ -29,7 +29,6 @@ import shutil
 import tempfile
 import urllib
 import uuid
-import zipfile
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -162,12 +161,6 @@ class GTFSGoDialog(QDialog):
 
         return download_path
 
-    def extract_zip(self, zip_path: str) -> str:
-        extracted_dir = os.path.join(TEMP_DIR, "extract", str(uuid.uuid4()))
-        os.makedirs(extracted_dir, exist_ok=True)
-        with zipfile.ZipFile(zip_path) as z:
-            z.extractall(extracted_dir)
-        return extracted_dir
 
     def get_target_feed_infos(self):
         feed_infos = []
@@ -221,7 +214,6 @@ class GTFSGoDialog(QDialog):
             if feed_info["path"].startswith("http"):
                 feed_info["path"] = self.download_zip(feed_info["path"])
 
-            extracted_dir = self.extract_zip(feed_info["path"])
             output_dir = os.path.join(
                 self.outputDirFileWidget.filePath(), feed_info["dir"]
             )
@@ -235,8 +227,9 @@ class GTFSGoDialog(QDialog):
                 "aggregated_csv": "",
             }
 
+            gtfs = gtfs_parser.GTFS(feed_info["path"])
+
             if self.ui.simpleCheckbox.isChecked():
-                gtfs = gtfs_parser.GTFS(extracted_dir)
                 routes_geojson = {
                     "type": "FeatureCollection",
                     "features": gtfs_parser.parse.read_routes(
@@ -268,7 +261,6 @@ class GTFSGoDialog(QDialog):
                     json.dump(stops_geojson, f, ensure_ascii=False)
 
             if self.ui.aggregateCheckbox.isChecked():
-                gtfs = gtfs_parser.GTFS(extracted_dir)
                 aggregator = gtfs_parser.aggregate.Aggregator(
                     gtfs,
                     no_unify_stops=not self.ui.unifyCheckBox.isChecked(),
