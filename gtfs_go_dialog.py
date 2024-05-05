@@ -304,6 +304,7 @@ class GTFSGoDialog(QDialog):
                     mode="w",
                     encoding="utf-8",
                     errors="ignore",
+                    newline='',
                 ) as f:
                     writer = csv.DictWriter(f, fieldnames=stop_relations[0].keys())
                     writer.writeheader()
