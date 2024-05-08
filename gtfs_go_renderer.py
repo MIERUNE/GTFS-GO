@@ -1,20 +1,29 @@
+from qgis.core import (
+    QgsCategorizedSymbolRenderer,
+    QgsRendererCategory,
+    QgsSimpleMarkerSymbolLayer,
+    QgsSingleSymbolRenderer,
+    QgsSvgMarkerSymbolLayer,
+    QgsSymbol,
+    QgsWkbTypes,
+)
 from qgis.PyQt.QtCore import Qt
-from qgis.core import *
 from qgis.PyQt.QtGui import QColor
 
 from .gtfs_go_settings import (
-    STOPS_SVG_PATH,
-    STOPS_ICON_SIZE_MM,
-    STOPS_ICON_HALO_WIDTH_MM,
     ROUTES_COLOR_LIST,
     ROUTES_LINE_WIDTH_MM,
+    ROUTES_OUTLINE_COLOR,
     ROUTES_OUTLINE_WIDTH_MM,
-    ROUTES_OUTLINE_COLOR
+    STOPS_ICON_HALO_WIDTH_MM,
+    STOPS_ICON_SIZE_MM,
+    STOPS_SVG_PATH,
 )
 
 
 def get_random_color():
     import random
+
     random_index = random.randrange(0, len(ROUTES_COLOR_LIST) - 1, 1)
     return QColor(ROUTES_COLOR_LIST[random_index])
 
@@ -25,7 +34,9 @@ class Renderer:
         self.target_field_name = target_field_name
 
     def is_point_layer(self):
-        return self.target_layer.geometryType() == QgsWkbTypes.GeometryType.PointGeometry
+        return (
+            self.target_layer.geometryType() == QgsWkbTypes.GeometryType.PointGeometry
+        )
 
     def make_symbol(self):
         symbol = QgsSymbol.defaultSymbol(self.target_layer.geometryType())
@@ -34,9 +45,8 @@ class Renderer:
             symbol_layer.setSize(STOPS_ICON_SIZE_MM)
             symbol.changeSymbolLayer(0, symbol_layer)
             icon_halo_layer = QgsSimpleMarkerSymbolLayer()
-            icon_halo_layer.setColor(QColor('white'))
-            icon_halo_layer.setSize(
-                STOPS_ICON_SIZE_MM + STOPS_ICON_HALO_WIDTH_MM)
+            icon_halo_layer.setColor(QColor("white"))
+            icon_halo_layer.setSize(STOPS_ICON_SIZE_MM + STOPS_ICON_HALO_WIDTH_MM)
             icon_halo_layer.setStrokeStyle(Qt.NoPen)
             symbol.insertSymbolLayer(0, icon_halo_layer)
         else:
@@ -53,8 +63,12 @@ class Renderer:
     def make_categories_by(self):
         categories = []
         # get all target field value with removing dupulicates
-        target_field_values = set([feature.attribute(self.target_field_name)
-                                   for feature in self.target_layer.getFeatures()])
+        target_field_values = set(
+            [
+                feature.attribute(self.target_field_name)
+                for feature in self.target_layer.getFeatures()
+            ]
+        )
         for value in target_field_values:
             symbol = self.make_symbol()
             category = QgsRendererCategory(value, symbol, value)
@@ -66,6 +80,5 @@ class Renderer:
             renderer = QgsSingleSymbolRenderer(self.make_symbol())
         else:
             categories = self.make_categories_by()
-            renderer = QgsCategorizedSymbolRenderer(
-                self.target_field_name, categories)
+            renderer = QgsCategorizedSymbolRenderer(self.target_field_name, categories)
         return renderer

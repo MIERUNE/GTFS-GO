@@ -1,0 +1,36 @@
+name: Lint
+
+on:
+    pull_request:
+    push:
+        branches: [main]
+
+jobs:
+    Test:
+        name: Lint
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Install poetry
+              run: python -m pip install poetry
+
+            - uses: actions/setup-python@v4
+              with:
+                  python-version: '3.9'
+                  cache: 'poetry'
+
+            - name: Install dependencies
+              run: poetry install
+
+            - name: Check poetry.lock
+              run: poetry lock --check
+
+            # - name: Type-check with Pyright
+            #   run: poetry run pyright .
+
+            - name: Lint with ruff
+              run: poetry run ruff --output-format=github .
+
+            - name: Format with ruff
+              run: poetry run ruff format .

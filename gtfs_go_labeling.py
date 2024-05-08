@@ -1,13 +1,18 @@
+from qgis.core import (
+    QgsPalLayerSettings,
+    QgsTextBufferSettings,
+    QgsTextFormat,
+    QgsVectorLayerSimpleLabeling,
+)
 from qgis.PyQt.QtGui import QColor, QFont
-from qgis.core import *
 
 from .gtfs_go_settings import (
-    STOPS_LABEL_FONT,
-    STOPS_LABEL_SIZE_MM,
-    STOPS_LABEL_BUFFER_SIZE_MM,
     STOPS_LABEL_BUFFER_COLOR,
+    STOPS_LABEL_BUFFER_SIZE_MM,
     STOPS_LABEL_DIST_MM,
-    STOPS_LABEL_MINUMUM_VISIBLE_SCALE
+    STOPS_LABEL_FONT,
+    STOPS_LABEL_MINUMUM_VISIBLE_SCALE,
+    STOPS_LABEL_SIZE_MM,
 )
 
 

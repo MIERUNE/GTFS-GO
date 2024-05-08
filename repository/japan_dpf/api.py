@@ -1,13 +1,8 @@
 import json
 
-# QGIS-API
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
-from PyQt5.QtNetwork import QNetworkRequest, QNetworkReply
-from qgis.core import *
-from qgis.gui import *
-from qgis.utils import iface
+from PyQt5.QtCore import QEventLoop, QTextStream, QUrl
+from PyQt5.QtNetwork import QNetworkReply, QNetworkRequest
+from qgis.core import QgsNetworkAccessManager
 
 DPF_API_URL = "https://api.gtfs-data.jp/v2"
 
@@ -26,12 +21,12 @@ def fetch(url: str) -> dict:
     Returns:
         dict: decode JSON-text as python-dictionary
     """
-    eventLoop = QEventLoop()
-    networkAccessManager = QgsNetworkAccessManager.instance()
+    event_loop = QEventLoop()
+    nam = QgsNetworkAccessManager.instance()
     req = QNetworkRequest(QUrl(url))
-    reply = networkAccessManager.get(req)
-    reply.finished.connect(eventLoop.quit)
-    eventLoop.exec_()
+    reply = nam.get(req)
+    reply.finished.connect(event_loop.quit)
+    event_loop.exec_()
     if reply.error() == QNetworkReply.NoError:
         text_stream = QTextStream(reply)
         text_stream.setCodec("UTF-8")

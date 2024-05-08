@@ -1,8 +1,4 @@
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
-from qgis.core import *
-from qgis.gui import *
+from PyQt5.QtCore import QAbstractTableModel, Qt
 
 HEADERS = (
     "organization_id",
@@ -70,6 +66,7 @@ HEADERS_TO_HIDE = (
     "file_last_updated_at",
 )
 
+
 class Model(QAbstractTableModel):
     def __init__(self, datalist: list, parent=None):
         QAbstractTableModel.__init__(self, parent)
@@ -105,7 +102,7 @@ class Model(QAbstractTableModel):
     def setData(self, index, value, role=Qt.EditRole):
         row = index.row()
         column = index.column()
-        
+
         if role == Qt.EditRole:
             self.list[row][column] = value
             self.dataChanged.emit(index, index)
