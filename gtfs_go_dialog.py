@@ -8,15 +8,15 @@ import urllib
 import uuid
 
 from PyQt5.QtCore import QDate, QSortFilterProxyModel, Qt
-from PyQt5.QtWidgets import QAbstractItemView, QDialog, QMessageBox
+from PyQt5.QtWidgets import QAbstractItemView, QDialog, QLineEdit, QMessageBox
 from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsProject,
     QgsSymbolLayer,
     QgsVectorLayer,
 )
+from qgis.gui import QgisInterface
 from qgis.PyQt import uic
-from qgis.utils import iface
 
 from . import constants, repository
 from .gtfs_go_labeling import get_labeling_for_stops
@@ -34,7 +34,7 @@ REPOSITORY_ENUM = {"preset": 0, "japanDpf": 1}
 
 
 class GTFSGoDialog(QDialog):
-    def __init__(self, iface):
+    def __init__(self, iface: QgisInterface):
         """Constructor."""
         super().__init__()
         self.ui = uic.loadUi(
@@ -108,7 +108,7 @@ class GTFSGoDialog(QDialog):
         now = datetime.datetime.now()
         self.ui.japanDpfTargetDateEdit.setDate(QDate(now.year, now.month, now.day))
 
-        self.japanDpfExtentGroupBox.setMapCanvas(iface.mapCanvas())
+        self.japanDpfExtentGroupBox.setMapCanvas(self.iface.mapCanvas())
         self.japanDpfExtentGroupBox.setOutputCrs(
             QgsCoordinateReferenceSystem("EPSG:4326")
         )
@@ -313,10 +313,10 @@ class GTFSGoDialog(QDialog):
             return ""
         return self.ui.delimiterLineEdit.text()
 
-    def get_time_filter(self, lineEdit):
+    def get_time_filter(self, line_edit: QLineEdit):
         if not self.ui.timeFilterCheckBox.isChecked():
             return ""
-        return lineEdit.text().replace(":", "")
+        return line_edit.text().replace(":", "")
 
     def show_geojson(
         self,
@@ -455,7 +455,7 @@ class GTFSGoDialog(QDialog):
         self.ui.freqFrame.setEnabled(self.ui.aggregateCheckbox.isChecked())
 
     @staticmethod
-    def validate_time_lineedit(lineedit):
+    def validate_time_lineedit(lineedit: QLineEdit):
         digits = "".join(
             list(filter(lambda char: char.isdigit(), list(lineedit.text())))
         ).ljust(6, "0")[-6:]
@@ -523,12 +523,12 @@ class GTFSGoDialog(QDialog):
                 result["feed_pref_id"]
             ]
         model = repository.japan_dpf.table.Model(results)
-        proxyModel = QSortFilterProxyModel()
-        proxyModel.setDynamicSortFilter(True)
-        proxyModel.setSortCaseSensitivity(Qt.CaseInsensitive)
-        proxyModel.setSourceModel(model)
+        proxy_model = QSortFilterProxyModel()
+        proxy_model.setDynamicSortFilter(True)
+        proxy_model.setSortCaseSensitivity(Qt.CaseInsensitive)
+        proxy_model.setSourceModel(model)
 
-        self.japanDpfResultTableView.setModel(proxyModel)
+        self.japanDpfResultTableView.setModel(proxy_model)
         self.japanDpfResultTableView.setCornerButtonEnabled(True)
         self.japanDpfResultTableView.setSortingEnabled(True)
         # -1 is no sort indicator
