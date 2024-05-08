@@ -346,7 +346,7 @@ class GTFSGoDialog(QDialog):
                 stops_geojson, os.path.basename(stops_geojson).split(".")[0], "ogr"
             )
             # make and set labeling for stops
-            stops_labeling = get_labeling_for_stops("stop_names")
+            stops_labeling = get_labeling_for_stops("stop_name")
             stops_vlayer.setLabelsEnabled(True)
             stops_vlayer.setLabeling(stops_labeling)
 
