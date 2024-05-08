@@ -1,2 +1,1 @@
-from . import api
-from . import table
+from . import api, table
