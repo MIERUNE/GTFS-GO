@@ -7,12 +7,11 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.7"
-ruff = "^0.0.274"
 
 
 [tool.poetry.group.dev.dependencies]
-black = "^23.1.0"
 pytest = "^7.2.1"
+ruff = "^0.4.3"
 
 [build-system]
 requires = ["poetry-core"]
@@ -20,5 +19,5 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 select = ["F", "E", "W", "B", "C90", "N", "I"]
-ignore = ["N802", "E501"]
-target-version = "py37"
+ignore = ["N999", "N802", "F401", "E501"]
+target-version = "py39"
