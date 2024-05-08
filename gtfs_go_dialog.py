@@ -29,6 +29,7 @@ import shutil
 import tempfile
 import urllib
 import uuid
+import csv
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -227,7 +228,7 @@ class GTFSGoDialog(QDialog):
                 "aggregated_csv": "",
             }
 
-            gtfs = gtfs_parser.GTFS(feed_info["path"])
+            gtfs = gtfs_parser.GTFSFactory(feed_info["path"])
 
             if self.ui.simpleCheckbox.isChecked():
                 routes_geojson = {
@@ -277,7 +278,7 @@ class GTFSGoDialog(QDialog):
                     "type": "FeatureCollection",
                     "features": aggregator.read_interpolated_stops(),
                 }
-
+                stop_relations = aggregator.read_stop_relations()
                 # write
                 written_files["aggregated_routes"] = os.path.join(
                     output_dir, "aggregated_routes.geojson"
@@ -301,12 +302,13 @@ class GTFSGoDialog(QDialog):
                 with open(
                     written_files["aggregated_csv"],
                     mode="w",
-                    encoding="cp932",
+                    encoding="utf-8",
                     errors="ignore",
+                    newline='',
                 ) as f:
-                    aggregator.gtfs["stops"][
-                        ["stop_id", "stop_name", "similar_stop_id", "similar_stop_name"]
-                    ].to_csv(f, index=False)
+                    writer = csv.DictWriter(f, fieldnames=stop_relations[0].keys())
+                    writer.writeheader()
+                    writer.writerows(stop_relations)
 
             self.show_geojson(
                 feed_info["group"],
@@ -424,6 +426,7 @@ class GTFSGoDialog(QDialog):
                 os.path.basename(aggregated_csv).split(".")[0],
                 "ogr",
             )
+            aggregated_csv_vlayer.setProviderEncoding("UTF-8")
 
             QgsProject.instance().addMapLayer(aggregated_csv_vlayer, False)
             group.insertLayer(0, aggregated_csv_vlayer)
