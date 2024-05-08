@@ -22,6 +22,7 @@
  ***************************************************************************/
 """
 
+import csv
 import datetime
 import json
 import os
@@ -29,13 +30,15 @@ import shutil
 import tempfile
 import urllib
 import uuid
-import csv
 
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
-from qgis.core import *
-from qgis.gui import *
+from PyQt5.QtCore import QDate, QSortFilterProxyModel, Qt
+from PyQt5.QtWidgets import QAbstractItemView, QDialog, QMessageBox
+from qgis.core import (
+    QgsCoordinateReferenceSystem,
+    QgsProject,
+    QgsSymbolLayer,
+    QgsVectorLayer,
+)
 from qgis.PyQt import uic
 from qgis.utils import iface
 
@@ -161,7 +164,6 @@ class GTFSGoDialog(QDialog):
             f.write(data)
 
         return download_path
-
 
     def get_target_feed_infos(self):
         feed_infos = []
@@ -304,7 +306,7 @@ class GTFSGoDialog(QDialog):
                     mode="w",
                     encoding="utf-8",
                     errors="ignore",
-                    newline='',
+                    newline="",
                 ) as f:
                     writer = csv.DictWriter(f, fieldnames=stop_relations[0].keys())
                     writer.writeheader()
