@@ -23,7 +23,7 @@ jobs:
             - name: Export requirements.txt
               run: |
                   pip3 install poetry
-                  poetry export --with dev --without pyqt5 -f requirements.txt -o requirements.txt
+                  poetry export --with dev -f requirements.txt -o requirements.txt
 
             - name: Run tests
               run: docker run --rm --net=host --volume .:/app -w=/app -e QGIS_PLUGIN_IN_CI=1 qgis/qgis:${{ matrix.qgis_image_tag }} sh -c "pip3 install -r /app/requirements.txt && xvfb-run -s '+extension GLX -screen 0 1024x768x24' pytest -v --cov --cov-report=xml --cov-report=term"

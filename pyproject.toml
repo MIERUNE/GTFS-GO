@@ -19,9 +19,6 @@ pytest-mock = "^3.14.0"
 pytest-qgis = "^2.0.0"
 
 
-[tool.poetry.group.pyqt5.dependencies]
-pyqt5 = "^5.15.10"
-
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
