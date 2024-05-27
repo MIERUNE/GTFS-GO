@@ -5,7 +5,7 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
 
 # Import the code for the DockWidget
-from .gtfs_go_dialog import GTFSGoDialog
+from gtfs_go_dialog import GTFSGoDialog
 
 
 class GTFSGo:

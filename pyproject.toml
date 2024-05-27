@@ -6,12 +6,18 @@ authors = ["Kanahiro <mediterranean1769@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "^3.9"
 
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.1"
 ruff = "^0.4.3"
+pytest-qt = "^4.4.0"
+pytest-cov = "^5.0.0"
+pandas = "^2.2.2"
+pytest-mock = "^3.14.0"
+pytest-qgis = "^2.0.0"
+
 
 [build-system]
 requires = ["poetry-core"]

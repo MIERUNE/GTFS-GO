@@ -10,7 +10,7 @@ from qgis.core import (
 from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QColor
 
-from .gtfs_go_settings import (
+from gtfs_go_settings import (
     ROUTES_COLOR_LIST,
     ROUTES_LINE_WIDTH_MM,
     ROUTES_OUTLINE_COLOR,

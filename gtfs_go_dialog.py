@@ -18,14 +18,15 @@ from qgis.core import (
 from qgis.gui import QgisInterface
 from qgis.PyQt import uic
 
-from . import constants, repository
-from .gtfs_go_labeling import get_labeling_for_stops
-from .gtfs_go_renderer import Renderer
-from .gtfs_go_settings import (
+import constants
+import gtfs_parser
+import repository
+from gtfs_go_labeling import get_labeling_for_stops
+from gtfs_go_renderer import Renderer
+from gtfs_go_settings import (
     STOPS_MINIMUM_VISIBLE_SCALE,
 )
-from .gtfs_parser import gtfs_parser
-from .repository.japan_dpf.table import HEADERS, HEADERS_TO_HIDE
+from repository.japan_dpf.table import HEADERS, HEADERS_TO_HIDE
 
 DATALIST_JSON_PATH = os.path.join(os.path.dirname(__file__), "gtfs_go_datalist.json")
 TEMP_DIR = os.path.join(tempfile.gettempdir(), "GTFSGo")
