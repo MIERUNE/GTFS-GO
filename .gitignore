@@ -2,3 +2,8 @@
 Desktop.ini
 __pycache__/
 .venv/
+.coverage
+coverage.xml
+.pytest_cache/
+.ruff_cache/
+requirements.txt

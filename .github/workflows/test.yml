@@ -1,0 +1,35 @@
+name: Test
+
+on:
+    pull_request:
+        branches: [main]
+    workflow_dispatch:
+
+jobs:
+    Test:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                qgis_image_tag: [release-3_28]
+        env:
+            OS: ubuntu
+            QGIS_IMAGE_TAG: ${{ matrix.qgis_image_tag }}
+        steps:
+            - uses: actions/checkout@v3
+
+            - name: Pull QGIS
+              run: docker pull qgis/qgis:${{ matrix.qgis_image_tag }}
+
+            - name: Export requirements.txt
+              run: |
+                  pip3 install poetry
+                  poetry export --with dev --without pyqt5 -f requirements.txt -o requirements.txt
+
+            - name: Run tests
+              run: docker run --rm --net=host --volume .:/app -w=/app -e QGIS_PLUGIN_IN_CI=1 qgis/qgis:${{ matrix.qgis_image_tag }} sh -c "pip3 install -r /app/requirements.txt && xvfb-run -s '+extension GLX -screen 0 1024x768x24' pytest -v --cov --cov-report=xml --cov-report=term"
+
+            - name: Upload coverage reports to Codecov
+              uses: codecov/codecov-action@v4.0.1
+              with:
+                  token: ${{ secrets.CODECOV_TOKEN }}
+                  slug: MIERUNE/GTFS-GO

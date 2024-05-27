@@ -6,7 +6,7 @@ from qgis.core import (
 )
 from qgis.PyQt.QtGui import QColor, QFont
 
-from .gtfs_go_settings import (
+from gtfs_go_settings import (
     STOPS_LABEL_BUFFER_COLOR,
     STOPS_LABEL_BUFFER_SIZE_MM,
     STOPS_LABEL_DIST_MM,
