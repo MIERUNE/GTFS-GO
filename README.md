@@ -1,5 +1,8 @@
 # GTFS-GO
 
+![GitHub Release](https://img.shields.io/github/v/release/MIERUNE/GTFS-GO?label=release)
+[![codecov](https://codecov.io/gh/MIERUNE/GTFS-GO/graph/badge.svg?token=Z9JTNENZ7N)](https://codecov.io/gh/MIERUNE/GTFS-GO)
+
 QGIS Plugin to extract GTFS-data as GeoJSON and render routes and stops on the Map.
 
 <img src='./doc_imgs/overview1.png' width="100%">  
@@ -13,8 +16,8 @@ QGIS Plugin to extract GTFS-data as GeoJSON and render routes and stops on the M
 
 #### Select datasource
 
--   local zipfile
--   download preset datasource
+- local zipfile
+- download preset datasource
 
 ### Processing
 
@@ -32,19 +35,19 @@ This plugin can parse them into simple routes and stops GeoJSON files, also set 
 GTFS also has service time-table information. This plugin can aggregate traffic frequency, how many times do each PATH used. PATH means lines between two stops.  
 In addition, it is possible to unify SIMILAR stops - having same parent_stop or same prefix or same stop_name and near to each.
 
--   numbers along with lines indicate a frequency of each lines, set on left side towards direction of path (UK traffic style)
--   larger number of frequency, lines become bolder
--   result.csv is a table comparing before and after unified stops.
+- numbers along with lines indicate a frequency of each lines, set on left side towards direction of path (UK traffic style)
+- larger number of frequency, lines become bolder
+- result.csv is a table comparing before and after unified stops.
 
 ### unifying algorithm
 
 You can see similar stops unified into one stop.
 
--   before
+- before
 
       <img src="doc_imgs/frequency2.png" width="80%">
 
--   after
+- after
 
       <img src="doc_imgs/frequency3.png" width="80%">
 
@@ -52,20 +55,20 @@ You can see similar stops unified into one stop.
 
 Smaller number of rules is prefered.
 
-1.  parent_stops
+1. parent_stops
 
-    -   if stops have parent_stops value, unifying them into parent station
-    -   new stop_id is parent's one
+    - if stops have parent_stops value, unifying them into parent station
+    - new stop_id is parent's one
 
-2.  stop_id prefix
+2. stop_id prefix
 
-    -   by defining delimiter, split stop_name into prefix and suffix, group same prefix stops
-    -   new stop_id is the first stop's one in grouped stops ordered by stop_id ascending.
+    - by defining delimiter, split stop_name into prefix and suffix, group same prefix stops
+    - new stop_id is the first stop's one in grouped stops ordered by stop_id ascending.
 
-3.  stop_name and distance
+3. stop_name and distance
 
-    -   unifying stops having same stop_name and near to each in certain extent - 0.003 degree in terms of lonlat-plane
-    -   new stop_id is the first stop's one in grouped stops ordered by stop_id ascending.
+    - unifying stops having same stop_name and near to each in certain extent - 0.003 degree in terms of lonlat-plane
+    - new stop_id is the first stop's one in grouped stops ordered by stop_id ascending.
 
 #### unifying result
 
@@ -89,11 +92,11 @@ Version2.0.0, in which the frequency aggregating function is added, got technica
 
 ### new data sources
 
--   Some data sources can be added from [here](https://transitfeeds.com/search?q=gtfs) however you need to check they have all the [required](https://github.com/MIERUNE/GTFS-GO/blob/master/gtfs_parser/constants.py) .txt files
+- Some data sources can be added from [here](https://transitfeeds.com/search?q=gtfs) however you need to check they have all the [required](https://github.com/MIERUNE/GTFS-GO/blob/master/gtfs_parser/constants.py) .txt files
 
 ### Tests
 
--   needs pandas
+- needs pandas
 
 ```
 pip install pandas

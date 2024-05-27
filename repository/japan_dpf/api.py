@@ -7,7 +7,7 @@ from qgis.core import QgsNetworkAccessManager
 DPF_API_URL = "https://api.gtfs-data.jp/v2"
 
 
-def fetch(url: str) -> dict:
+def __fetch(url: str) -> dict:
     """
     Fetch data via http in QGIS-manner
     reponse must be  JSON-text
@@ -36,12 +36,12 @@ def fetch(url: str) -> dict:
         raise Exception(reply.error())
 
 
-def get_feeds(target_date: str, extent=None, pref=None):
+def get_feeds(target_date: str, extent=None, pref=None) -> list:
     url = DPF_API_URL + "/files?"
     url += f"target_date={target_date}"
     url += "" if extent is None else "&extent=" + extent
     url += "" if pref is None else f"&pref={pref}"
 
-    res = fetch(url)
+    res = __fetch(url)
     feeds = res.get("body", [])
     return feeds
