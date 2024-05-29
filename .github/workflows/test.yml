@@ -40,7 +40,7 @@ jobs:
                   docker exec qgis-testing-environment sh -c "qgis_setup.sh $PLUGIN_NAME"
                   docker exec qgis-testing-environment sh -c "rm -f /root/.local/share/QGIS/QGIS3/profiles/default/python/plugins/$PLUGIN_NAME"
                   docker exec qgis-testing-environment sh -c "ln -s /tests_directory/$PLUGIN_NAME /root/.local/share/QGIS/QGIS3/profiles/default/python/plugins/$PLUGIN_NAME"
-                  docker exec qgis-testing-environment sh -c "pip3 install -r gtfsgo/requirements.txt"
+                  docker exec qgis-testing-environment sh -c "pip3 install -r requirements.txt"
 
             - name: Docker run plugin tests
               run: |
