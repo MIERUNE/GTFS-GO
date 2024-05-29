@@ -1,35 +1,47 @@
-name: Test
+name: Test plugin
 
 on:
     pull_request:
-        branches: [main]
-    workflow_dispatch:
+        branches:
+            - main
+
+env:
+    # plugin name/directory where the code for the plugin is stored
+    PLUGIN_NAME: gtfsgo
+    # python notation to test running inside plugin
+    TESTS_RUN_FUNCTION: gtfsgo.test_suite.test_package
+    # Docker settings
+    DOCKER_IMAGE: qgis/qgis
 
 jobs:
-    Test:
+    Test-plugin-gtfsgo:
         runs-on: ubuntu-latest
+
         strategy:
             matrix:
-                qgis_image_tag: [release-3_28]
-        env:
-            OS: ubuntu
-            QGIS_IMAGE_TAG: ${{ matrix.qgis_image_tag }}
-        steps:
-            - uses: actions/checkout@v3
+                docker_tags: [release-3_28, release-3_34]
 
-            - name: Pull QGIS
-              run: docker pull qgis/qgis:${{ matrix.qgis_image_tag }}
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v2
 
             - name: Export requirements.txt
               run: |
                   pip3 install poetry
                   poetry export --with dev -f requirements.txt -o requirements.txt
 
-            - name: Run tests
-              run: docker run --rm --net=host --volume .:/app -w=/app -e QGIS_PLUGIN_IN_CI=1 qgis/qgis:${{ matrix.qgis_image_tag }} sh -c "pip3 install -r /app/requirements.txt && xvfb-run -s '+extension GLX -screen 0 1024x768x24' pytest -v --cov --cov-report=xml --cov-report=term"
+            - name: Docker pull and create qgis-testing-environment
+              run: |
+                  docker pull "$DOCKER_IMAGE":${{ matrix.docker_tags }}
+                  docker run -d --name qgis-testing-environment -v .:/tests_directory/gtfsgo -e DISPLAY=:99 "$DOCKER_IMAGE":${{ matrix.docker_tags }}
 
-            - name: Upload coverage reports to Codecov
-              uses: codecov/codecov-action@v4.0.1
-              with:
-                  token: ${{ secrets.CODECOV_TOKEN }}
-                  slug: MIERUNE/GTFS-GO
+            - name: Docker set up QGIS
+              run: |
+                  docker exec qgis-testing-environment sh -c "qgis_setup.sh $PLUGIN_NAME"
+                  docker exec qgis-testing-environment sh -c "rm -f /root/.local/share/QGIS/QGIS3/profiles/default/python/plugins/$PLUGIN_NAME"
+                  docker exec qgis-testing-environment sh -c "ln -s /tests_directory/$PLUGIN_NAME /root/.local/share/QGIS/QGIS3/profiles/default/python/plugins/$PLUGIN_NAME"
+                  docker exec qgis-testing-environment sh -c "pip3 install -r /tests_directory/$PLUGIN_NAME/requirements.txt"
+
+            - name: Docker run plugin tests
+              run: |
+                  docker exec qgis-testing-environment sh -c "qgis_testrunner.sh $TESTS_RUN_FUNCTION"

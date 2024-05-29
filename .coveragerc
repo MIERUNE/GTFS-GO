@@ -1,4 +1,0 @@
-[report]
-omit =
-    tests/*
-    /usr/lib/python3/dist-packages/*

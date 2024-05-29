@@ -10,13 +10,8 @@ python = "^3.9"
 
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^7.2.1"
 ruff = "^0.4.3"
-pytest-qt = "^4.4.0"
-pytest-cov = "^5.0.0"
 pandas = "^2.2.2"
-pytest-mock = "^3.14.0"
-pytest-qgis = "^2.0.0"
 
 
 [build-system]
@@ -25,5 +20,5 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 select = ["F", "E", "W", "B", "C90", "N", "I"]
-ignore = ["N999", "N802", "F401", "E501"]
+ignore = ["N999", "N802", "F401", "E501", "N806", "C901", "N803", "N815", "B018"]
 target-version = "py39"
