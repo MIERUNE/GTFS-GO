@@ -22,7 +22,7 @@ from gtfs_go_settings import (
 )
 
 
-def get_random_color():
+def _get_random_color():
     import random
 
     random_index = random.randrange(0, len(ROUTES_COLOR_LIST) - 1, 1)
@@ -54,7 +54,7 @@ class Renderer:
             line_layer = symbol.symbolLayer(0)
             line_layer.setPenJoinStyle(Qt.RoundJoin)
             line_layer.setWidth(ROUTES_LINE_WIDTH_MM)
-            line_layer.setColor(get_random_color())
+            line_layer.setColor(_get_random_color())
             outline_layer = symbol.symbolLayer(0).clone()
             outline_layer.setColor(QColor(ROUTES_OUTLINE_COLOR))
             outline_layer.setWidth(ROUTES_OUTLINE_WIDTH_MM)
