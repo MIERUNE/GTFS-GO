@@ -12,6 +12,7 @@
      Copyright (c) 2011 German Carrillo, geotux_tuxman@linuxmail.org
      Copyright (c) 2014 Tim Sutton, tim@linfiniti.com
 
+     reference: https://github.com/felt/qgis-plugin/blob/main/felt/test/qgis_interface.py
 """
 
 __author__ = "tim@linfiniti.com"
