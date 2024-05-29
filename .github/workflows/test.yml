@@ -14,7 +14,7 @@ env:
     DOCKER_IMAGE: qgis/qgis
 
 jobs:
-    Test-plugin-felt:
+    Test-plugin-gtfsgo:
         runs-on: ubuntu-latest
 
         strategy:
