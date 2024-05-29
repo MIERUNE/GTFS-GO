@@ -7,9 +7,9 @@ on:
 
 env:
     # plugin name/directory where the code for the plugin is stored
-    PLUGIN_NAME: GTFS-GO
+    PLUGIN_NAME: gtfsgo
     # python notation to test running inside plugin
-    TESTS_RUN_FUNCTION: test_suite.test_package
+    TESTS_RUN_FUNCTION: gtfsgo.test_suite.test_package
     # Docker settings
     DOCKER_IMAGE: qgis/qgis
 
@@ -33,7 +33,7 @@ jobs:
             - name: Docker pull and create qgis-testing-environment
               run: |
                   docker pull "$DOCKER_IMAGE":${{ matrix.docker_tags }}
-                  docker run -d --name qgis-testing-environment -v "$GITHUB_WORKSPACE":/tests_directory -e DISPLAY=:99 "$DOCKER_IMAGE":${{ matrix.docker_tags }}
+                  docker run -d --name qgis-testing-environment -v "$GITHUB_WORKSPACE":/tests_directory/gtfsgo -e DISPLAY=:99 "$DOCKER_IMAGE":${{ matrix.docker_tags }}
 
             - name: Docker set up QGIS
               run: |
