@@ -1,4 +1,5 @@
 """
+reference: https://github.com/felt/qgis-plugin/blob/main/felt/test/utilities.py
 Common functionality used by regression tests.
 """
 

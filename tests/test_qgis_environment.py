@@ -1,4 +1,5 @@
 """
+reference: https://github.com/felt/qgis-plugin/blob/main/felt/test/test_qgis_environment.py
 Tests for QGIS functionality.
 """
 
