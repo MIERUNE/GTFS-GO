@@ -19,7 +19,7 @@ jobs:
 
         strategy:
             matrix:
-                docker_tags: [release-3_28]
+                docker_tags: [release-3_28, release-3_34]
 
         steps:
             - name: Checkout
@@ -45,8 +45,3 @@ jobs:
             - name: Docker run plugin tests
               run: |
                   docker exec qgis-testing-environment sh -c "qgis_testrunner.sh $TESTS_RUN_FUNCTION"
-            - name: Upload coverage reports to Codecov
-              uses: codecov/codecov-action@v4.0.1
-              with:
-                  token: ${{ secrets.CODECOV_TOKEN }}
-                  slug: MIERUNE/GTFS-GO
