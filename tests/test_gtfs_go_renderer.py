@@ -28,7 +28,6 @@ def test_renderer_polygon(mocker: MockerFixture):
     # in QGIS-API there are some classes which crash on test environment
     # -> mock methods using them
     mocker.patch("gtfs_go_renderer.Renderer._make_categories_by", return_value=[])
-    mocker.patch("gtfs_go_renderer.Renderer._make_symbol", return_value=None)
 
     polygon_layer = QgsVectorLayer(r"""{
       "type": "Feature",
