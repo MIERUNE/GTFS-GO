@@ -46,11 +46,11 @@ You can see similar stops unified into one stop.
 
 - before
 
-      <img src="doc_imgs/frequency2.png" width="80%">
+    <img src="doc_imgs/frequency2.png" width="80%">
 
 - after
 
-      <img src="doc_imgs/frequency3.png" width="80%">
+    <img src="doc_imgs/frequency3.png" width="80%">
 
 #### stops unifying rules
 
