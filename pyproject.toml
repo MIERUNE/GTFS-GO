@@ -12,6 +12,7 @@ python = "^3.9"
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.4.3"
 pandas = "^2.2.2"
+ufw = "^0.36.2"
 
 [tool.poetry.requires-plugins]
 poetry-plugin-export = ">=1.8"
