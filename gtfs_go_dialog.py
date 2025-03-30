@@ -3,6 +3,7 @@ import datetime
 import json
 import os
 import shutil
+import sys
 import tempfile
 import urllib
 import uuid
@@ -19,11 +20,12 @@ from qgis.PyQt.QtCore import QT_VERSION_STR, QDate, QSortFilterProxyModel, Qt
 from qgis.PyQt.QtWidgets import QAbstractItemView, QDialog, QLineEdit, QMessageBox
 
 import constants
-import gtfs_parser
 
 # Tweeked to import gtfs_parser for Python 3.11
-if not hasattr(gtfs_parser, "GTFSFactory"):
+if sys.version_info >= (3, 11):
     from gtfs_parser import gtfs_parser
+else:
+    import gtfs_parser
 
 import repository
 from gtfs_go_labeling import get_labeling_for_stops
