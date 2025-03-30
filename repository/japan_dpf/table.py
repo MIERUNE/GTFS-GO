@@ -1,4 +1,17 @@
-from PyQt5.QtCore import QAbstractTableModel, Qt
+from qgis.PyQt.QtCore import QT_VERSION_STR, QAbstractTableModel, Qt
+
+QT_VERSION_INT = int(QT_VERSION_STR.split(".")[0])
+
+if QT_VERSION_INT <= 5:
+    display_role = Qt.DisplayRole
+    orientation_horizontal = Qt.Horizontal
+    item_is_enabled = Qt.ItemIsEnabled
+    item_is_selectable = Qt.ItemIsSelectable
+else:
+    display_role = Qt.ItemDataRole.DisplayRole
+    orientation_horizontal = Qt.Orientation.Horizontal
+    item_is_enabled = Qt.ItemFlag.ItemIsEnabled
+    item_is_selectable = Qt.ItemFlag.ItemIsSelectable
 
 HEADERS = (
     "organization_id",
@@ -81,7 +94,7 @@ class Model(QAbstractTableModel):
 
     def flags(self, index):
         # return Qt.ItemIsEditable | Qt.ItemIsEnabled | Qt.ItemIsSelectable
-        return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+        return item_is_enabled | item_is_selectable
 
     def data(self, index, role):
         """
@@ -91,7 +104,7 @@ class Model(QAbstractTableModel):
             return self.list[row][column]
         """
 
-        if role == Qt.DisplayRole:
+        if role == display_role:
             row = index.row()
             column = index.column()
             key = self.headers[column]
@@ -111,8 +124,8 @@ class Model(QAbstractTableModel):
     """
 
     def headerData(self, section, orientation, role):
-        if role == Qt.DisplayRole:
-            if orientation == Qt.Horizontal:
+        if role == display_role:
+            if orientation == orientation_horizontal:
                 if section < len(self.headers):
                     return self.headers[section]
                 else:

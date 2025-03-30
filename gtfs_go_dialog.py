@@ -7,8 +7,6 @@ import tempfile
 import urllib
 import uuid
 
-from PyQt5.QtCore import QDate, QSortFilterProxyModel, Qt
-from PyQt5.QtWidgets import QAbstractItemView, QDialog, QLineEdit, QMessageBox
 from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsProject,
@@ -17,16 +15,32 @@ from qgis.core import (
 )
 from qgis.gui import QgisInterface
 from qgis.PyQt import uic
+from qgis.PyQt.QtCore import QT_VERSION_STR, QDate, QSortFilterProxyModel, Qt
+from qgis.PyQt.QtWidgets import QAbstractItemView, QDialog, QLineEdit, QMessageBox
 
 import constants
 import gtfs_parser
+
+# Tweeked to import gtfs_parser for Python 3.11
+if not hasattr(gtfs_parser, "GTFSFactory"):
+    from gtfs_parser import gtfs_parser
+
 import repository
 from gtfs_go_labeling import get_labeling_for_stops
 from gtfs_go_renderer import Renderer
-from gtfs_go_settings import (
-    STOPS_MINIMUM_VISIBLE_SCALE,
-)
+from gtfs_go_settings import STOPS_MINIMUM_VISIBLE_SCALE
 from repository.japan_dpf.table import HEADERS, HEADERS_TO_HIDE
+
+QT_VERSION_INT = int(QT_VERSION_STR.split(".")[0])
+
+if QT_VERSION_INT <= 5:
+    select_rows = QAbstractItemView.SelectRows
+    case_insensitive = Qt.CaseInsensitive
+    ascending_order = Qt.AscendingOrder
+else:
+    select_rows = QAbstractItemView.SelectionBehavior.SelectRows
+    case_insensitive = Qt.CaseSensitivity.CaseInsensitive
+    ascending_order = Qt.SortOrder.AscendingOrder
 
 DATALIST_JSON_PATH = os.path.join(os.path.dirname(__file__), "gtfs_go_datalist.json")
 TEMP_DIR = os.path.join(tempfile.gettempdir(), "GTFSGo")
@@ -93,7 +107,7 @@ class GTFSGoDialog(QDialog):
     def init_japan_dpf_gui(self):
         self.japanDpfResultTableView.clicked.connect(self.refresh)
 
-        self.japanDpfResultTableView.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.japanDpfResultTableView.setSelectionBehavior(select_rows)
         self.japan_dpf_set_table([])
         for idx, header in enumerate(HEADERS):
             if header in HEADERS_TO_HIDE:
@@ -526,14 +540,14 @@ class GTFSGoDialog(QDialog):
         model = repository.japan_dpf.table.Model(results)
         proxy_model = QSortFilterProxyModel()
         proxy_model.setDynamicSortFilter(True)
-        proxy_model.setSortCaseSensitivity(Qt.CaseInsensitive)
+        proxy_model.setSortCaseSensitivity(case_insensitive)
         proxy_model.setSourceModel(model)
 
         self.japanDpfResultTableView.setModel(proxy_model)
         self.japanDpfResultTableView.setCornerButtonEnabled(True)
         self.japanDpfResultTableView.setSortingEnabled(True)
         # -1 is no sort indicator
-        self.japanDpfResultTableView.sortByColumn(-1, Qt.AscendingOrder)
+        self.japanDpfResultTableView.sortByColumn(-1, ascending_order)
 
         # resize columns and rows
         self.japanDpfResultTableView.resizeColumnToContents(HEADERS.index("pref"))

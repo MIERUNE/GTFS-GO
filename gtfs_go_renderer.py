@@ -8,7 +8,7 @@ from qgis.core import (
     QgsVectorLayer,
     QgsWkbTypes,
 )
-from qgis.PyQt.QtCore import Qt
+from qgis.PyQt.QtCore import QT_VERSION_STR, Qt
 from qgis.PyQt.QtGui import QColor
 
 from gtfs_go_settings import (
@@ -20,6 +20,14 @@ from gtfs_go_settings import (
     STOPS_ICON_SIZE_MM,
     STOPS_SVG_PATH,
 )
+
+QT_VERSION_INT = int(QT_VERSION_STR.split(".")[0])
+if QT_VERSION_INT <= 5:
+    round_join_style = Qt.RoundJoin
+    no_pen_style = Qt.NoPen
+else:
+    round_join_style = Qt.PenJoinStyle.RoundJoin
+    no_pen_style = Qt.PenStyle.NoPen
 
 
 def _get_random_color():
@@ -48,11 +56,11 @@ class Renderer:
             icon_halo_layer = QgsSimpleMarkerSymbolLayer()
             icon_halo_layer.setColor(QColor("white"))
             icon_halo_layer.setSize(STOPS_ICON_SIZE_MM + STOPS_ICON_HALO_WIDTH_MM)
-            icon_halo_layer.setStrokeStyle(Qt.NoPen)
+            icon_halo_layer.setStrokeStyle(no_pen_style)
             symbol.insertSymbolLayer(0, icon_halo_layer)
         else:
             line_layer = symbol.symbolLayer(0)
-            line_layer.setPenJoinStyle(Qt.RoundJoin)
+            line_layer.setPenJoinStyle(round_join_style)
             line_layer.setWidth(ROUTES_LINE_WIDTH_MM)
             line_layer.setColor(_get_random_color())
             outline_layer = symbol.symbolLayer(0).clone()
