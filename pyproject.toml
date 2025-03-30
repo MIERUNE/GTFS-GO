@@ -1,27 +1,23 @@
-[tool.poetry]
+[project]
 name = "gtfs-go"
 version = "0.1.0"
 description = ""
-authors = ["Kanahiro <mediterranean1769@gmail.com>"]
 readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+  {name = "Kanahiro", email = "mediterranean1769@gmail.com"},
+]
+dependencies = [
+    "pandas>=2.2.2",
+]
 
-[tool.poetry.dependencies]
-python = "^3.9"
-
-
-[tool.poetry.group.dev.dependencies]
-ruff = "^0.4.3"
-pandas = "^2.2.2"
-ufw = "^0.36.2"
-
-[tool.poetry.requires-plugins]
-poetry-plugin-export = ">=1.8"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[dependency-groups]
+dev = [
+    "pyqt5-stubs>=5.15.6.0",
+    "ruff>=0.8.2",
+]
 
 [tool.ruff]
-select = ["F", "E", "W", "B", "C90", "N", "I"]
-ignore = ["N999", "N802", "F401", "E501", "N806", "C901", "N803", "N815", "B018"]
+lint.select = ["F", "E", "W", "B", "C90", "N", "I"]
+lint.ignore = ["N999", "N802", "F401", "E501", "N806", "C901", "N803", "N815", "B018"]
 target-version = "py39"

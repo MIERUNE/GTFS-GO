@@ -12,8 +12,7 @@ STOPS_LABEL_MINUMUM_VISIBLE_SCALE = 50000
 STOPS_MINIMUM_VISIBLE_SCALE = 100000
 STOPS_ICON_SIZE_MM = 6
 STOPS_ICON_HALO_WIDTH_MM = 0.8
-STOPS_SVG_PATH = os.path.join(
-    os.path.dirname(__file__), "imgs", "busstop.svg")
+STOPS_SVG_PATH = os.path.join(os.path.dirname(__file__), "imgs", "busstop.svg")
 
 ROUTES_LINE_WIDTH_MM = 1.2
 ROUTES_OUTLINE_WIDTH_MM = 2.0
@@ -33,5 +32,5 @@ ROUTES_COLOR_LIST = [
     "lightpink",
     "royalblue",
     "palevioletred",
-    "gold"
+    "gold",
 ]
