@@ -13,6 +13,8 @@ python = "^3.9"
 ruff = "^0.4.3"
 pandas = "^2.2.2"
 
+[tool.poetry.requires-plugins]
+poetry-plugin-export = ">=1.8"
 
 [build-system]
 requires = ["poetry-core"]
