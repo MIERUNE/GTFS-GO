@@ -28,6 +28,7 @@ jobs:
             - name: Export requirements.txt
               run: |
                   pip3 install poetry
+                  poetry install
                   poetry export --with dev -f requirements.txt -o requirements.txt
 
             - name: Docker pull and create qgis-testing-environment
