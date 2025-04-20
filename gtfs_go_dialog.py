@@ -31,8 +31,7 @@ try:
     from gtfs_parser import gtfs_parser
 except ImportError:
     # Python 3.9 or 3.10
-    sys.path.append(os.path.join(os.path.dirname(__file__), "gtfs_parser"))
-    from gtfs_parser import gtfs_parser
+    import gtfs_parser
 
 from repository.japan_dpf.table import HEADERS, HEADERS_TO_HIDE
 
