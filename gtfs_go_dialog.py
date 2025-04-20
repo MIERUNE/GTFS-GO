@@ -20,16 +20,15 @@ from qgis.PyQt.QtCore import QDate, QSortFilterProxyModel, Qt
 from qgis.PyQt.QtWidgets import QAbstractItemView, QDialog, QLineEdit, QMessageBox
 
 import constants
+import gtfs_parser
 import repository
 from gtfs_go_labeling import get_labeling_for_stops
 from gtfs_go_renderer import Renderer
 from gtfs_go_settings import STOPS_MINIMUM_VISIBLE_SCALE
 
 # Tweeked to import gtfs_parser for Python 3.11
-if sys.version_info >= (3, 11):
+if not hasattr(gtfs_parser, "GTFSFactory"):
     from gtfs_parser import gtfs_parser
-else:
-    import gtfs_parser
 
 from repository.japan_dpf.table import HEADERS, HEADERS_TO_HIDE
 
