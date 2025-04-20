@@ -24,7 +24,13 @@ import repository
 from gtfs_go_labeling import get_labeling_for_stops
 from gtfs_go_renderer import Renderer
 from gtfs_go_settings import STOPS_MINIMUM_VISIBLE_SCALE
-from gtfs_parser import gtfs_parser
+
+# Tweeked to import gtfs_parser for Python 3.11
+if sys.version_info >= (3, 11):
+    from gtfs_parser import gtfs_parser
+else:
+    import gtfs_parser
+
 from repository.japan_dpf.table import HEADERS, HEADERS_TO_HIDE
 
 DATALIST_JSON_PATH = os.path.join(os.path.dirname(__file__), "gtfs_go_datalist.json")
