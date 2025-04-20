@@ -19,7 +19,7 @@ jobs:
 
         strategy:
             matrix:
-                docker_tags: [release-3_28, release-3_34, "3.40"]
+                docker_tags: [release-3_28, release-3_34]
 
         steps:
             - name: Checkout
