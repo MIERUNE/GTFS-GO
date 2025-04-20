@@ -27,7 +27,11 @@ from gtfs_go_renderer import Renderer
 from gtfs_go_settings import STOPS_MINIMUM_VISIBLE_SCALE
 
 # Tweeked to import gtfs_parser for Python 3.11
-if not hasattr(gtfs_parser, "GTFSFactory"):
+try:
+    from gtfs_parser import gtfs_parser
+except ImportError:
+    # Python 3.9 or 3.10
+    sys.path.append(os.path.join(os.path.dirname(__file__), "gtfs_parser"))
     from gtfs_parser import gtfs_parser
 
 from repository.japan_dpf.table import HEADERS, HEADERS_TO_HIDE
