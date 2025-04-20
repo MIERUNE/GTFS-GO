@@ -8,11 +8,6 @@ QT_VERSION_INT = int(QT_VERSION_STR.split(".")[0])
 
 DPF_API_URL = "https://api.gtfs-data.jp/v2"
 
-if QT_VERSION_INT <= 5:
-    no_error = QNetworkReply.NoError
-else:
-    no_error = QNetworkReply.NetworkError.NoError
-
 
 def __fetch(url: str) -> dict:
     """
@@ -37,7 +32,7 @@ def __fetch(url: str) -> dict:
         event_loop.exec_()
     else:
         event_loop.exec(QEventLoop.ProcessEventsFlag.AllEvents)
-    if reply.error() == no_error:
+    if reply.error() == QNetworkReply.NetworkError.NoError:
         text_stream = QTextStream(reply)
         if QT_VERSION_INT <= 5:
             text_stream.setCodec("UTF-8")
