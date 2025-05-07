@@ -1,8 +1,10 @@
 import json
 
-from PyQt5.QtCore import QEventLoop, QTextStream, QUrl
-from PyQt5.QtNetwork import QNetworkReply, QNetworkRequest
 from qgis.core import QgsNetworkAccessManager
+from qgis.PyQt.QtCore import QT_VERSION_STR, QEventLoop, QTextStream, QUrl
+from qgis.PyQt.QtNetwork import QNetworkReply, QNetworkRequest
+
+QT_VERSION_INT = int(QT_VERSION_STR.split(".")[0])
 
 DPF_API_URL = "https://api.gtfs-data.jp/v2"
 
@@ -26,10 +28,18 @@ def __fetch(url: str) -> dict:
     req = QNetworkRequest(QUrl(url))
     reply = nam.get(req)
     reply.finished.connect(event_loop.quit)
-    event_loop.exec_()
-    if reply.error() == QNetworkReply.NoError:
+    if QT_VERSION_INT <= 5:
+        event_loop.exec_()
+    else:
+        event_loop.exec(QEventLoop.ProcessEventsFlag.AllEvents)
+    if reply.error() == QNetworkReply.NetworkError.NoError:
         text_stream = QTextStream(reply)
-        text_stream.setCodec("UTF-8")
+        if QT_VERSION_INT <= 5:
+            text_stream.setCodec("UTF-8")
+        else:
+            from qgis.PyQt.QtCore import QStringConverter
+
+            text_stream.setEncoding(QStringConverter.Encoding.Utf8)
         text = text_stream.readAll()
         return json.loads(text)
     else:

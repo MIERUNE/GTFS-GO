@@ -1,4 +1,4 @@
-from PyQt5.QtCore import QAbstractTableModel, Qt
+from qgis.PyQt.QtCore import QAbstractTableModel, Qt
 
 HEADERS = (
     "organization_id",
@@ -81,7 +81,7 @@ class Model(QAbstractTableModel):
 
     def flags(self, index):
         # return Qt.ItemIsEditable | Qt.ItemIsEnabled | Qt.ItemIsSelectable
-        return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+        return Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
 
     def data(self, index, role):
         """
@@ -91,7 +91,7 @@ class Model(QAbstractTableModel):
             return self.list[row][column]
         """
 
-        if role == Qt.DisplayRole:
+        if role == Qt.ItemDataRole.DisplayRole:
             row = index.row()
             column = index.column()
             key = self.headers[column]
@@ -111,8 +111,8 @@ class Model(QAbstractTableModel):
     """
 
     def headerData(self, section, orientation, role):
-        if role == Qt.DisplayRole:
-            if orientation == Qt.Horizontal:
+        if role == Qt.ItemDataRole.DisplayRole:
+            if orientation == Qt.Orientation.Horizontal:
                 if section < len(self.headers):
                     return self.headers[section]
                 else:

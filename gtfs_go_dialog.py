@@ -7,8 +7,6 @@ import tempfile
 import urllib
 import uuid
 
-from PyQt5.QtCore import QDate, QSortFilterProxyModel, Qt
-from PyQt5.QtWidgets import QAbstractItemView, QDialog, QLineEdit, QMessageBox
 from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsProject,
@@ -17,15 +15,23 @@ from qgis.core import (
 )
 from qgis.gui import QgisInterface
 from qgis.PyQt import uic
+from qgis.PyQt.QtCore import QDate, QSortFilterProxyModel, Qt
+from qgis.PyQt.QtWidgets import QAbstractItemView, QDialog, QLineEdit, QMessageBox
 
 import constants
 import gtfs_parser
 import repository
 from gtfs_go_labeling import get_labeling_for_stops
 from gtfs_go_renderer import Renderer
-from gtfs_go_settings import (
-    STOPS_MINIMUM_VISIBLE_SCALE,
-)
+from gtfs_go_settings import STOPS_MINIMUM_VISIBLE_SCALE
+
+# Tweeked to import gtfs_parser for Python 3.11
+try:
+    from gtfs_parser import gtfs_parser
+except ImportError:
+    # Python 3.9 or 3.10
+    import gtfs_parser
+
 from repository.japan_dpf.table import HEADERS, HEADERS_TO_HIDE
 
 DATALIST_JSON_PATH = os.path.join(os.path.dirname(__file__), "gtfs_go_datalist.json")
@@ -93,7 +99,9 @@ class GTFSGoDialog(QDialog):
     def init_japan_dpf_gui(self):
         self.japanDpfResultTableView.clicked.connect(self.refresh)
 
-        self.japanDpfResultTableView.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.japanDpfResultTableView.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows
+        )
         self.japan_dpf_set_table([])
         for idx, header in enumerate(HEADERS):
             if header in HEADERS_TO_HIDE:
@@ -526,14 +534,14 @@ class GTFSGoDialog(QDialog):
         model = repository.japan_dpf.table.Model(results)
         proxy_model = QSortFilterProxyModel()
         proxy_model.setDynamicSortFilter(True)
-        proxy_model.setSortCaseSensitivity(Qt.CaseInsensitive)
+        proxy_model.setSortCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
         proxy_model.setSourceModel(model)
 
         self.japanDpfResultTableView.setModel(proxy_model)
         self.japanDpfResultTableView.setCornerButtonEnabled(True)
         self.japanDpfResultTableView.setSortingEnabled(True)
         # -1 is no sort indicator
-        self.japanDpfResultTableView.sortByColumn(-1, Qt.AscendingOrder)
+        self.japanDpfResultTableView.sortByColumn(-1, Qt.SortOrder.AscendingOrder)
 
         # resize columns and rows
         self.japanDpfResultTableView.resizeColumnToContents(HEADERS.index("pref"))

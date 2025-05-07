@@ -27,8 +27,8 @@ jobs:
 
             - name: Export requirements.txt
               run: |
-                  pip3 install poetry
-                  poetry export --with dev -f requirements.txt -o requirements.txt
+                  pip3 install uv
+                  uv export -o requirements.txt --no-dev --no-hashes
 
             - name: Docker pull and create qgis-testing-environment
               run: |

@@ -48,11 +48,11 @@ class Renderer:
             icon_halo_layer = QgsSimpleMarkerSymbolLayer()
             icon_halo_layer.setColor(QColor("white"))
             icon_halo_layer.setSize(STOPS_ICON_SIZE_MM + STOPS_ICON_HALO_WIDTH_MM)
-            icon_halo_layer.setStrokeStyle(Qt.NoPen)
+            icon_halo_layer.setStrokeStyle(Qt.PenStyle.NoPen)
             symbol.insertSymbolLayer(0, icon_halo_layer)
         else:
             line_layer = symbol.symbolLayer(0)
-            line_layer.setPenJoinStyle(Qt.RoundJoin)
+            line_layer.setPenJoinStyle(Qt.PenJoinStyle.RoundJoin)
             line_layer.setWidth(ROUTES_LINE_WIDTH_MM)
             line_layer.setColor(_get_random_color())
             outline_layer = symbol.symbolLayer(0).clone()
