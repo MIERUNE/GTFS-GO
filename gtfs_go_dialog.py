@@ -4,9 +4,10 @@ import json
 import os
 import shutil
 import tempfile
-import urllib
 import uuid
+from typing import Optional
 
+import requests
 from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsProject,
@@ -142,8 +143,15 @@ class GTFSGoDialog(QDialog):
         """
         return "[" + data["country"] + "]" + "[" + data["region"] + "]" + data["name"]
 
-    def download_zip(self, url: str) -> str:
-        data = urllib.request.urlopen(url).read()
+    def download_zip(self, url: str) -> Optional[str]:
+        response = requests.get(url)
+        if response.status_code != 200:
+            self.iface.messageBar().pushCritical(
+                self.tr("Error"),
+                self.tr("Failed to download GTFS data from the URL: ") + url,
+            )
+            return None
+        data = response.content
         download_path = os.path.join(TEMP_DIR, str(uuid.uuid4()) + ".zip")
         with open(download_path, mode="wb") as f:
             f.write(data)
@@ -201,6 +209,8 @@ class GTFSGoDialog(QDialog):
         for feed_info in self.get_target_feed_infos():
             if feed_info["path"].startswith("http"):
                 feed_info["path"] = self.download_zip(feed_info["path"])
+                if feed_info["path"] is None:
+                    continue
 
             output_dir = os.path.join(
                 self.outputDirFileWidget.filePath(), feed_info["dir"]
