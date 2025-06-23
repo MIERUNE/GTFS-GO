@@ -39,9 +39,6 @@ class GTFSGo:
         # Declare instance attributes
         self.actions = []
         self.menu = self.tr("&GTFS GO")
-        # TODO: We are going to let the user set this up in a future iteration
-        self.toolbar = self.iface.addToolBar("GTFSGo")
-        self.toolbar.setObjectName("GTFSGo")
 
         # print "** INITIALIZING GTFSGo"
 
@@ -71,7 +68,7 @@ class GTFSGo:
         callback,
         enabled_flag=True,
         add_to_menu=True,
-        add_to_toolbar=True,
+        add_to_plugin_toolbar=True,
         status_tip=None,
         whats_this=None,
         parent=None,
@@ -96,9 +93,9 @@ class GTFSGo:
             be added to the menu. Defaults to True.
         :type add_to_menu: bool
 
-        :param add_to_toolbar: Flag indicating whether the action should also
-            be added to the toolbar. Defaults to True.
-        :type add_to_toolbar: bool
+        :param add_to_plugin_toolbar: Flag indicating whether the action should also
+            be added to the plugin toolbar. Defaults to True.
+        :type add_to_plugin_toolbar: bool
 
         :param status_tip: Optional text to show in a popup when mouse pointer
             hovers over the action.
@@ -126,11 +123,11 @@ class GTFSGo:
         if whats_this is not None:
             action.setWhatsThis(whats_this)
 
-        if add_to_toolbar:
-            self.toolbar.addAction(action)
-
         if add_to_menu:
             self.iface.addPluginToWebMenu(self.menu, action)
+
+        if add_to_plugin_toolbar:
+            self.iface.addToolBarIcon(action)
 
         self.actions.append(action)
 
@@ -146,6 +143,7 @@ class GTFSGo:
             callback=self.run,
             parent=self.iface.mainWindow(),
             add_to_menu=True,
+            add_to_plugin_toolbar=True,
         )
 
     # --------------------------------------------------------------------------
@@ -174,8 +172,6 @@ class GTFSGo:
         for action in self.actions:
             self.iface.removePluginWebMenu(self.tr("&GTFS GO"), action)
             self.iface.removeToolBarIcon(action)
-        # remove the toolbar
-        del self.toolbar
 
     # --------------------------------------------------------------------------
 
