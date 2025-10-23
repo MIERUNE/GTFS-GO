@@ -5,6 +5,7 @@
 [general]
 name=GTFS-GO
 qgisMinimumVersion=3.28
+qgisMaximumVersion=4.99
 supportsQt6=True
 description=The plugin to extract GTFS data and to show routes and stops.
 version={{PLUGIN_VERSION}}
