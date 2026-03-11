@@ -4,14 +4,14 @@ import re
 
 import duckdb
 import pytest
-
-from conftest import create_minimal_gtfs
 from plugin_dir.algorithms.gtfs_aggregate import (
     _aggregated_segments_query,
     _aggregated_stops_query,
     _stop_grouping_cte,
 )
 from plugin_dir.gtfs_duckdb import init_gtfs_connection
+
+from conftest import create_minimal_gtfs
 
 pytestmark = pytest.mark.usefixtures("qgis_plugin_path")
 

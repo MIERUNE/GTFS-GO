@@ -88,7 +88,18 @@ def create_minimal_gtfs(folder: Path) -> None:
     )
     _write_csv(
         folder / "calendar.txt",
-        ["service_id", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "start_date", "end_date"],
+        [
+            "service_id",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday",
+            "sunday",
+            "start_date",
+            "end_date",
+        ],
         [
             ["WD", "1", "1", "1", "1", "1", "0", "0", "20240101", "20241231"],
         ],

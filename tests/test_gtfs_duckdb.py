@@ -29,7 +29,9 @@ class TestInitGtfsConnection:
 
         with open(tmp_path / "shapes.txt", "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["shape_id", "shape_pt_sequence", "shape_pt_lon", "shape_pt_lat"])
+            writer.writerow(
+                ["shape_id", "shape_pt_sequence", "shape_pt_lon", "shape_pt_lat"]
+            )
             writer.writerow(["SH1", "1", "139.0", "35.0"])
             writer.writerow(["SH1", "2", "139.1", "35.1"])
 
@@ -81,10 +83,7 @@ class TestInitGtfsConnection:
         create_minimal_gtfs(tmp_path)
         gtfs = init_gtfs_connection(str(tmp_path))
         try:
-            tables = [
-                row[0]
-                for row in gtfs.conn.execute("SHOW TABLES").fetchall()
-            ]
+            tables = [row[0] for row in gtfs.conn.execute("SHOW TABLES").fetchall()]
             assert "stops_geo" in tables
             assert "stop_times" in tables
             assert "trips" in tables

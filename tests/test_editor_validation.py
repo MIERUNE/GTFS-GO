@@ -37,7 +37,18 @@ def _build_models() -> dict[str, CsvTableModel]:
             ],
         ),
         "calendar.txt": CsvTableModel(
-            ["service_id", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "start_date", "end_date"],
+            [
+                "service_id",
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+                "sunday",
+                "start_date",
+                "end_date",
+            ],
             [["WD", "1", "1", "1", "1", "1", "0", "0", "20240101", "20241231"]],
         ),
     }
@@ -90,9 +101,7 @@ def _collect_violations(models: dict[str, CsvTableModel]) -> list[str]:
             if value and value not in valid:
                 invalid_values.add(value)
         if invalid_values:
-            violations.append(
-                f"{src_file}.{src_col} -> {target_file}.{target_col}"
-            )
+            violations.append(f"{src_file}.{src_col} -> {target_file}.{target_col}")
     return violations
 
 

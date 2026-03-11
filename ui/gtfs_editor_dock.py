@@ -219,7 +219,11 @@ class GtfsEditorDock(QDockWidget):
 
             if invalid_values:
                 examples = sorted(invalid_values)[:5]
-                suffix = f" ... ({len(invalid_values)} total)" if len(invalid_values) > 5 else ""
+                suffix = (
+                    f" ... ({len(invalid_values)} total)"
+                    if len(invalid_values) > 5
+                    else ""
+                )
                 violations.append(
                     f"{src_file}.{src_col} -> {target_file}.{target_col}: "
                     f"{', '.join(examples)}{suffix}"
@@ -264,29 +268,30 @@ class GtfsEditorDock(QDockWidget):
         if not self.table_widgets:
             return
 
-        folder = QFileDialog.getExistingDirectory(
-            self, "Save GTFS to folder", ""
-        )
+        folder = QFileDialog.getExistingDirectory(self, "Save GTFS to folder", "")
         if not folder:
             return
 
         violations = self._collect_violations()
         if violations:
-            msg = "FK violations found:\n" + "\n".join(
-                f"  - {v}" for v in violations
-            ) + "\n\nSave anyway?"
+            msg = (
+                "FK violations found:\n"
+                + "\n".join(f"  - {v}" for v in violations)
+                + "\n\nSave anyway?"
+            )
             result = QMessageBox.question(
-                self, "Save GTFS", msg,
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+                self,
+                "Save GTFS",
+                msg,
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
             )
             if result != QMessageBox.Yes:
                 return
 
         tables = self._current_tables()
         save_gtfs_folder(folder, tables)
-        self.iface.messageBar().pushSuccess(
-            "GTFS Editor", f"Saved to {folder}"
-        )
+        self.iface.messageBar().pushSuccess("GTFS Editor", f"Saved to {folder}")
 
     # -- Update Map --
 
@@ -428,9 +433,7 @@ class GtfsEditorDock(QDockWidget):
         """Connect to editBuffer's geometryChanged when editing begins."""
         if self.stops_layer is None or self.stops_layer.editBuffer() is None:
             return
-        self.stops_layer.editBuffer().geometryChanged.connect(
-            self._on_geometry_changed
-        )
+        self.stops_layer.editBuffer().geometryChanged.connect(self._on_geometry_changed)
 
     def _disconnect_edit_buffer(self) -> None:
         """Disconnect from editBuffer's geometryChanged if connected."""
@@ -509,9 +512,7 @@ class GtfsEditorDock(QDockWidget):
         features = []
         for trip_id, stops in trip_stops.items():
             stops.sort(key=lambda x: x[0])
-            points = [
-                stop_pos[sid] for _, sid in stops if sid in stop_pos
-            ]
+            points = [stop_pos[sid] for _, sid in stops if sid in stop_pos]
             if len(points) < 2:
                 continue
             feat = QgsFeature(self.routes_layer.fields())

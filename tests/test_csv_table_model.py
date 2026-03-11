@@ -1,16 +1,13 @@
 """Tests for CsvTableModel (requires QGIS/Qt environment)."""
 
 import pytest
-from qgis.PyQt.QtCore import Qt
-
 from plugin_dir.ui.csv_table_widget import CsvTableModel
+from qgis.PyQt.QtCore import Qt
 
 pytestmark = pytest.mark.usefixtures("qgis_plugin_path")
 
 
-def _make_model(
-    headers=None, rows=None
-) -> CsvTableModel:
+def _make_model(headers=None, rows=None) -> CsvTableModel:
     if headers is None:
         headers = ["stop_id", "stop_name", "stop_lat", "stop_lon"]
     if rows is None:
@@ -43,6 +40,7 @@ class TestBasicAccess:
     def test_data_invalid_index(self):
         model = _make_model()
         from qgis.PyQt.QtCore import QModelIndex
+
         assert model.data(QModelIndex(), Qt.DisplayRole) is None
 
     def test_header_data_horizontal(self):

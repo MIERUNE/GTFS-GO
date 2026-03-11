@@ -16,9 +16,7 @@ _ERROR_BRUSH = QBrush(QColor(255, 200, 200))
 class CsvTableModel(QAbstractTableModel):
     """Editable table model backed by a list-of-lists."""
 
-    def __init__(
-        self, headers: list[str], rows: list[list[str]], parent=None
-    ) -> None:
+    def __init__(self, headers: list[str], rows: list[list[str]], parent=None) -> None:
         super().__init__(parent)
         self._headers = headers
         self._rows = rows
@@ -55,7 +53,9 @@ class CsvTableModel(QAbstractTableModel):
     def flags(self, index: QModelIndex) -> Qt.ItemFlags:
         return super().flags(index) | Qt.ItemIsEditable
 
-    def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole):
+    def headerData(
+        self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole
+    ):
         if role == Qt.DisplayRole:
             if orientation == Qt.Horizontal and section < len(self._headers):
                 return self._headers[section]
@@ -112,9 +112,7 @@ class CsvTableModel(QAbstractTableModel):
 class CsvTableWidget(QWidget):
     """Widget wrapping a QTableView with a CsvTableModel."""
 
-    def __init__(
-        self, headers: list[str], rows: list[list[str]], parent=None
-    ) -> None:
+    def __init__(self, headers: list[str], rows: list[list[str]], parent=None) -> None:
         super().__init__(parent)
         self.model = CsvTableModel(headers, rows, self)
         self.view = QTableView(self)
