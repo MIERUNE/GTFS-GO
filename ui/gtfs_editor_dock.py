@@ -42,6 +42,15 @@ _TAB_ORDER = [
     "calendar_dates.txt",
 ]
 
+# FK relations: (source_file, source_column) -> (target_file, target_column)
+_FK_RELATIONS: list[tuple[str, str, str, str]] = [
+    ("stop_times.txt", "stop_id", "stops.txt", "stop_id"),
+    ("stop_times.txt", "trip_id", "trips.txt", "trip_id"),
+    ("trips.txt", "route_id", "routes.txt", "route_id"),
+    ("trips.txt", "service_id", "calendar.txt", "service_id"),
+    ("stops.txt", "parent_station", "stops.txt", "stop_id"),
+]
+
 
 class GtfsEditorDock(QDockWidget):
     def __init__(self, iface, parent=None) -> None:
@@ -122,6 +131,38 @@ class GtfsEditorDock(QDockWidget):
             self.table_widgets["stops.txt"].add_toolbar_button(
                 "Zoom to", "Zoom to selected stop", self._on_zoom_to_stop
             )
+
+        # Validate FK on tab switch
+        self.tab_widget.currentChanged.connect(self._update_validation)
+        self._update_validation()
+
+    def _update_validation(self) -> None:
+        """Rebuild FK validation sets for all tables."""
+        # Collect valid ID sets from target tables
+        id_sets: dict[tuple[str, str], set[str]] = {}
+        for _, _, target_file, target_col in _FK_RELATIONS:
+            key = (target_file, target_col)
+            if key in id_sets:
+                continue
+            widget = self.table_widgets.get(target_file)
+            if not widget:
+                continue
+            headers = widget.model.get_headers()
+            if target_col not in headers:
+                continue
+            col_idx = headers.index(target_col)
+            id_sets[key] = {
+                row[col_idx] for row in widget.model.get_rows() if row[col_idx]
+            }
+
+        # Apply to source models
+        for src_file, src_col, target_file, target_col in _FK_RELATIONS:
+            widget = self.table_widgets.get(src_file)
+            if not widget:
+                continue
+            valid = id_sets.get((target_file, target_col))
+            if valid is not None:
+                widget.model.set_valid_values(src_col, valid)
 
     def _on_zoom_to_stop(self) -> None:
         """Zoom the map canvas to the selected stop's coordinates."""

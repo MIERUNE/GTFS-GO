@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from qgis.PyQt.QtCore import QAbstractTableModel, QModelIndex, Qt
+from qgis.PyQt.QtGui import QBrush, QColor
 from qgis.PyQt.QtWidgets import (
     QHBoxLayout,
     QPushButton,
@@ -8,6 +9,8 @@ from qgis.PyQt.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+_ERROR_BRUSH = QBrush(QColor(255, 200, 200))
 
 
 class CsvTableModel(QAbstractTableModel):
@@ -20,6 +23,8 @@ class CsvTableModel(QAbstractTableModel):
         self._headers = headers
         self._rows = rows
         self._row_index: dict[str, int] = {}
+        # col_index -> set of valid values (for FK validation)
+        self._valid_values: dict[int, set[str]] = {}
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return len(self._rows)
@@ -32,6 +37,12 @@ class CsvTableModel(QAbstractTableModel):
             return None
         if role in (Qt.DisplayRole, Qt.EditRole):
             return self._rows[index.row()][index.column()]
+        if role == Qt.BackgroundRole:
+            col = index.column()
+            if col in self._valid_values:
+                value = self._rows[index.row()][col]
+                if value and value not in self._valid_values[col]:
+                    return _ERROR_BRUSH
         return None
 
     def setData(self, index: QModelIndex, value, role: int = Qt.EditRole) -> bool:
@@ -76,6 +87,15 @@ class CsvTableModel(QAbstractTableModel):
             self.beginRemoveRows(QModelIndex(), row, row)
             del self._rows[row]
             self.endRemoveRows()
+
+    def set_valid_values(self, column: str, valid: set[str]) -> None:
+        """Set valid values for FK validation on a column."""
+        if column not in self._headers:
+            return
+        col_idx = self._headers.index(column)
+        if self._valid_values.get(col_idx) is valid:
+            return
+        self._valid_values[col_idx] = valid
 
     def build_index(self, key_column: str) -> None:
         """Build a lookup index mapping key_column values to row indices."""
