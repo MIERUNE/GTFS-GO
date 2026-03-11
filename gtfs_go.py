@@ -1,6 +1,7 @@
 import os
 
 from qgis.core import QgsApplication
+from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
 
@@ -14,6 +15,7 @@ class GTFSGo:
         self.actions = []
         self.menu = "&GTFS GO"
         self.provider = None
+        self.dock = None
 
     def initGui(self):
         icon_path = os.path.join(self.plugin_dir, "imgs", "busstop.png")
@@ -35,5 +37,17 @@ class GTFSGo:
         if self.provider:
             QgsApplication.processingRegistry().removeProvider(self.provider)
 
+        if self.dock:
+            self.dock.cleanup()
+            self.iface.removeDockWidget(self.dock)
+            self.dock.deleteLater()
+            self.dock = None
+
     def run(self):
-        pass
+        if self.dock is None:
+            from .ui.gtfs_editor_dock import GtfsEditorDock
+
+            self.dock = GtfsEditorDock(self.iface, self.iface.mainWindow())
+            self.iface.addDockWidget(Qt.BottomDockWidgetArea, self.dock)
+        self.dock.show()
+        self.dock.raise_()
