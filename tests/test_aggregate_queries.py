@@ -4,9 +4,6 @@ import re
 from pathlib import Path
 
 import pytest
-
-duckdb = pytest.importorskip("duckdb")
-
 from plugin_dir.algorithms.gtfs_aggregate import (
     _aggregated_segments_query,
     _aggregated_stops_query,

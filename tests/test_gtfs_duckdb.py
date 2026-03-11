@@ -3,10 +3,6 @@
 import csv
 from pathlib import Path
 
-import pytest
-
-duckdb = pytest.importorskip("duckdb")
-
 from plugin_dir.gtfs_duckdb import init_gtfs_connection
 
 
