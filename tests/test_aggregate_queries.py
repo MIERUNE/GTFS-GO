@@ -1,17 +1,18 @@
 """Tests for SQL query generation in gtfs_aggregate (requires duckdb for syntax validation)."""
 
 import re
+from pathlib import Path
 
-import duckdb
 import pytest
+
+duckdb = pytest.importorskip("duckdb")
+
 from plugin_dir.algorithms.gtfs_aggregate import (
     _aggregated_segments_query,
     _aggregated_stops_query,
     _stop_grouping_cte,
 )
 from plugin_dir.gtfs_duckdb import init_gtfs_connection
-
-from conftest import create_minimal_gtfs
 
 pytestmark = pytest.mark.usefixtures("qgis_plugin_path")
 
@@ -40,10 +41,9 @@ class TestStopGroupingCte:
 
 
 class TestAggregatedStopsQuery:
-    def test_returns_valid_sql(self, tmp_path):
+    def test_returns_valid_sql(self, minimal_gtfs: Path):
         """Query should execute without syntax errors on actual GTFS data."""
-        create_minimal_gtfs(tmp_path)
-        gtfs = init_gtfs_connection(str(tmp_path))
+        gtfs = init_gtfs_connection(str(minimal_gtfs))
         try:
             query = _aggregated_stops_query("_", 0.003)
             result = gtfs.conn.execute(query).fetchall()
@@ -51,9 +51,8 @@ class TestAggregatedStopsQuery:
         finally:
             gtfs.conn.close()
 
-    def test_output_columns(self, tmp_path):
-        create_minimal_gtfs(tmp_path)
-        gtfs = init_gtfs_connection(str(tmp_path))
+    def test_output_columns(self, minimal_gtfs: Path):
+        gtfs = init_gtfs_connection(str(minimal_gtfs))
         try:
             query = _aggregated_stops_query("_", 0.003)
             desc = gtfs.conn.execute(query).description
@@ -68,10 +67,9 @@ class TestAggregatedStopsQuery:
 
 
 class TestAggregatedSegmentsQuery:
-    def test_returns_valid_sql(self, tmp_path):
+    def test_returns_valid_sql(self, minimal_gtfs: Path):
         """Query should execute without syntax errors on actual GTFS data."""
-        create_minimal_gtfs(tmp_path)
-        gtfs = init_gtfs_connection(str(tmp_path))
+        gtfs = init_gtfs_connection(str(minimal_gtfs))
         try:
             query = _aggregated_segments_query("_", 0.003)
             result = gtfs.conn.execute(query).fetchall()
@@ -79,9 +77,8 @@ class TestAggregatedSegmentsQuery:
         finally:
             gtfs.conn.close()
 
-    def test_output_columns(self, tmp_path):
-        create_minimal_gtfs(tmp_path)
-        gtfs = init_gtfs_connection(str(tmp_path))
+    def test_output_columns(self, minimal_gtfs: Path):
+        gtfs = init_gtfs_connection(str(minimal_gtfs))
         try:
             query = _aggregated_segments_query("_", 0.003)
             desc = gtfs.conn.execute(query).description
@@ -97,18 +94,16 @@ class TestAggregatedSegmentsQuery:
 class TestDifferentDelimiters:
     """Ensure queries work with various delimiter characters."""
 
-    def test_dot_delimiter(self, tmp_path):
-        create_minimal_gtfs(tmp_path)
-        gtfs = init_gtfs_connection(str(tmp_path))
+    def test_dot_delimiter(self, minimal_gtfs: Path):
+        gtfs = init_gtfs_connection(str(minimal_gtfs))
         try:
             query = _aggregated_stops_query(".", 0.003)
             gtfs.conn.execute(query).fetchall()
         finally:
             gtfs.conn.close()
 
-    def test_hyphen_delimiter(self, tmp_path):
-        create_minimal_gtfs(tmp_path)
-        gtfs = init_gtfs_connection(str(tmp_path))
+    def test_hyphen_delimiter(self, minimal_gtfs: Path):
+        gtfs = init_gtfs_connection(str(minimal_gtfs))
         try:
             query = _aggregated_stops_query("-", 0.003)
             gtfs.conn.execute(query).fetchall()

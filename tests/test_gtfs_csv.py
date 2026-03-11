@@ -2,14 +2,12 @@
 
 from pathlib import Path
 
-from conftest import create_minimal_gtfs
 from plugin_dir.gtfs_csv import CsvTable, load_gtfs_folder, save_gtfs_folder
 
 
 class TestLoadGtfsFolder:
-    def test_load_minimal_gtfs(self, tmp_path: Path):
-        create_minimal_gtfs(tmp_path)
-        tables = load_gtfs_folder(str(tmp_path))
+    def test_load_minimal_gtfs(self, minimal_gtfs: Path):
+        tables = load_gtfs_folder(str(minimal_gtfs))
 
         assert "stops.txt" in tables
         assert "routes.txt" in tables
@@ -17,21 +15,19 @@ class TestLoadGtfsFolder:
         assert "stop_times.txt" in tables
         assert "calendar.txt" in tables
 
-    def test_headers_and_rows(self, tmp_path: Path):
-        create_minimal_gtfs(tmp_path)
-        tables = load_gtfs_folder(str(tmp_path))
+    def test_headers_and_rows(self, minimal_gtfs: Path):
+        tables = load_gtfs_folder(str(minimal_gtfs))
 
         stops = tables["stops.txt"]
         assert stops.headers == ["stop_id", "stop_name", "stop_lat", "stop_lon"]
         assert len(stops.rows) == 3
         assert stops.rows[0][0] == "S1"
 
-    def test_ignores_non_txt_files(self, tmp_path: Path):
-        create_minimal_gtfs(tmp_path)
-        (tmp_path / "readme.md").write_text("ignore me")
-        (tmp_path / "data.json").write_text("{}")
+    def test_ignores_non_txt_files(self, minimal_gtfs: Path):
+        (minimal_gtfs / "readme.md").write_text("ignore me")
+        (minimal_gtfs / "data.json").write_text("{}")
 
-        tables = load_gtfs_folder(str(tmp_path))
+        tables = load_gtfs_folder(str(minimal_gtfs))
         assert "readme.md" not in tables
         assert "data.json" not in tables
 
@@ -74,11 +70,10 @@ class TestSaveGtfsFolder:
         save_gtfs_folder(str(tmp_path), tables)
         assert (tmp_path / "stops.txt").exists()
 
-    def test_roundtrip(self, tmp_path: Path):
-        create_minimal_gtfs(tmp_path)
-        tables = load_gtfs_folder(str(tmp_path))
+    def test_roundtrip(self, minimal_gtfs: Path):
+        tables = load_gtfs_folder(str(minimal_gtfs))
 
-        out = tmp_path / "output"
+        out = minimal_gtfs / "output"
         out.mkdir()
         save_gtfs_folder(str(out), tables)
         tables2 = load_gtfs_folder(str(out))

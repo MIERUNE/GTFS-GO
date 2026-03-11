@@ -31,7 +31,7 @@ jobs:
                     -w /plugin \
                     "$DOCKER_IMAGE":${{ matrix.docker_tags }} \
                     sh -c "
-                      pip3 install --break-system-packages pytest pytest-qgis &&
+                      pip3 install --break-system-packages pytest pytest-qgis duckdb &&
                       xvfb-run -s '+extension GLX -screen 0 1024x768x24' \
                         python3 -m pytest tests/ -v
                     "

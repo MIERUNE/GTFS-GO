@@ -49,7 +49,14 @@ def _write_csv(path: Path, headers: list[str], rows: list[list[str]]) -> None:
         writer.writerows(rows)
 
 
-def create_minimal_gtfs(folder: Path) -> None:
+@pytest.fixture()
+def minimal_gtfs(tmp_path: Path) -> Path:
+    """Create a minimal set of GTFS CSV files and return the folder path."""
+    _create_minimal_gtfs(tmp_path)
+    return tmp_path
+
+
+def _create_minimal_gtfs(folder: Path) -> None:
     """Create a minimal set of GTFS CSV files for testing."""
     _write_csv(
         folder / "stops.txt",
