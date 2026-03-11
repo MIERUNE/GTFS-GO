@@ -20,7 +20,7 @@ repository=https://github.com/MIERUNE/GTFS-GO
 
 # Recommended items:
 
-hasProcessingProvider=no
+hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
 # changelog=
 
