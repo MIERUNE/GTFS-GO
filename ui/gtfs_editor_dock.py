@@ -80,11 +80,15 @@ class GtfsEditorDock(QDockWidget):
         browse_btn.clicked.connect(self._on_browse)
         toolbar.addWidget(browse_btn)
 
+        overwrite_btn = QPushButton("Overwrite")
+        overwrite_btn.clicked.connect(self._on_overwrite)
+        toolbar.addWidget(overwrite_btn)
+
         save_btn = QPushButton("Save")
         save_btn.clicked.connect(self._on_save)
         toolbar.addWidget(save_btn)
 
-        update_map_btn = QPushButton("Update Map")
+        update_map_btn = QPushButton("Sync Map")
         update_map_btn.clicked.connect(self._on_update_map)
         toolbar.addWidget(update_map_btn)
 
@@ -224,13 +228,14 @@ class GtfsEditorDock(QDockWidget):
 
     # -- Save --
 
-    def _on_save(self) -> None:
+    def _on_overwrite(self) -> None:
+        """Overwrite the original GTFS folder."""
         if not self.folder or not self.tables:
             return
 
         violations = self._collect_violations()
 
-        msg = "Save changes to GTFS folder?\n\n" + self.folder
+        msg = "Overwrite GTFS folder?\n\n" + self.folder
         if violations:
             msg += "\n\nFK violations found:\n" + "\n".join(
                 f"  - {v}" for v in violations
@@ -238,7 +243,7 @@ class GtfsEditorDock(QDockWidget):
 
         result = QMessageBox.question(
             self,
-            "Save GTFS",
+            "Overwrite GTFS",
             msg,
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No if violations else QMessageBox.Yes,
@@ -252,7 +257,36 @@ class GtfsEditorDock(QDockWidget):
                 rows=widget.model.get_rows(),
             )
         save_gtfs_folder(self.folder, self.tables)
-        self.iface.messageBar().pushSuccess("GTFS Editor", "Saved successfully.")
+        self.iface.messageBar().pushSuccess("GTFS Editor", "Overwritten successfully.")
+
+    def _on_save(self) -> None:
+        """Save to a new folder."""
+        if not self.table_widgets:
+            return
+
+        folder = QFileDialog.getExistingDirectory(
+            self, "Save GTFS to folder", ""
+        )
+        if not folder:
+            return
+
+        violations = self._collect_violations()
+        if violations:
+            msg = "FK violations found:\n" + "\n".join(
+                f"  - {v}" for v in violations
+            ) + "\n\nSave anyway?"
+            result = QMessageBox.question(
+                self, "Save GTFS", msg,
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            )
+            if result != QMessageBox.Yes:
+                return
+
+        tables = self._current_tables()
+        save_gtfs_folder(folder, tables)
+        self.iface.messageBar().pushSuccess(
+            "GTFS Editor", f"Saved to {folder}"
+        )
 
     # -- Update Map --
 
@@ -358,11 +392,13 @@ class GtfsEditorDock(QDockWidget):
 
     def _remove_existing_gtfs_layers(self) -> None:
         project = QgsProject.instance()
-        to_remove = [
-            layer_id
-            for layer_id, layer in project.mapLayers().items()
-            if layer.customProperty("gtfs_go_role") in ("stops", "routes")
-        ]
+        to_remove = []
+        for layer_id, layer in project.mapLayers().items():
+            if layer.customProperty("gtfs_go_role") in ("stops", "routes"):
+                # Rollback edits to avoid QGIS save prompt
+                if layer.isEditable():
+                    layer.rollBack()
+                to_remove.append(layer_id)
         for layer_id in to_remove:
             project.removeMapLayer(layer_id)
 
