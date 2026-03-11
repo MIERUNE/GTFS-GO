@@ -23,6 +23,8 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
+import tempfile
+
 from ..gtfs_csv import CsvTable, load_gtfs_folder, save_gtfs_folder
 from ..gtfs_duckdb import init_gtfs_connection
 from .csv_table_widget import CsvTableWidget
@@ -114,9 +116,36 @@ class GtfsEditorDock(QDockWidget):
             self.tab_widget.addTab(widget, filename)
             self.table_widgets[filename] = widget
 
-        # Build stop_id index for geometry feedback
+        # Build stop_id index and add zoom button for stops tab
         if "stops.txt" in self.table_widgets:
             self.table_widgets["stops.txt"].model.build_index("stop_id")
+            self.table_widgets["stops.txt"].add_toolbar_button(
+                "Zoom to", "Zoom to selected stop", self._on_zoom_to_stop
+            )
+
+    def _on_zoom_to_stop(self) -> None:
+        """Zoom the map canvas to the selected stop's coordinates."""
+        widget = self.table_widgets.get("stops.txt")
+        if not widget:
+            return
+        indexes = widget.view.selectionModel().selectedIndexes()
+        if not indexes:
+            return
+
+        row = indexes[0].row()
+        headers = widget.model.get_headers()
+        rows = widget.model.get_rows()
+        try:
+            lon = float(rows[row][headers.index("stop_lon")])
+            lat = float(rows[row][headers.index("stop_lat")])
+        except (ValueError, IndexError):
+            return
+
+        canvas = self.iface.mapCanvas()
+        center = QgsPointXY(lon, lat)
+        canvas.setCenter(center)
+        canvas.zoomScale(5000)
+        canvas.refresh()
 
     # -- Save --
 
@@ -134,20 +163,33 @@ class GtfsEditorDock(QDockWidget):
 
     # -- Update Map --
 
+    def _current_tables(self) -> dict[str, CsvTable]:
+        """Get current table data from all models (without saving to disk)."""
+        return {
+            filename: CsvTable(
+                headers=widget.model.get_headers(),
+                rows=widget.model.get_rows(),
+            )
+            for filename, widget in self.table_widgets.items()
+        }
+
     def _on_update_map(self) -> None:
         if not self.folder:
             return
-        self._on_save()
         self._disconnect_stops_layer()
         self._remove_existing_gtfs_layers()
 
-        gtfs = init_gtfs_connection(self.folder)
-        try:
-            stops_layer = self._create_stops_layer(gtfs.conn)
-            routes_layer = self._create_routes_layer(gtfs.conn, gtfs.has_shapes)
-            self._routes_has_shapes = gtfs.has_shapes
-        finally:
-            gtfs.conn.close()
+        # Write current table data to a temp folder for DuckDB
+        tables = self._current_tables()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            save_gtfs_folder(tmpdir, tables)
+            gtfs = init_gtfs_connection(tmpdir)
+            try:
+                stops_layer = self._create_stops_layer(gtfs.conn)
+                routes_layer = self._create_routes_layer(gtfs.conn, gtfs.has_shapes)
+                self._routes_has_shapes = gtfs.has_shapes
+            finally:
+                gtfs.conn.close()
 
         layers = [l for l in [stops_layer, routes_layer] if l is not None]
         if layers:
