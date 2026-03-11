@@ -1,8 +1,11 @@
 """Tests for CsvTableModel (requires QGIS/Qt environment)."""
 
+import pytest
 from qgis.PyQt.QtCore import Qt
 
 from plugin_dir.ui.csv_table_widget import CsvTableModel
+
+pytestmark = pytest.mark.usefixtures("qgis_plugin_path")
 
 
 def _make_model(

@@ -3,6 +3,7 @@
 import re
 
 import duckdb
+import pytest
 
 from conftest import create_minimal_gtfs
 from plugin_dir.algorithms.gtfs_aggregate import (
@@ -11,6 +12,8 @@ from plugin_dir.algorithms.gtfs_aggregate import (
     _stop_grouping_cte,
 )
 from plugin_dir.gtfs_duckdb import init_gtfs_connection
+
+pytestmark = pytest.mark.usefixtures("qgis_plugin_path")
 
 
 class TestStopGroupingCte:
