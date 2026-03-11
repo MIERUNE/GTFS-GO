@@ -188,12 +188,64 @@ class GtfsEditorDock(QDockWidget):
         canvas.zoomScale(5000)
         canvas.refresh()
 
+    # -- Validation --
+
+    def _collect_violations(self) -> list[str]:
+        """Return a list of FK violation descriptions."""
+        self._update_validation()
+
+        violations: list[str] = []
+        for src_file, src_col, target_file, target_col in _FK_RELATIONS:
+            widget = self.table_widgets.get(src_file)
+            if not widget:
+                continue
+            headers = widget.model.get_headers()
+            if src_col not in headers:
+                continue
+            col_idx = headers.index(src_col)
+            valid = widget.model._valid_values.get(col_idx)
+            if valid is None:
+                continue
+
+            invalid_values: set[str] = set()
+            for row in widget.model.get_rows():
+                value = row[col_idx]
+                if value and value not in valid:
+                    invalid_values.add(value)
+
+            if invalid_values:
+                examples = sorted(invalid_values)[:5]
+                suffix = f" ... ({len(invalid_values)} total)" if len(invalid_values) > 5 else ""
+                violations.append(
+                    f"{src_file}.{src_col} -> {target_file}.{target_col}: "
+                    f"{', '.join(examples)}{suffix}"
+                )
+        return violations
+
     # -- Save --
 
     def _on_save(self) -> None:
         if not self.folder or not self.tables:
             return
-        # Sync model data back to tables dict
+
+        violations = self._collect_violations()
+
+        msg = "Save changes to GTFS folder?\n\n" + self.folder
+        if violations:
+            msg += "\n\nFK violations found:\n" + "\n".join(
+                f"  - {v}" for v in violations
+            )
+
+        result = QMessageBox.question(
+            self,
+            "Save GTFS",
+            msg,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No if violations else QMessageBox.Yes,
+        )
+        if result != QMessageBox.Yes:
+            return
+
         for filename, widget in self.table_widgets.items():
             self.tables[filename] = CsvTable(
                 headers=widget.model.get_headers(),
