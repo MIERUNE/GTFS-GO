@@ -4,7 +4,7 @@
     "python.formatting.provider": "black",
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
-        "source.autoFix": true,
-        "source.organizeImports": true
+        "source.autoFix": "explicit",
+        "source.organizeImports": "explicit"
     }
 }
