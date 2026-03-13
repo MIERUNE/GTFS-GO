@@ -21,5 +21,6 @@ lint.ignore = [
     "N803",
     "N815",
     "B018",
+    "B008",
 ]
 target-version = "py39"

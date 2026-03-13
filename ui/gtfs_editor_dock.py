@@ -323,7 +323,7 @@ class GtfsEditorDock(QDockWidget):
             finally:
                 gtfs.conn.close()
 
-        layers = [l for l in [stops_layer, routes_layer] if l is not None]
+        layers = [layer for layer in [stops_layer, routes_layer] if layer is not None]
         if layers:
             QgsProject.instance().addMapLayers(layers)
 
