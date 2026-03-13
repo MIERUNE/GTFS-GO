@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import tempfile
+
 from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsFeature,
@@ -10,7 +12,7 @@ from qgis.core import (
     QgsVectorLayer,
     QgsWkbTypes,
 )
-from qgis.PyQt.QtCore import QVariant, Qt
+from qgis.PyQt.QtCore import Qt, QVariant
 from qgis.PyQt.QtWidgets import (
     QDockWidget,
     QFileDialog,
@@ -22,8 +24,6 @@ from qgis.PyQt.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-
-import tempfile
 
 from ..gtfs_csv import CsvTable, load_gtfs_folder, save_gtfs_folder
 from ..gtfs_duckdb import init_gtfs_connection

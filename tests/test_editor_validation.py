@@ -1,7 +1,6 @@
 """Tests for FK validation logic used in the GTFS editor (requires QGIS/Qt)."""
 
 import pytest
-
 from plugin_dir.ui.csv_table_widget import CsvTableModel
 from plugin_dir.ui.gtfs_editor_dock import _FK_RELATIONS
 
