@@ -48,6 +48,7 @@ class _QmlStylePostProcessor(QgsProcessingLayerPostProcessorInterface):
     def postProcessLayer(self, layer, context, feedback):
         layer.loadNamedStyle(self.qml_path)
         layer.triggerRepaint()
+        _QmlStylePostProcessor._instances.remove(self)
 
 _CRS_4326 = QgsCoordinateReferenceSystem.fromEpsgId(4326)
 

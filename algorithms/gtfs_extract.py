@@ -83,6 +83,7 @@ class _StopsStylePostProcessor(QgsProcessingLayerPostProcessorInterface):
         layer.setLabeling(QgsVectorLayerSimpleLabeling(pal))
         layer.setLabelsEnabled(True)
         layer.triggerRepaint()
+        _StopsStylePostProcessor._instances.remove(self)
 
 
 _ROUTES_COLOR_LIST = [
@@ -120,9 +121,8 @@ class _RoutesStylePostProcessor(QgsProcessingLayerPostProcessorInterface):
 
     def postProcessLayer(self, layer, context, feedback):
         self._geom_type = layer.geometryType()
-        values = sorted(
-            {f[self.field_name] for f in layer.getFeatures()}
-        )
+        field_idx = layer.fields().indexOf(self.field_name)
+        values = sorted(layer.uniqueValues(field_idx))
         categories = []
         for i, value in enumerate(values):
             color = QColor(_ROUTES_COLOR_LIST[i % len(_ROUTES_COLOR_LIST)])
@@ -131,6 +131,7 @@ class _RoutesStylePostProcessor(QgsProcessingLayerPostProcessorInterface):
         renderer = QgsCategorizedSymbolRenderer(self.field_name, categories)
         layer.setRenderer(renderer)
         layer.triggerRepaint()
+        _RoutesStylePostProcessor._instances.remove(self)
 
 _QUERY_WITH_SHAPES = """
     WITH shape_geom AS (
