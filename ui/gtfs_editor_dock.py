@@ -309,6 +309,7 @@ class GtfsEditorDock(QDockWidget):
         if not self.folder:
             return
         self._disconnect_stops_layer()
+        self._disconnect_routes_layer()
         self._remove_existing_gtfs_layers()
 
         # Write current table data to a temp folder for DuckDB
@@ -327,7 +328,10 @@ class GtfsEditorDock(QDockWidget):
         if layers:
             QgsProject.instance().addMapLayers(layers)
 
-        self.routes_layer = routes_layer
+        if routes_layer is not None and self._routes_has_shapes:
+            self._connect_routes_layer(routes_layer)
+        else:
+            self.routes_layer = routes_layer
         if stops_layer is not None:
             self._connect_stops_layer(stops_layer)
 
@@ -446,6 +450,115 @@ class GtfsEditorDock(QDockWidget):
         except TypeError:
             pass
 
+    # -- Routes layer geometry feedback (shapes) --
+
+    def _connect_routes_layer(self, layer: QgsVectorLayer) -> None:
+        self.routes_layer = layer
+        self.routes_layer.editingStarted.connect(self._on_routes_editing_started)
+        self.routes_layer.editingStopped.connect(self._on_routes_editing_stopped)
+
+    def _disconnect_routes_layer(self) -> None:
+        if self.routes_layer is None:
+            return
+        try:
+            self.routes_layer.editingStarted.disconnect(self._on_routes_editing_started)
+            self.routes_layer.editingStopped.disconnect(self._on_routes_editing_stopped)
+            self._disconnect_routes_edit_buffer()
+        except TypeError:
+            pass
+        self.routes_layer = None
+
+    def _on_routes_editing_started(self) -> None:
+        if self.routes_layer is None or self.routes_layer.editBuffer() is None:
+            return
+        self.routes_layer.editBuffer().geometryChanged.connect(
+            self._on_routes_geometry_changed
+        )
+
+    def _disconnect_routes_edit_buffer(self) -> None:
+        if self.routes_layer is None or self.routes_layer.editBuffer() is None:
+            return
+        try:
+            self.routes_layer.editBuffer().geometryChanged.disconnect(
+                self._on_routes_geometry_changed
+            )
+        except TypeError:
+            pass
+
+    def _on_routes_geometry_changed(self, fid: int, geometry: QgsGeometry) -> None:
+        if "shapes.txt" not in self.table_widgets or self.routes_layer is None:
+            return
+        feature = self.routes_layer.getFeature(fid)
+        shape_id = str(feature["shape_id"])
+        polyline = geometry.asPolyline()
+
+        model = self.table_widgets["shapes.txt"].model
+        headers = model.get_headers()
+        sid_col = headers.index("shape_id")
+        seq_col = headers.index("shape_pt_sequence")
+        lon_col = headers.index("shape_pt_lon")
+        lat_col = headers.index("shape_pt_lat")
+
+        # Remove existing rows for this shape_id (reverse order)
+        rows_to_remove = [
+            i for i, row in enumerate(model.get_rows()) if row[sid_col] == shape_id
+        ]
+        model.remove_rows(rows_to_remove)
+
+        # Insert new rows at the position of the first removed row (or end)
+        insert_at = rows_to_remove[0] if rows_to_remove else model.rowCount()
+        for seq, point in enumerate(polyline):
+            model.insert_row(insert_at + seq)
+            row_data = [""] * len(headers)
+            row_data[sid_col] = shape_id
+            row_data[seq_col] = str(seq)
+            row_data[lon_col] = str(point.x())
+            row_data[lat_col] = str(point.y())
+            model.get_rows()[insert_at + seq] = row_data
+
+    def _on_routes_editing_stopped(self) -> None:
+        """Re-sync shapes.txt from routes layer after edit session ends."""
+        if (
+            self.routes_layer is None
+            or "shapes.txt" not in self.table_widgets
+            or not self._routes_has_shapes
+        ):
+            return
+
+        model = self.table_widgets["shapes.txt"].model
+        headers = model.get_headers()
+        sid_col = headers.index("shape_id")
+        seq_col = headers.index("shape_pt_sequence")
+        lon_col = headers.index("shape_pt_lon")
+        lat_col = headers.index("shape_pt_lat")
+
+        # Collect shape_ids present in layer
+        layer_shape_ids: set[str] = set()
+        new_rows: list[list[str]] = []
+        for feature in self.routes_layer.getFeatures():
+            shape_id = str(feature["shape_id"])
+            layer_shape_ids.add(shape_id)
+            for seq, point in enumerate(feature.geometry().asPolyline()):
+                row_data = [""] * len(headers)
+                row_data[sid_col] = shape_id
+                row_data[seq_col] = str(seq)
+                row_data[lon_col] = str(point.x())
+                row_data[lat_col] = str(point.y())
+                new_rows.append(row_data)
+
+        # Keep rows for shape_ids not in the layer (shouldn't happen, but safe)
+        kept = [
+            row
+            for row in model.get_rows()
+            if row[sid_col] not in layer_shape_ids
+        ]
+        # Replace model rows
+        all_rows = kept + new_rows
+        model.remove_rows(list(range(model.rowCount())))
+        for i, row in enumerate(all_rows):
+            model.insert_row(i)
+            model.get_rows()[i] = row
+
     def _on_geometry_changed(self, fid: int, geometry: QgsGeometry) -> None:
         if "stops.txt" not in self.table_widgets or self.stops_layer is None:
             return
@@ -472,9 +585,55 @@ class GtfsEditorDock(QDockWidget):
 
     def _rebuild_routes_from_tables(self) -> None:
         """Rebuild routes layer from current in-memory CSV table data."""
-        if not self.routes_layer or self._routes_has_shapes:
+        if not self.routes_layer:
             return
 
+        if self._routes_has_shapes:
+            self._rebuild_routes_from_shapes()
+        else:
+            self._rebuild_routes_from_stop_times()
+
+    def _rebuild_routes_from_shapes(self) -> None:
+        """Rebuild routes layer from shapes.txt table data."""
+        shapes_widget = self.table_widgets.get("shapes.txt")
+        if not shapes_widget:
+            return
+
+        sh = shapes_widget.model.get_headers()
+        sid_col = sh.index("shape_id")
+        seq_col = sh.index("shape_pt_sequence")
+        lon_col = sh.index("shape_pt_lon")
+        lat_col = sh.index("shape_pt_lat")
+
+        # Group by shape_id
+        shape_points: dict[str, list[tuple[int, QgsPointXY]]] = {}
+        for row in shapes_widget.model.get_rows():
+            try:
+                shape_points.setdefault(row[sid_col], []).append(
+                    (int(row[seq_col]), QgsPointXY(float(row[lon_col]), float(row[lat_col])))
+                )
+            except (ValueError, IndexError):
+                continue
+
+        features = []
+        for shape_id, pts in shape_points.items():
+            pts.sort(key=lambda x: x[0])
+            points = [p for _, p in pts]
+            if len(points) < 2:
+                continue
+            feat = QgsFeature(self.routes_layer.fields())
+            feat.setAttribute("shape_id", shape_id)
+            feat.setGeometry(QgsGeometry.fromPolylineXY(points))
+            features.append(feat)
+
+        provider = self.routes_layer.dataProvider()
+        provider.truncate()
+        provider.addFeatures(features)
+        self.routes_layer.updateExtents()
+        self.routes_layer.triggerRepaint()
+
+    def _rebuild_routes_from_stop_times(self) -> None:
+        """Rebuild routes layer from stop_times + stops table data."""
         stops_widget = self.table_widgets.get("stops.txt")
         stop_times_widget = self.table_widgets.get("stop_times.txt")
         if not stops_widget or not stop_times_widget:
@@ -553,8 +712,9 @@ class GtfsEditorDock(QDockWidget):
         if self.stops_layer and self.stops_layer.id() == layer_id:
             self._disconnect_stops_layer()
         if self.routes_layer and self.routes_layer.id() == layer_id:
-            self.routes_layer = None
+            self._disconnect_routes_layer()
 
     def cleanup(self) -> None:
         """Disconnect all signals. Called from plugin unload."""
         self._disconnect_stops_layer()
+        self._disconnect_routes_layer()
