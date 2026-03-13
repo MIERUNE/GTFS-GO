@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import os
 import re
 
+import sip
 from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsFeature,
@@ -14,6 +16,8 @@ from qgis.core import (
     QgsProcessingContext,
     QgsProcessingException,
     QgsProcessingFeedback,
+    QgsProcessingLayerPostProcessorInterface,
+    QgsProcessingParameterBoolean,
     QgsProcessingParameterFeatureSink,
     QgsProcessingParameterFile,
     QgsProcessingParameterNumber,
@@ -23,6 +27,27 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 
 from ..gtfs_duckdb import init_gtfs_connection
+
+_STYLE_DIR = os.path.join(os.path.dirname(__file__), "..", "style")
+
+
+class _QmlStylePostProcessor(QgsProcessingLayerPostProcessorInterface):
+    _instances: list = []
+
+    def __init__(self, qml_path: str):
+        super().__init__()
+        self.qml_path = qml_path
+
+    @staticmethod
+    def create(qml_path: str) -> "_QmlStylePostProcessor":
+        inst = _QmlStylePostProcessor(qml_path)
+        sip.transferto(inst, None)
+        _QmlStylePostProcessor._instances.append(inst)
+        return inst
+
+    def postProcessLayer(self, layer, context, feedback):
+        layer.loadNamedStyle(self.qml_path)
+        layer.triggerRepaint()
 
 _CRS_4326 = QgsCoordinateReferenceSystem.fromEpsgId(4326)
 
@@ -238,6 +263,7 @@ class GtfsAggregateAlgorithm(QgsProcessingAlgorithm):
     INPUT = "INPUT"
     DELIMITER = "DELIMITER"
     MAX_DISTANCE = "MAX_DISTANCE"
+    APPLY_STYLE = "APPLY_STYLE"
     OUTPUT_STOPS = "OUTPUT_STOPS"
     OUTPUT_SEGMENTS = "OUTPUT_SEGMENTS"
 
@@ -293,6 +319,13 @@ class GtfsAggregateAlgorithm(QgsProcessingAlgorithm):
             )
         )
         self.addParameter(
+            QgsProcessingParameterBoolean(
+                self.APPLY_STYLE,
+                self.tr("Apply Style"),
+                defaultValue=True,
+            )
+        )
+        self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT_STOPS,
                 self.tr("Aggregated Stops"),
@@ -325,6 +358,7 @@ class GtfsAggregateAlgorithm(QgsProcessingAlgorithm):
         max_distance = (
             self.parameterAsDouble(parameters, self.MAX_DISTANCE, context) or 0.003
         )
+        apply_style = self.parameterAsBool(parameters, self.APPLY_STYLE, context)
 
         want_stops = self.OUTPUT_STOPS in parameters and parameters[self.OUTPUT_STOPS]
         want_segments = (
@@ -343,17 +377,29 @@ class GtfsAggregateAlgorithm(QgsProcessingAlgorithm):
         results: dict = {}
         try:
             if want_stops:
-                results[self.OUTPUT_STOPS] = self._aggregate_stops(
+                dest_id = self._aggregate_stops(
                     parameters, context, feedback, gtfs.conn, delimiter, max_distance
                 )
+                results[self.OUTPUT_STOPS] = dest_id
+                if apply_style and context.willLoadLayerOnCompletion(dest_id):
+                    qml = os.path.join(_STYLE_DIR, "aggregated_stops.qml")
+                    context.layerToLoadOnCompletionDetails(
+                        dest_id
+                    ).setPostProcessor(_QmlStylePostProcessor.create(qml))
 
             if feedback.isCanceled():
                 return results
 
             if want_segments:
-                results[self.OUTPUT_SEGMENTS] = self._aggregate_segments(
+                dest_id = self._aggregate_segments(
                     parameters, context, feedback, gtfs.conn, delimiter, max_distance
                 )
+                results[self.OUTPUT_SEGMENTS] = dest_id
+                if apply_style and context.willLoadLayerOnCompletion(dest_id):
+                    qml = os.path.join(_STYLE_DIR, "aggregated_routes.qml")
+                    context.layerToLoadOnCompletionDetails(
+                        dest_id
+                    ).setPostProcessor(_QmlStylePostProcessor.create(qml))
         finally:
             gtfs.conn.close()
 

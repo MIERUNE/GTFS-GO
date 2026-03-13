@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+
+import sip
 from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsFeature,
@@ -7,18 +10,127 @@ from qgis.core import (
     QgsField,
     QgsFields,
     QgsGeometry,
+    QgsPalLayerSettings,
     QgsProcessing,
     QgsProcessingAlgorithm,
     QgsProcessingContext,
     QgsProcessingException,
     QgsProcessingFeedback,
+    QgsProcessingLayerPostProcessorInterface,
+    QgsProcessingParameterBoolean,
     QgsProcessingParameterFeatureSink,
     QgsProcessingParameterFile,
+    QgsCategorizedSymbolRenderer,
+    QgsRendererCategory,
+    QgsSimpleMarkerSymbolLayer,
+    QgsSingleSymbolRenderer,
+    QgsSvgMarkerSymbolLayer,
+    QgsSymbol,
+    QgsTextBufferSettings,
+    QgsTextFormat,
+    QgsVectorLayerSimpleLabeling,
     QgsWkbTypes,
 )
-from qgis.PyQt.QtCore import QCoreApplication, QVariant
+from qgis.PyQt.QtCore import QCoreApplication, Qt, QVariant
+from qgis.PyQt.QtGui import QColor, QFont
 
 from ..gtfs_duckdb import init_gtfs_connection
+
+_STYLE_DIR = os.path.join(os.path.dirname(__file__), "..", "style")
+_STOPS_SVG_PATH = os.path.join(_STYLE_DIR, "busstop.svg")
+
+
+class _StopsStylePostProcessor(QgsProcessingLayerPostProcessorInterface):
+    _instances: list = []
+
+    @staticmethod
+    def create() -> "_StopsStylePostProcessor":
+        inst = _StopsStylePostProcessor()
+        sip.transferto(inst, None)
+        _StopsStylePostProcessor._instances.append(inst)
+        return inst
+
+    def postProcessLayer(self, layer, context, feedback):
+        # SVG marker with white halo
+        symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+        svg_layer = QgsSvgMarkerSymbolLayer(_STOPS_SVG_PATH)
+        svg_layer.setSize(7.0)
+        symbol.changeSymbolLayer(0, svg_layer)
+        halo_layer = QgsSimpleMarkerSymbolLayer()
+        halo_layer.setColor(QColor("white"))
+        halo_layer.setSize(9.0)
+        halo_layer.setStrokeStyle(Qt.PenStyle.NoPen)
+        symbol.insertSymbolLayer(0, halo_layer)
+        layer.setRenderer(QgsSingleSymbolRenderer(symbol))
+
+        # Labeling
+        text_format = QgsTextFormat()
+        text_format.setFont(QFont("Arial", 10))
+        text_format.setSize(10)
+        buf = QgsTextBufferSettings()
+        buf.setEnabled(True)
+        buf.setSize(1.0)
+        buf.setColor(QColor("white"))
+        text_format.setBuffer(buf)
+        pal = QgsPalLayerSettings()
+        pal.setFormat(text_format)
+        pal.fieldName = "stop_name"
+        pal.placement = QgsPalLayerSettings.Placement.OrderedPositionsAroundPoint
+        pal.dist = 2.0
+        pal.scaleVisibility = True
+        pal.minimumScale = 100000
+        pal.enabled = True
+        layer.setLabeling(QgsVectorLayerSimpleLabeling(pal))
+        layer.setLabelsEnabled(True)
+        layer.triggerRepaint()
+
+
+_ROUTES_COLOR_LIST = [
+    "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
+    "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf",
+    "#aec7e8", "#ffbb78", "#98df8a", "#ff9896", "#c5b0d5",
+]
+
+
+class _RoutesStylePostProcessor(QgsProcessingLayerPostProcessorInterface):
+    _instances: list = []
+
+    def __init__(self, field_name: str):
+        super().__init__()
+        self.field_name = field_name
+
+    @staticmethod
+    def create(field_name: str) -> "_RoutesStylePostProcessor":
+        inst = _RoutesStylePostProcessor(field_name)
+        sip.transferto(inst, None)
+        _RoutesStylePostProcessor._instances.append(inst)
+        return inst
+
+    def _make_symbol(self, color: QColor):
+        symbol = QgsSymbol.defaultSymbol(self._geom_type)
+        line_layer = symbol.symbolLayer(0)
+        line_layer.setColor(color)
+        line_layer.setWidth(0.8)
+        line_layer.setPenJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        outline = line_layer.clone()
+        outline.setColor(QColor(30, 30, 30))
+        outline.setWidth(1.2)
+        symbol.insertSymbolLayer(0, outline)
+        return symbol
+
+    def postProcessLayer(self, layer, context, feedback):
+        self._geom_type = layer.geometryType()
+        values = sorted(
+            {f[self.field_name] for f in layer.getFeatures()}
+        )
+        categories = []
+        for i, value in enumerate(values):
+            color = QColor(_ROUTES_COLOR_LIST[i % len(_ROUTES_COLOR_LIST)])
+            symbol = self._make_symbol(color)
+            categories.append(QgsRendererCategory(value, symbol, str(value)))
+        renderer = QgsCategorizedSymbolRenderer(self.field_name, categories)
+        layer.setRenderer(renderer)
+        layer.triggerRepaint()
 
 _QUERY_WITH_SHAPES = """
     WITH shape_geom AS (
@@ -57,6 +169,7 @@ _CRS_4326 = QgsCoordinateReferenceSystem.fromEpsgId(4326)
 
 class GtfsExtractAlgorithm(QgsProcessingAlgorithm):
     INPUT = "INPUT"
+    APPLY_STYLE = "APPLY_STYLE"
     OUTPUT_STOPS = "OUTPUT_STOPS"
     OUTPUT_ROUTES = "OUTPUT_ROUTES"
 
@@ -93,6 +206,13 @@ class GtfsExtractAlgorithm(QgsProcessingAlgorithm):
             )
         )
         self.addParameter(
+            QgsProcessingParameterBoolean(
+                self.APPLY_STYLE,
+                self.tr("Apply Style"),
+                defaultValue=True,
+            )
+        )
+        self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT_STOPS,
                 self.tr("Stops"),
@@ -121,6 +241,8 @@ class GtfsExtractAlgorithm(QgsProcessingAlgorithm):
                 self.invalidSourceError(parameters, self.INPUT)
             )
 
+        apply_style = self.parameterAsBool(parameters, self.APPLY_STYLE, context)
+
         want_stops = self.OUTPUT_STOPS in parameters and parameters[self.OUTPUT_STOPS]
         want_routes = (
             self.OUTPUT_ROUTES in parameters and parameters[self.OUTPUT_ROUTES]
@@ -135,17 +257,30 @@ class GtfsExtractAlgorithm(QgsProcessingAlgorithm):
         results: dict = {}
         try:
             if want_stops:
-                results[self.OUTPUT_STOPS] = self._extract_stops(
+                dest_id = self._extract_stops(
                     parameters, context, feedback, gtfs.conn
                 )
+                results[self.OUTPUT_STOPS] = dest_id
+                if apply_style and context.willLoadLayerOnCompletion(dest_id):
+                    context.layerToLoadOnCompletionDetails(
+                        dest_id
+                    ).setPostProcessor(_StopsStylePostProcessor.create())
 
             if feedback.isCanceled():
                 return results
 
             if want_routes:
-                results[self.OUTPUT_ROUTES] = self._extract_routes(
+                id_field_name = "shape_id" if gtfs.has_shapes else "trip_id"
+                dest_id = self._extract_routes(
                     parameters, context, feedback, gtfs.conn, gtfs.has_shapes
                 )
+                results[self.OUTPUT_ROUTES] = dest_id
+                if apply_style and context.willLoadLayerOnCompletion(dest_id):
+                    context.layerToLoadOnCompletionDetails(
+                        dest_id
+                    ).setPostProcessor(
+                        _RoutesStylePostProcessor.create(id_field_name)
+                    )
         finally:
             gtfs.conn.close()
 
