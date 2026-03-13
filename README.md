@@ -1,7 +1,7 @@
 # GTFS-GO
 
 ![GitHub Release](https://img.shields.io/github/v/release/MIERUNE/GTFS-GO?label=release)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/MIERUNE/GTFS-GO/test.yml?label=unittest)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/MIERUNE/GTFS-GO/test.yml?label=test)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/MIERUNE/GTFS-GO/lint.yml?label=lint)
 
 QGIS Plugin to extract GTFS-data as GeoJSON and render routes and stops on the Map.
