@@ -47,7 +47,7 @@ class TestLoadGtfsFolder:
         assert tables == {}
 
     def test_utf8_bom(self, tmp_path: Path):
-        content = "\ufeffstop_id,stop_name\nS1,Station\n"
+        content = "stop_id,stop_name\nS1,Station\n"
         (tmp_path / "stops.txt").write_text(content, encoding="utf-8-sig")
         tables = load_gtfs_folder(str(tmp_path))
         assert tables["stops.txt"].headers == ["stop_id", "stop_name"]
