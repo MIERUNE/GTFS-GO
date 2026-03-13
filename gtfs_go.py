@@ -1,5 +1,6 @@
 import os
 
+import processing
 from qgis.core import QgsApplication
 from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QIcon
@@ -28,6 +29,18 @@ class GTFSGo:
         open_editor_action.triggered.connect(self.run)
         self.actions.append(open_editor_action)
 
+        extract_action = QAction(
+            icon, "Extract GTFS Stops / Routes", self.iface.mainWindow()
+        )
+        extract_action.triggered.connect(self._run_extract)
+        self.actions.append(extract_action)
+
+        aggregate_action = QAction(
+            icon, "Aggregate GTFS Stops / Segments", self.iface.mainWindow()
+        )
+        aggregate_action.triggered.connect(self._run_aggregate)
+        self.actions.append(aggregate_action)
+
         # Create QToolButton with dropdown menu
         self.tool_button = QToolButton(self.iface.mainWindow())
         self.tool_button.setIcon(icon)
@@ -35,6 +48,9 @@ class GTFSGo:
 
         tool_menu = QMenu(self.iface.mainWindow())
         tool_menu.addAction(open_editor_action)
+        tool_menu.addSeparator()
+        tool_menu.addAction(extract_action)
+        tool_menu.addAction(aggregate_action)
         self.tool_button.setMenu(tool_menu)
 
         # Set default action (last used action)
@@ -71,6 +87,12 @@ class GTFSGo:
             self.iface.removeDockWidget(self.dock)
             self.dock.deleteLater()
             self.dock = None
+
+    def _run_extract(self):
+        processing.execAlgorithmDialog("gtfsgo:extract")
+
+    def _run_aggregate(self):
+        processing.execAlgorithmDialog("gtfsgo:aggregate")
 
     def run(self):
         if self.dock is None:
