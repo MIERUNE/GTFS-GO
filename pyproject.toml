@@ -7,7 +7,7 @@ requires-python = ">=3.9"
 authors = [{ name = "MIERUNE Inc.", email = "info@mierune.co.jp" }]
 
 [dependency-groups]
-dev = ["pyqt5-stubs>=5.15.6.0", "ruff>=0.8.2", "pandas>=2.2.2"]
+dev = ["pyqt5-stubs>=5.15.6.0", "ruff>=0.15.6"]
 
 [tool.ruff]
 lint.select = ["F", "E", "W", "B", "C90", "N", "I"]
