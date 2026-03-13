@@ -140,6 +140,9 @@ class GtfsEditorDock(QDockWidget):
         self.tab_widget.currentChanged.connect(self._update_validation)
         self._update_validation()
 
+        # Automatically add layers to the map
+        self._on_update_map()
+
     def _update_validation(self) -> None:
         """Rebuild FK validation sets for all tables."""
         # Collect valid ID sets from target tables
@@ -308,6 +311,19 @@ class GtfsEditorDock(QDockWidget):
     def _on_update_map(self) -> None:
         if not self.folder:
             return
+
+        # Preserve existing layer styles before removal
+        stops_renderer = (
+            self.stops_layer.renderer().clone()
+            if self.stops_layer and self.stops_layer.renderer()
+            else None
+        )
+        routes_renderer = (
+            self.routes_layer.renderer().clone()
+            if self.routes_layer and self.routes_layer.renderer()
+            else None
+        )
+
         self._disconnect_stops_layer()
         self._disconnect_routes_layer()
         self._remove_existing_gtfs_layers()
@@ -323,6 +339,12 @@ class GtfsEditorDock(QDockWidget):
                 self._routes_has_shapes = gtfs.has_shapes
             finally:
                 gtfs.conn.close()
+
+        # Restore styles
+        if stops_renderer and stops_layer:
+            stops_layer.setRenderer(stops_renderer)
+        if routes_renderer and routes_layer:
+            routes_layer.setRenderer(routes_renderer)
 
         layers = [layer for layer in [stops_layer, routes_layer] if layer is not None]
         if layers:
@@ -547,11 +569,7 @@ class GtfsEditorDock(QDockWidget):
                 new_rows.append(row_data)
 
         # Keep rows for shape_ids not in the layer (shouldn't happen, but safe)
-        kept = [
-            row
-            for row in model.get_rows()
-            if row[sid_col] not in layer_shape_ids
-        ]
+        kept = [row for row in model.get_rows() if row[sid_col] not in layer_shape_ids]
         # Replace model rows
         all_rows = kept + new_rows
         model.remove_rows(list(range(model.rowCount())))
@@ -610,7 +628,10 @@ class GtfsEditorDock(QDockWidget):
         for row in shapes_widget.model.get_rows():
             try:
                 shape_points.setdefault(row[sid_col], []).append(
-                    (int(row[seq_col]), QgsPointXY(float(row[lon_col]), float(row[lat_col])))
+                    (
+                        int(row[seq_col]),
+                        QgsPointXY(float(row[lon_col]), float(row[lat_col])),
+                    )
                 )
             except (ValueError, IndexError):
                 continue

@@ -4,15 +4,14 @@
 
 [general]
 name=GTFS-GO
-qgisMinimumVersion=3.40
+qgisMinimumVersion=4.00
 qgisMaximumVersion=4.99
-supportsQt6=True
 description=The plugin to extract GTFS data and to show routes and stops.
 version={{PLUGIN_VERSION}}
 author=MIERUNE Inc.
 email=info@mierune.co.jp
 
-about=The plugin to extract GTFS data and to show routes and stops.
+about=The plugin for rendering and editing GTFS feed.
 
 tracker=https://github.com/MIERUNE/GTFS-GO/issues
 repository=https://github.com/MIERUNE/GTFS-GO
