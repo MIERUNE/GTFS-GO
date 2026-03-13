@@ -33,9 +33,7 @@ def init_gtfs_connection(folder: str, feedback=None) -> GtfsConnection:
     """)
 
     # Optional GTFS columns — add if not present in the CSV
-    conn.execute(
-        "ALTER TABLE stops_geo ADD COLUMN IF NOT EXISTS location_type INT;"
-    )
+    conn.execute("ALTER TABLE stops_geo ADD COLUMN IF NOT EXISTS location_type INT;")
     conn.execute(
         "ALTER TABLE stops_geo ADD COLUMN IF NOT EXISTS parent_station VARCHAR;"
     )
