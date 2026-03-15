@@ -111,3 +111,11 @@ def _create_minimal_gtfs(folder: Path) -> None:
             ["WD", "1", "1", "1", "1", "1", "0", "0", "20240101", "20241231"],
         ],
     )
+    _write_csv(
+        folder / "calendar_dates.txt",
+        ["service_id", "date", "exception_type"],
+        [
+            # Remove WD service on 2024-01-03 (Wednesday)
+            ["WD", "20240103", "2"],
+        ],
+    )

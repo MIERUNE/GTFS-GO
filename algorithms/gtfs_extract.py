@@ -4,6 +4,7 @@ import os
 
 import sip
 from qgis.core import (
+    QgsCategorizedSymbolRenderer,
     QgsCoordinateReferenceSystem,
     QgsFeature,
     QgsFeatureSink,
@@ -20,7 +21,6 @@ from qgis.core import (
     QgsProcessingParameterBoolean,
     QgsProcessingParameterFeatureSink,
     QgsProcessingParameterFile,
-    QgsCategorizedSymbolRenderer,
     QgsRendererCategory,
     QgsSimpleMarkerSymbolLayer,
     QgsSingleSymbolRenderer,
@@ -87,9 +87,21 @@ class _StopsStylePostProcessor(QgsProcessingLayerPostProcessorInterface):
 
 
 _ROUTES_COLOR_LIST = [
-    "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
-    "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf",
-    "#aec7e8", "#ffbb78", "#98df8a", "#ff9896", "#c5b0d5",
+    "#1f77b4",
+    "#ff7f0e",
+    "#2ca02c",
+    "#d62728",
+    "#9467bd",
+    "#8c564b",
+    "#e377c2",
+    "#7f7f7f",
+    "#bcbd22",
+    "#17becf",
+    "#aec7e8",
+    "#ffbb78",
+    "#98df8a",
+    "#ff9896",
+    "#c5b0d5",
 ]
 
 
@@ -132,6 +144,7 @@ class _RoutesStylePostProcessor(QgsProcessingLayerPostProcessorInterface):
         layer.setRenderer(renderer)
         layer.triggerRepaint()
         _RoutesStylePostProcessor._instances.remove(self)
+
 
 _QUERY_WITH_SHAPES = """
     WITH shape_geom AS (
@@ -258,14 +271,12 @@ class GtfsExtractAlgorithm(QgsProcessingAlgorithm):
         results: dict = {}
         try:
             if want_stops:
-                dest_id = self._extract_stops(
-                    parameters, context, feedback, gtfs.conn
-                )
+                dest_id = self._extract_stops(parameters, context, feedback, gtfs.conn)
                 results[self.OUTPUT_STOPS] = dest_id
                 if apply_style and context.willLoadLayerOnCompletion(dest_id):
-                    context.layerToLoadOnCompletionDetails(
-                        dest_id
-                    ).setPostProcessor(_StopsStylePostProcessor.create())
+                    context.layerToLoadOnCompletionDetails(dest_id).setPostProcessor(
+                        _StopsStylePostProcessor.create()
+                    )
 
             if feedback.isCanceled():
                 return results
@@ -277,9 +288,7 @@ class GtfsExtractAlgorithm(QgsProcessingAlgorithm):
                 )
                 results[self.OUTPUT_ROUTES] = dest_id
                 if apply_style and context.willLoadLayerOnCompletion(dest_id):
-                    context.layerToLoadOnCompletionDetails(
-                        dest_id
-                    ).setPostProcessor(
+                    context.layerToLoadOnCompletionDetails(dest_id).setPostProcessor(
                         _RoutesStylePostProcessor.create(id_field_name)
                     )
         finally:

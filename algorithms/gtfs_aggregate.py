@@ -18,6 +18,7 @@ from qgis.core import (
     QgsProcessingFeedback,
     QgsProcessingLayerPostProcessorInterface,
     QgsProcessingParameterBoolean,
+    QgsProcessingParameterDateTime,
     QgsProcessingParameterFeatureSink,
     QgsProcessingParameterFile,
     QgsProcessingParameterNumber,
@@ -49,6 +50,7 @@ class _QmlStylePostProcessor(QgsProcessingLayerPostProcessorInterface):
         layer.loadNamedStyle(self.qml_path)
         layer.triggerRepaint()
         _QmlStylePostProcessor._instances.remove(self)
+
 
 _CRS_4326 = QgsCoordinateReferenceSystem.fromEpsgId(4326)
 
@@ -124,13 +126,106 @@ def _stop_grouping_cte(delimiter: str, max_distance: float) -> str:
     )"""
 
 
-def _aggregated_stops_query(delimiter: str, max_distance: float) -> str:
+def _time_filter_cte(start_dt: str | None, end_dt: str | None) -> str:
+    """Generate CTE producing ``effective_stop_times``.
+
+    Without a date filter the CTE simply passes through *stop_times* with a
+    ``NULL`` *service_date* column.  With a filter the date range is expanded,
+    active services are determined via *calendar* / *calendar_dates*, and
+    *stop_times* rows are restricted to those whose absolute datetime falls
+    within ``[start_dt, end_dt)``.
+    """
+    if start_dt is None:
+        return """
+    effective_stop_times AS (
+        SELECT st.*, CAST(NULL AS DATE) AS service_date
+        FROM stop_times st
+    )"""
+
+    return f"""
+    _param_dates AS (
+        SELECT
+            STRPTIME('{start_dt}', '%Y-%m-%d %H:%M:%S')::TIMESTAMP AS start_ts,
+            STRPTIME('{end_dt}', '%Y-%m-%d %H:%M:%S')::TIMESTAMP AS end_ts
+    ),
+
+    _date_range AS (
+        SELECT UNNEST(generate_series(
+            (SELECT start_ts::DATE - INTERVAL 1 DAY FROM _param_dates),
+            (SELECT end_ts::DATE FROM _param_dates),
+            INTERVAL 1 DAY
+        ))::DATE AS service_date
+    ),
+
+    _calendar_active AS (
+        SELECT c.service_id, dr.service_date
+        FROM calendar c
+        CROSS JOIN _date_range dr
+        WHERE STRPTIME(CAST(c.start_date AS VARCHAR), '%Y%m%d')::DATE <= dr.service_date
+          AND STRPTIME(CAST(c.end_date AS VARCHAR), '%Y%m%d')::DATE >= dr.service_date
+          AND CASE EXTRACT('isodow' FROM dr.service_date)
+                WHEN 1 THEN c.monday
+                WHEN 2 THEN c.tuesday
+                WHEN 3 THEN c.wednesday
+                WHEN 4 THEN c.thursday
+                WHEN 5 THEN c.friday
+                WHEN 6 THEN c.saturday
+                WHEN 7 THEN c.sunday
+              END = 1
+    ),
+
+    _calendar_dates_removed AS (
+        SELECT cd.service_id,
+               STRPTIME(CAST(cd.date AS VARCHAR), '%Y%m%d')::DATE AS service_date
+        FROM calendar_dates cd
+        WHERE cd.exception_type = 2
+    ),
+
+    _calendar_dates_added AS (
+        SELECT cd.service_id,
+               STRPTIME(CAST(cd.date AS VARCHAR), '%Y%m%d')::DATE AS service_date
+        FROM calendar_dates cd
+        CROSS JOIN _date_range dr
+        WHERE STRPTIME(CAST(cd.date AS VARCHAR), '%Y%m%d')::DATE = dr.service_date
+          AND cd.exception_type = 1
+    ),
+
+    _active_services AS (
+        SELECT service_id, service_date FROM _calendar_active
+        EXCEPT
+        SELECT service_id, service_date FROM _calendar_dates_removed
+        UNION
+        SELECT service_id, service_date FROM _calendar_dates_added
+    ),
+
+    effective_stop_times AS (
+        SELECT st.*, asr.service_date
+        FROM stop_times st
+        JOIN trips t ON st.trip_id = t.trip_id
+        JOIN _active_services asr ON t.service_id = asr.service_id
+        WHERE st.arrival_time IS NOT NULL
+          AND st.arrival_time != ''
+          AND gtfs_datetime(asr.service_date, st.arrival_time)
+                >= (SELECT start_ts FROM _param_dates)
+          AND gtfs_datetime(asr.service_date, st.arrival_time)
+                < (SELECT end_ts FROM _param_dates)
+    )"""
+
+
+def _aggregated_stops_query(
+    delimiter: str,
+    max_distance: float,
+    start_dt: str | None = None,
+    end_dt: str | None = None,
+) -> str:
     return f"""
     WITH {_stop_grouping_cte(delimiter, max_distance)},
 
+    {_time_filter_cte(start_dt, end_dt)},
+
     stop_trip_counts AS (
       SELECT stop_id, COUNT(*) AS trip_count
-      FROM stop_times
+      FROM effective_stop_times
       GROUP BY stop_id
     ),
 
@@ -164,16 +259,24 @@ def _aggregated_stops_query(delimiter: str, max_distance: float) -> str:
     """
 
 
-def _aggregated_segments_query(delimiter: str, max_distance: float) -> str:
+def _aggregated_segments_query(
+    delimiter: str,
+    max_distance: float,
+    start_dt: str | None = None,
+    end_dt: str | None = None,
+) -> str:
     return f"""
     WITH {_stop_grouping_cte(delimiter, max_distance)},
+
+    {_time_filter_cte(start_dt, end_dt)},
 
     stop_times_with_similar AS (
       SELECT
         st.trip_id,
         st.stop_sequence,
+        st.service_date,
         r.similar_stop_id
-      FROM stop_times st
+      FROM effective_stop_times st
       JOIN all_stop_relations r ON st.stop_id = r.stop_id
     ),
 
@@ -182,7 +285,7 @@ def _aggregated_segments_query(delimiter: str, max_distance: float) -> str:
         trip_id,
         similar_stop_id AS from_similar_stop,
         LEAD(similar_stop_id) OVER (
-          PARTITION BY trip_id ORDER BY stop_sequence
+          PARTITION BY trip_id, service_date ORDER BY stop_sequence
         ) AS to_similar_stop
       FROM stop_times_with_similar
     ),
@@ -264,6 +367,8 @@ class GtfsAggregateAlgorithm(QgsProcessingAlgorithm):
     INPUT = "INPUT"
     DELIMITER = "DELIMITER"
     MAX_DISTANCE = "MAX_DISTANCE"
+    START_DATETIME = "START_DATETIME"
+    END_DATETIME = "END_DATETIME"
     APPLY_STYLE = "APPLY_STYLE"
     OUTPUT_STOPS = "OUTPUT_STOPS"
     OUTPUT_SEGMENTS = "OUTPUT_SEGMENTS"
@@ -320,6 +425,20 @@ class GtfsAggregateAlgorithm(QgsProcessingAlgorithm):
             )
         )
         self.addParameter(
+            QgsProcessingParameterDateTime(
+                self.START_DATETIME,
+                self.tr("Start Date/Time (inclusive)"),
+                optional=True,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterDateTime(
+                self.END_DATETIME,
+                self.tr("End Date/Time (exclusive)"),
+                optional=True,
+            )
+        )
+        self.addParameter(
             QgsProcessingParameterBoolean(
                 self.APPLY_STYLE,
                 self.tr("Apply Style"),
@@ -361,6 +480,23 @@ class GtfsAggregateAlgorithm(QgsProcessingAlgorithm):
         )
         apply_style = self.parameterAsBool(parameters, self.APPLY_STYLE, context)
 
+        start_dt = self.parameterAsDateTime(
+            parameters, self.START_DATETIME, context
+        )
+        end_dt = self.parameterAsDateTime(parameters, self.END_DATETIME, context)
+        start_dt_str = (
+            start_dt.toString("yyyy-MM-dd HH:mm:ss") if start_dt.isValid() else None
+        )
+        end_dt_str = (
+            end_dt.toString("yyyy-MM-dd HH:mm:ss") if end_dt.isValid() else None
+        )
+        if bool(start_dt_str) != bool(end_dt_str):
+            raise QgsProcessingException(
+                self.tr(
+                    "Both Start and End Date/Time must be specified, or neither."
+                )
+            )
+
         want_stops = self.OUTPUT_STOPS in parameters and parameters[self.OUTPUT_STOPS]
         want_segments = (
             self.OUTPUT_SEGMENTS in parameters and parameters[self.OUTPUT_SEGMENTS]
@@ -379,35 +515,57 @@ class GtfsAggregateAlgorithm(QgsProcessingAlgorithm):
         try:
             if want_stops:
                 dest_id = self._aggregate_stops(
-                    parameters, context, feedback, gtfs.conn, delimiter, max_distance
+                    parameters,
+                    context,
+                    feedback,
+                    gtfs.conn,
+                    delimiter,
+                    max_distance,
+                    start_dt_str,
+                    end_dt_str,
                 )
                 results[self.OUTPUT_STOPS] = dest_id
                 if apply_style and context.willLoadLayerOnCompletion(dest_id):
                     qml = os.path.join(_STYLE_DIR, "aggregated_stops.qml")
-                    context.layerToLoadOnCompletionDetails(
-                        dest_id
-                    ).setPostProcessor(_QmlStylePostProcessor.create(qml))
+                    context.layerToLoadOnCompletionDetails(dest_id).setPostProcessor(
+                        _QmlStylePostProcessor.create(qml)
+                    )
 
             if feedback.isCanceled():
                 return results
 
             if want_segments:
                 dest_id = self._aggregate_segments(
-                    parameters, context, feedback, gtfs.conn, delimiter, max_distance
+                    parameters,
+                    context,
+                    feedback,
+                    gtfs.conn,
+                    delimiter,
+                    max_distance,
+                    start_dt_str,
+                    end_dt_str,
                 )
                 results[self.OUTPUT_SEGMENTS] = dest_id
                 if apply_style and context.willLoadLayerOnCompletion(dest_id):
                     qml = os.path.join(_STYLE_DIR, "aggregated_routes.qml")
-                    context.layerToLoadOnCompletionDetails(
-                        dest_id
-                    ).setPostProcessor(_QmlStylePostProcessor.create(qml))
+                    context.layerToLoadOnCompletionDetails(dest_id).setPostProcessor(
+                        _QmlStylePostProcessor.create(qml)
+                    )
         finally:
             gtfs.conn.close()
 
         return results
 
     def _aggregate_stops(
-        self, parameters, context, feedback, conn, delimiter, max_distance
+        self,
+        parameters,
+        context,
+        feedback,
+        conn,
+        delimiter,
+        max_distance,
+        start_dt=None,
+        end_dt=None,
     ) -> str:
         fields = QgsFields()
         fields.append(QgsField("similar_stop_id", QVariant.String))
@@ -428,7 +586,7 @@ class GtfsAggregateAlgorithm(QgsProcessingAlgorithm):
                 self.invalidSinkError(parameters, self.OUTPUT_STOPS)
             )
 
-        query = _aggregated_stops_query(delimiter, max_distance)
+        query = _aggregated_stops_query(delimiter, max_distance, start_dt, end_dt)
         result = conn.execute(query).fetchall()
 
         total = len(result)
@@ -452,7 +610,15 @@ class GtfsAggregateAlgorithm(QgsProcessingAlgorithm):
         return dest_id
 
     def _aggregate_segments(
-        self, parameters, context, feedback, conn, delimiter, max_distance
+        self,
+        parameters,
+        context,
+        feedback,
+        conn,
+        delimiter,
+        max_distance,
+        start_dt=None,
+        end_dt=None,
     ) -> str:
         fields = QgsFields()
         fields.append(QgsField("from_stop_id", QVariant.String))
@@ -476,7 +642,7 @@ class GtfsAggregateAlgorithm(QgsProcessingAlgorithm):
                 self.invalidSinkError(parameters, self.OUTPUT_SEGMENTS)
             )
 
-        query = _aggregated_segments_query(delimiter, max_distance)
+        query = _aggregated_segments_query(delimiter, max_distance, start_dt, end_dt)
         result = conn.execute(query).fetchall()
 
         total = len(result)
