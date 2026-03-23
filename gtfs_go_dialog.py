@@ -354,7 +354,12 @@ class GTFSGoDialog(QDialog):
             routes_vlayer = QgsVectorLayer(
                 routes_geojson, os.path.basename(routes_geojson).split(".")[0], "ogr"
             )
-            routes_renderer = Renderer(routes_vlayer, "route_name")
+            routes_renderer = Renderer(
+                routes_vlayer,
+                "route_id",
+                use_random_colors=self.ui.useRandomColorsCheckbox.isChecked(),
+                target_label_field_name="route_name",
+            )
             routes_vlayer.setRenderer(routes_renderer.make_renderer())
 
             QgsProject.instance().addMapLayer(routes_vlayer, False)

@@ -286,6 +286,16 @@
         </item>
        </layout>
       </item>
+      <item>
+       <widget class="QCheckBox" name="useRandomColorsCheckbox">
+        <property name="text">
+         <string>use random colors</string>
+        </property>
+        <property name="checked">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
