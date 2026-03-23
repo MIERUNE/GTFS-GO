@@ -4,12 +4,12 @@
 <context>
     <name>GTFSGo</name>
     <message>
-        <location filename="../gtfs_go.py" line="173"/>
+        <location filename="../gtfs_go.py" line="200"/>
         <source>&amp;GTFS GO</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gtfs_go.py" line="140"/>
+        <location filename="../gtfs_go.py" line="169"/>
         <source>GTFS GO</source>
         <translation type="unfinished"></translation>
     </message>
@@ -17,22 +17,22 @@
 <context>
     <name>GTFSGoDialog</name>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="54"/>
+        <location filename="../gtfs_go_dialog.py" line="71"/>
         <source>---Load local ZipFile---</source>
         <translation>---ZIPファイルから読み込み---</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="436"/>
+        <location filename="../gtfs_go_dialog.py" line="435"/>
         <source>finish</source>
         <translation>完了</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="436"/>
+        <location filename="../gtfs_go_dialog.py" line="435"/>
         <source>generated geojson files: </source>
         <translation>GeoJSONファイルが出力されました: </translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="59"/>
+        <location filename="../gtfs_go_dialog.py" line="76"/>
         <source>Preset</source>
         <translation type="unfinished">プリセット</translation>
     </message>
@@ -42,22 +42,22 @@
         <translation type="obsolete">GTFSデータリポジトリ</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="114"/>
+        <location filename="../gtfs_go_dialog.py" line="129"/>
         <source>any</source>
         <translation type="unfinished">すべて</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="498"/>
+        <location filename="../gtfs_go_dialog.py" line="497"/>
         <source>Searching...</source>
         <translation type="unfinished">検索中…</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="529"/>
+        <location filename="../gtfs_go_dialog.py" line="528"/>
         <source>Error</source>
         <translation type="unfinished">エラー</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="529"/>
+        <location filename="../gtfs_go_dialog.py" line="528"/>
         <source>Error occured, please check:
 - Internet connection.
 - Repository-server</source>
@@ -66,19 +66,14 @@
 ・リポジトリサーバーの稼働状況</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="540"/>
+        <location filename="../gtfs_go_dialog.py" line="539"/>
         <source>Search</source>
         <translation type="unfinished">検索</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog.py" line="60"/>
+        <location filename="../gtfs_go_dialog.py" line="77"/>
         <source>[Japan]GTFS data repository</source>
         <translation type="unfinished">[Japan]GTFSデータリポジトリ</translation>
-    </message>
-    <message>
-        <location filename="../gtfs_go_dialog.py" line="149"/>
-        <source>Failed to download GTFS data from the URL: </source>
-        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -114,27 +109,27 @@
         <translation>経路を持たないstopsを無視する</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="432"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="422"/>
         <source>time filter</source>
         <translation>発時刻で抽出</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="451"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="441"/>
         <source>00:00:00</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="461"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="451"/>
         <source>&lt;=departure_time&lt;</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="503"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="493"/>
         <source>scale stop size to count</source>
         <translation>stopの大きさで頻度を表す</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="549"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="539"/>
         <source>Extract on QGIS</source>
         <translation>QGISに読み込む</translation>
     </message>
@@ -149,27 +144,27 @@
         <translation>経路と停留所を描画</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="305"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="295"/>
         <source>aggregate route frequency</source>
         <translation>運行頻度を集計</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="393"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="383"/>
         <source>stop_id delimiter</source>
         <translation>stop_idの区切り文字</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="412"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="402"/>
         <source>_</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="335"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="325"/>
         <source>filter by day</source>
         <translation>運行日で抽出</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="377"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="367"/>
         <source>unify similar stops</source>
         <translation>stopを名寄せする</translation>
     </message>
@@ -199,13 +194,8 @@
         <translation type="unfinished">都道府県で絞り込み</translation>
     </message>
     <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="480"/>
+        <location filename="../gtfs_go_dialog_base.ui" line="470"/>
         <source>27:00:00</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../gtfs_go_dialog_base.ui" line="292"/>
-        <source>use random colors</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

@@ -50,34 +50,28 @@ def _route_symbol_color_name(renderer, route_name):
 
 
 class TestRenderer(unittest.TestCase):
-    def test_use_gtfs_route_color_when_random_is_disabled(self):
+    def test_use_gtfs_route_color_when_present(self):
         layer = _make_route_layer([("Route A", "FF0000")])
-        renderer = Renderer(
-            layer, "route_name", use_random_colors=False
-        ).make_renderer()
+        renderer = Renderer(layer, "route_name").make_renderer()
 
         assert _route_symbol_color_name(renderer, "Route A") == "#FF0000"
 
-    def test_always_use_random_when_random_is_enabled(self):
+    def test_use_gtfs_route_color_even_when_random_fallback_exists(self):
         layer = _make_route_layer([("Route A", "FF0000")])
-        renderer = Renderer(layer, "route_name", use_random_colors=True).make_renderer()
+        renderer = Renderer(layer, "route_name").make_renderer()
 
-        assert _route_symbol_color_name(renderer, "Route A") != "#FF0000"
+        assert _route_symbol_color_name(renderer, "Route A") == "#FF0000"
 
     def test_fallback_to_random_when_color_missing_or_empty(self):
         layer = _make_route_layer([("Missing", None), ("Empty", "")])
-        renderer = Renderer(
-            layer, "route_name", use_random_colors=False
-        ).make_renderer()
+        renderer = Renderer(layer, "route_name").make_renderer()
 
         assert _route_symbol_color_name(renderer, "Missing") != "#FF0000"
         assert _route_symbol_color_name(renderer, "Empty") != "#FF0000"
 
     def test_prefers_valid_gtfs_color_with_duplicate_category_values(self):
         layer = _make_route_layer([("Same Name", ""), ("Same Name", "F09EC0")])
-        renderer = Renderer(
-            layer, "route_name", use_random_colors=False
-        ).make_renderer()
+        renderer = Renderer(layer, "route_name").make_renderer()
 
         assert _route_symbol_color_name(renderer, "Same Name") == "#F09EC0"
 
@@ -87,9 +81,7 @@ class TestRenderer(unittest.TestCase):
         )
         renderer = Renderer(
             layer,
-            "route_id",
-            use_random_colors=False,
-            target_label_field_name="route_name",
+            "route_name",
         ).make_renderer()
 
         assert _route_symbol_color_name(renderer, "A") == "#F09EC0"
