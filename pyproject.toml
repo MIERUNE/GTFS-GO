@@ -14,10 +14,17 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pyqt5-stubs>=5.15.6.0",
+    "pytest>=7.0",
+    "pytest-qgis>=2.0",
     "ruff>=0.8.2",
 ]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [tool.ruff]
+# gtfs_parser is a git submodule (linted in its own repository)
+extend-exclude = ["gtfs_parser"]
 lint.select = ["F", "E", "W", "B", "C90", "N", "I"]
 lint.ignore = ["N999", "N802", "F401", "E501", "N806", "C901", "N803", "N815", "B018"]
 target-version = "py39"

@@ -7,3 +7,5 @@ coverage.xml
 .pytest_cache/
 .ruff_cache/
 requirements.txt
+# created by pytest-qgis test runs
+.qgis-settings/
