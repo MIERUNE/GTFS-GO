@@ -25,8 +25,8 @@ from gtfs_go_settings import (
 def _get_random_color():
     import random
 
-    random_index = random.randrange(0, len(ROUTES_COLOR_LIST) - 1, 1)
-    return QColor(ROUTES_COLOR_LIST[random_index])
+    # not for security purposes: only varies layer symbol colors
+    return QColor(random.choice(ROUTES_COLOR_LIST))  # nosec B311
 
 
 class Renderer:
