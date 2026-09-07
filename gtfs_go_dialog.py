@@ -40,6 +40,9 @@ TEMP_DIR = os.path.join(tempfile.gettempdir(), "GTFSGo")
 
 REPOSITORY_ENUM = {"preset": 0, "japanDpf": 1}
 
+# seconds; (connect, read) timeout for downloading a GTFS zip
+DOWNLOAD_TIMEOUT_SEC = (10, 300)
+
 
 class GTFSGoDialog(QDialog):
     def __init__(self, iface: QgisInterface):
@@ -144,7 +147,7 @@ class GTFSGoDialog(QDialog):
         return "[" + data["country"] + "]" + "[" + data["region"] + "]" + data["name"]
 
     def download_zip(self, url: str) -> Optional[str]:
-        response = requests.get(url)
+        response = requests.get(url, timeout=DOWNLOAD_TIMEOUT_SEC)
         if response.status_code != 200:
             self.iface.messageBar().pushCritical(
                 self.tr("Error"),

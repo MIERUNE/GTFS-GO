@@ -30,3 +30,6 @@ jobs:
 
             - name: Format with ruff
               run: uv run ruff format . --check --diff
+
+            - name: Security check with bandit
+              run: uv run bandit -c pyproject.toml -l -r .
