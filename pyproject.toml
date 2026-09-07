@@ -31,5 +31,6 @@ lint.ignore = ["N999", "N802", "F401", "E501", "N806", "C901", "N803", "N815", "
 target-version = "py39"
 
 [tool.bandit]
-# gtfs_parser is a git submodule (scanned in its own repository)
-exclude_dirs = ["tests", "gtfs_parser", ".venv"]
+# gtfs_parser is a git submodule, but its source is shipped with the plugin,
+# so it is scanned here too. Only test code is excluded.
+exclude_dirs = ["tests", ".venv"]
