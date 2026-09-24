@@ -79,12 +79,13 @@ In result.csv, you can see stops unifying result.
 
 ### Processing Toolbox
 
-The conversions are also available as Processing algorithms under the `GTFS-GO` provider, so they can be used in the Processing Toolbox, Graphical Modeler, batch processing and `processing.run()`. Input is a local GTFS zip file.
+The conversions and the repository search are also available as Processing algorithms under the `GTFS-GO` provider, so they can be used in the Processing Toolbox, Graphical Modeler, batch processing and `processing.run()`. Input of the conversions is a local GTFS zip file.
 
 | Algorithm | ID | Outputs |
 | --- | --- | --- |
 | Extract routes and stops | `gtfsgo:extractroutesandstops` | routes, stops |
 | Aggregate traffic frequency | `gtfsgo:aggregatefrequency` | aggregated routes, aggregated stops, stop relations (table) |
+| Search [Japan]GTFS data repository | `gtfsgo:searchjapandpf` | GTFS feeds (table, `file_url` is the URL of the GTFS zip) |
 
 ```python
 processing.run(
@@ -99,6 +100,18 @@ processing.run(
         "OUTPUT_ROUTES": "TEMPORARY_OUTPUT",
         "OUTPUT_STOPS": "TEMPORARY_OUTPUT",
         "OUTPUT_STOP_RELATIONS": "TEMPORARY_OUTPUT",
+    },
+)
+```
+
+```python
+processing.run(
+    "gtfsgo:searchjapandpf",
+    {
+        "TARGET_DATE": QDate(2024, 4, 1),
+        "EXTENT": "141.0,144.0,42.0,44.0 [EPSG:4326]",  # optional
+        "PREF": 1,  # optional, prefecture code (1: 北海道 ... 47: 沖縄県), 0: any
+        "OUTPUT": "TEMPORARY_OUTPUT",
     },
 )
 ```

@@ -5,9 +5,12 @@ import shutil
 
 import pytest
 from qgis.core import (
+    QgsCoordinateReferenceSystem,
     QgsProcessingContext,
     QgsProcessingFeedback,
     QgsProject,
+    QgsRectangle,
+    QgsReferencedRectangle,
     QgsVectorLayer,
 )
 from qgis.PyQt.QtCore import QDate
@@ -15,6 +18,7 @@ from qgis.PyQt.QtCore import QDate
 from processing_provider.aggregate_frequency import AggregateFrequencyAlgorithm
 from processing_provider.extract_routes_stops import ExtractRoutesAndStopsAlgorithm
 from processing_provider.provider import GTFSGoProvider
+from processing_provider.search_japan_dpf import SearchJapanDpfAlgorithm
 from processing_provider.utils import gtfs_parser
 
 FIXTURE_DIR = os.path.join(
@@ -52,6 +56,7 @@ def test_provider_algorithms(qgis_app):
     assert {alg.name() for alg in provider.algorithms()} == {
         "extractroutesandstops",
         "aggregatefrequency",
+        "searchjapandpf",
     }
 
 
@@ -196,6 +201,81 @@ def test_aggregate_invalid_time(qgis_app, gtfs_zip, begin, end):
     assert not ok
 
 
+DPF_FEED = {
+    "organization_id": "org1",
+    "organization_name": "Org",
+    "feed_id": "feed1",
+    "feed_name": "Feed",
+    "feed_pref_id": 1,
+    "feed_license_id": "CC BY 4.0",
+    "file_uid": "uid1",
+    "file_from_date": "2024-04-01",
+    "file_to_date": "2025-03-31",
+    "file_url": "https://example.com/gtfs.zip",
+}
+
+
+@pytest.fixture
+def get_feeds(monkeypatch):
+    calls = []
+
+    def fake(target_date, extent=None, pref=None):
+        calls.append({"target_date": target_date, "extent": extent, "pref": pref})
+        return [dict(DPF_FEED)]
+
+    monkeypatch.setattr("processing_provider.search_japan_dpf.api.get_feeds", fake)
+    return calls
+
+
+def test_search_japan_dpf(qgis_app, get_feeds, tmp_path):
+    output_path = str(tmp_path / "feeds.csv")
+    run(
+        SearchJapanDpfAlgorithm(),
+        {
+            "TARGET_DATE": QDate(2024, 4, 1),
+            "EXTENT": QgsReferencedRectangle(
+                QgsRectangle(141.0, 42.0, 144.0, 44.0),
+                QgsCoordinateReferenceSystem("EPSG:4326"),
+            ),
+            "PREF": 1,  # 北海道
+            "OUTPUT": output_path,
+        },
+    )
+    assert get_feeds == [
+        {"target_date": "2024-04-01", "extent": "141.0,42.0,144.0,44.0", "pref": 1}
+    ]
+
+    feeds = load(output_path)
+    assert feeds.featureCount() == 1
+    feed = next(feeds.getFeatures())
+    assert feed["feed_name"] == "Feed"
+    assert feed["feed_pref"] == "北海道"
+    assert feed["file_url"] == "https://example.com/gtfs.zip"
+
+
+def test_search_japan_dpf_no_filter(qgis_app, get_feeds):
+    run(
+        SearchJapanDpfAlgorithm(),
+        {"TARGET_DATE": QDate(2024, 4, 1), "OUTPUT": "memory:"},
+    )
+    assert get_feeds == [{"target_date": "2024-04-01", "extent": None, "pref": None}]
+
+
+def test_search_japan_dpf_error(qgis_app, monkeypatch):
+    def fail(*args, **kwargs):
+        raise Exception("network error")
+
+    monkeypatch.setattr("processing_provider.search_japan_dpf.api.get_feeds", fail)
+    alg = SearchJapanDpfAlgorithm().create()
+    context = QgsProcessingContext()
+    feedback = QgsProcessingFeedback()
+    _, ok = alg.run(
+        {"TARGET_DATE": QDate(2024, 4, 1), "OUTPUT": "memory:"}, context, feedback
+    )
+    assert not ok
+    assert "network error" in feedback.textLog()
+
+
 def test_plugin_registers_provider(qgis_iface):
     from qgis.core import QgsApplication
     from qgis.PyQt.QtCore import QSettings
@@ -208,5 +288,6 @@ def test_plugin_registers_provider(qgis_iface):
     registry = QgsApplication.processingRegistry()
     assert registry.algorithmById("gtfsgo:extractroutesandstops") is not None
     assert registry.algorithmById("gtfsgo:aggregatefrequency") is not None
+    assert registry.algorithmById("gtfsgo:searchjapandpf") is not None
     plugin.unload()
     assert registry.providerById("gtfsgo") is None
