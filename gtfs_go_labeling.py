@@ -64,6 +64,8 @@ def get_labeling_for_aggregated_routes(target_field_name="frequency"):
     pal_layer.setFormat(text_format)
     pal_layer.fieldName = target_field_name
     pal_layer.placement = Qgis.LabelPlacement.Line
-    pal_layer.lineSettings().setPlacementFlags(Qgis.LabelLinePlacementFlag.AboveLine)
+    line_settings = pal_layer.lineSettings()
+    line_settings.setPlacementFlags(Qgis.LabelLinePlacementFlag.AboveLine)
+    pal_layer.setLineSettings(line_settings)
     pal_layer.enabled = True
     return QgsVectorLayerSimpleLabeling(pal_layer)
