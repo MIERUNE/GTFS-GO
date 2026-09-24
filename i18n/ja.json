@@ -32,6 +32,7 @@
   "[Japan]GTFS data repository": "[Japan]GTFSデータリポジトリ",
   "aggregate route frequency": "運行頻度を集計",
   "any": "すべて",
+  "apply style to output layers": "出力レイヤーにスタイルを適用する",
   "begin time (hh:mm:ss)": "開始時刻（hh:mm:ss）",
   "end time (hh:mm:ss)": "終了時刻（hh:mm:ss）",
   "extent": "範囲",

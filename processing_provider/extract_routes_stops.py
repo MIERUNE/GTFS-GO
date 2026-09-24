@@ -9,10 +9,15 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QMetaType
 
 import i18n
+from gtfs_go_styles import (
+    style_routes_layer,
+    style_stops_layer,
+)
 from processing_provider.utils import (
     GTFS_FILE_FILTER,
     gtfs_parser,
     make_fields,
+    set_style_on_completion,
     write_features,
 )
 
@@ -31,6 +36,7 @@ class ExtractRoutesAndStopsAlgorithm(QgsProcessingAlgorithm):
     INPUT = "INPUT"
     IGNORE_SHAPES = "IGNORE_SHAPES"
     IGNORE_NO_ROUTE = "IGNORE_NO_ROUTE"
+    APPLY_STYLE = "APPLY_STYLE"
     OUTPUT_ROUTES = "OUTPUT_ROUTES"
     OUTPUT_STOPS = "OUTPUT_STOPS"
 
@@ -73,6 +79,13 @@ class ExtractRoutesAndStopsAlgorithm(QgsProcessingAlgorithm):
             )
         )
         self.addParameter(
+            QgsProcessingParameterBoolean(
+                self.APPLY_STYLE,
+                i18n.tr("apply style to output layers"),
+                defaultValue=True,
+            )
+        )
+        self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT_ROUTES,
                 i18n.tr("Routes"),
@@ -93,13 +106,14 @@ class ExtractRoutesAndStopsAlgorithm(QgsProcessingAlgorithm):
         ignore_no_route = self.parameterAsBool(
             parameters, self.IGNORE_NO_ROUTE, context
         )
+        apply_style = self.parameterAsBool(parameters, self.APPLY_STYLE, context)
         crs = QgsCoordinateReferenceSystem("EPSG:4326")
 
         feedback.pushInfo(i18n.tr("Loading GTFS..."))
         gtfs = gtfs_parser.GTFSFactory(gtfs_path)
 
         results = {}
-        for output, fields_def, wkb_type, read in (
+        for output, fields_def, wkb_type, read, style_func in (
             (
                 self.OUTPUT_ROUTES,
                 ROUTES_FIELDS,
@@ -107,6 +121,7 @@ class ExtractRoutesAndStopsAlgorithm(QgsProcessingAlgorithm):
                 lambda: gtfs_parser.parse.read_routes(
                     gtfs, ignore_shapes=ignore_shapes
                 ),
+                style_routes_layer,
             ),
             (
                 self.OUTPUT_STOPS,
@@ -115,6 +130,7 @@ class ExtractRoutesAndStopsAlgorithm(QgsProcessingAlgorithm):
                 lambda: gtfs_parser.parse.read_stops(
                     gtfs, ignore_no_route=ignore_no_route
                 ),
+                style_stops_layer,
             ),
         ):
             if feedback.isCanceled():
@@ -124,6 +140,8 @@ class ExtractRoutesAndStopsAlgorithm(QgsProcessingAlgorithm):
                 parameters, output, context, fields, wkb_type, crs
             )
             write_features(sink, fields, read(), feedback)
+            if apply_style:
+                set_style_on_completion(context, dest_id, style_func)
             results[output] = dest_id
 
         return results

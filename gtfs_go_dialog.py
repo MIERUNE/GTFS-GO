@@ -14,7 +14,6 @@ from qgis.core import (
     QgsProcessingFeedback,
     QgsProject,
     QgsReferencedRectangle,
-    QgsSymbolLayer,
     QgsVectorLayer,
 )
 from qgis.gui import QgisInterface
@@ -25,12 +24,12 @@ from qgis.PyQt.QtWidgets import QAbstractItemView, QDialog, QLineEdit
 import constants
 import i18n
 import repository
-from gtfs_go_labeling import (
-    get_labeling_for_aggregated_routes,
-    get_labeling_for_stops,
+from gtfs_go_styles import (
+    style_aggregated_routes_layer,
+    style_aggregated_stops_layer,
+    style_routes_layer,
+    style_stops_layer,
 )
-from gtfs_go_renderer import Renderer, make_frequency_renderer
-from gtfs_go_settings import STOPS_MINIMUM_VISIBLE_SCALE
 from processing_provider.aggregate_frequency import AggregateFrequencyAlgorithm
 from processing_provider.extract_routes_stops import ExtractRoutesAndStopsAlgorithm
 from processing_provider.search_japan_dpf import SearchJapanDpfAlgorithm
@@ -342,8 +341,7 @@ class GTFSGoDialog(QDialog):
             routes_vlayer = QgsVectorLayer(
                 routes_geojson, os.path.basename(routes_geojson).split(".")[0], "ogr"
             )
-            routes_renderer = Renderer(routes_vlayer, "route_name")
-            routes_vlayer.setRenderer(routes_renderer.make_renderer())
+            style_routes_layer(routes_vlayer)
 
             QgsProject.instance().addMapLayer(routes_vlayer, False)
             group.insertLayer(0, routes_vlayer)
@@ -352,17 +350,7 @@ class GTFSGoDialog(QDialog):
             stops_vlayer = QgsVectorLayer(
                 stops_geojson, os.path.basename(stops_geojson).split(".")[0], "ogr"
             )
-            # make and set labeling for stops
-            stops_labeling = get_labeling_for_stops("stop_name")
-            stops_vlayer.setLabelsEnabled(True)
-            stops_vlayer.setLabeling(stops_labeling)
-
-            # adjust layer visibility
-            stops_vlayer.setMinimumScale(STOPS_MINIMUM_VISIBLE_SCALE)
-            stops_vlayer.setScaleBasedVisibility(True)
-
-            stops_renderer = Renderer(stops_vlayer, "stop_name")
-            stops_vlayer.setRenderer(stops_renderer.make_renderer())
+            style_stops_layer(stops_vlayer)
 
             QgsProject.instance().addMapLayer(stops_vlayer, False)
             group.insertLayer(0, stops_vlayer)
@@ -373,13 +361,7 @@ class GTFSGoDialog(QDialog):
                 os.path.basename(aggregated_routes_geojson).split(".")[0],
                 "ogr",
             )
-            aggregated_routes_vlayer.setLabelsEnabled(True)
-            aggregated_routes_vlayer.setLabeling(
-                get_labeling_for_aggregated_routes("frequency")
-            )
-            aggregated_routes_vlayer.setRenderer(
-                make_frequency_renderer(aggregated_routes_vlayer, "frequency")
-            )
+            style_aggregated_routes_layer(aggregated_routes_vlayer)
 
             QgsProject.instance().addMapLayer(aggregated_routes_vlayer, False)
             group.insertLayer(0, aggregated_routes_vlayer)
@@ -390,21 +372,10 @@ class GTFSGoDialog(QDialog):
                 os.path.basename(aggregated_stops_geojson).split(".")[0],
                 "ogr",
             )
-            aggregated_stops_vlayer.loadNamedStyle(
-                os.path.join(os.path.dirname(__file__), "aggregated_stops.qml")
+            style_aggregated_stops_layer(
+                aggregated_stops_vlayer,
+                scale_stop_size=self.ui.scaleStopSizeCheckBox.isChecked(),
             )
-
-            scale_stop_size = self.ui.scaleStopSizeCheckBox.isChecked()
-            dd_props = (
-                aggregated_stops_vlayer.renderer()
-                .symbol()
-                .symbolLayers()[0]
-                .dataDefinedProperties()
-            )
-            if dd_props.hasProperty(QgsSymbolLayer.PropertySize):
-                dd_props.property(QgsSymbolLayer.PropertySize).setActive(
-                    scale_stop_size
-                )
 
             QgsProject.instance().addMapLayer(aggregated_stops_vlayer, False)
             group.insertLayer(0, aggregated_stops_vlayer)
