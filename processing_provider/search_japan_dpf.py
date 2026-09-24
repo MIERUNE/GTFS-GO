@@ -8,9 +8,10 @@ from qgis.core import (
     QgsProcessingParameterExtent,
     QgsProcessingParameterFeatureSink,
 )
-from qgis.PyQt.QtCore import QCoreApplication, QDate, QMetaType
+from qgis.PyQt.QtCore import QDate, QMetaType
 
 import constants
+import i18n
 from processing_provider.utils import make_fields, write_features
 from repository.japan_dpf import api
 
@@ -52,9 +53,6 @@ class SearchJapanDpfAlgorithm(QgsProcessingAlgorithm):
     PREF = "PREF"
     OUTPUT = "OUTPUT"
 
-    def tr(self, string):
-        return QCoreApplication.translate("GTFSGo", string)
-
     def createInstance(self):
         return SearchJapanDpfAlgorithm()
 
@@ -62,10 +60,10 @@ class SearchJapanDpfAlgorithm(QgsProcessingAlgorithm):
         return "searchjapandpf"
 
     def displayName(self):
-        return self.tr("Search [Japan]GTFS data repository")
+        return i18n.tr("Search [Japan]GTFS data repository")
 
     def shortHelpString(self):
-        return self.tr(
+        return i18n.tr(
             "Search GTFS feeds valid on the target date in the GTFS data repository "
             "(https://gtfs-data.jp).\n"
             "Feeds can be filtered by extent and prefecture. "
@@ -76,7 +74,7 @@ class SearchJapanDpfAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterDateTime(
                 self.TARGET_DATE,
-                self.tr("target date"),
+                i18n.tr("target date"),
                 type=Qgis.ProcessingDateTimeParameterDataType.Date,
                 defaultValue=QDate.currentDate(),
             )
@@ -84,22 +82,22 @@ class SearchJapanDpfAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterExtent(
                 self.EXTENT,
-                self.tr("extent"),
+                i18n.tr("extent"),
                 optional=True,
             )
         )
         self.addParameter(
             QgsProcessingParameterEnum(
                 self.PREF,
-                self.tr("prefecture"),
-                options=[self.tr("any")] + PREF_NAMES,
+                i18n.tr("prefecture"),
+                options=[i18n.tr("any")] + PREF_NAMES,
                 defaultValue=0,
             )
         )
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT,
-                self.tr("GTFS feeds"),
+                i18n.tr("GTFS feeds"),
                 Qgis.ProcessingSourceType.Vector,
             )
         )
@@ -109,7 +107,7 @@ class SearchJapanDpfAlgorithm(QgsProcessingAlgorithm):
             parameters, self.TARGET_DATE, context
         ).date()
         if not target_date.isValid():
-            raise QgsProcessingException(self.tr("target date is required."))
+            raise QgsProcessingException(i18n.tr("target date is required."))
 
         crs = QgsCoordinateReferenceSystem("EPSG:4326")
         extent = None
@@ -128,14 +126,14 @@ class SearchJapanDpfAlgorithm(QgsProcessingAlgorithm):
 
         pref_code = self.parameterAsEnum(parameters, self.PREF, context) or None
 
-        feedback.pushInfo(self.tr("Searching..."))
+        feedback.pushInfo(i18n.tr("Searching..."))
         try:
             feeds = api.get_feeds(
                 target_date.toString("yyyy-MM-dd"), extent=extent, pref=pref_code
             )
         except Exception as e:
             raise QgsProcessingException(
-                self.tr(
+                i18n.tr(
                     "Error occured, please check:\n- Internet connection.\n- Repository-server"
                 )
                 + "\n\n"
@@ -145,7 +143,7 @@ class SearchJapanDpfAlgorithm(QgsProcessingAlgorithm):
             feed["feed_pref"] = constants.JAPAN_PREFS_CODE_TO_NAME.get(
                 feed.get("feed_pref_id")
             )
-        feedback.pushInfo(self.tr("Found feeds: ") + str(len(feeds)))
+        feedback.pushInfo(i18n.tr("Found feeds: ") + str(len(feeds)))
 
         fields = make_fields(FEED_FIELDS)
         sink, dest_id = self.parameterAsSink(

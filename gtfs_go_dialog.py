@@ -23,6 +23,7 @@ from qgis.PyQt.QtCore import QDate, QSortFilterProxyModel, Qt, QVariant
 from qgis.PyQt.QtWidgets import QAbstractItemView, QDialog, QLineEdit
 
 import constants
+import i18n
 import repository
 from gtfs_go_labeling import get_labeling_for_stops
 from gtfs_go_renderer import Renderer
@@ -48,17 +49,18 @@ class GTFSGoDialog(QDialog):
         self.ui = uic.loadUi(
             os.path.join(os.path.dirname(__file__), "gtfs_go_dialog_base.ui"), self
         )
+        i18n.translate_widget(self)
         with open(DATALIST_JSON_PATH, encoding="utf-8") as f:
             self.datalist = json.load(f)
         self.iface = iface
-        self.combobox_zip_text = self.tr("---Load local ZipFile---")
+        self.combobox_zip_text = i18n.tr("---Load local ZipFile---")
         self.init_gui()
 
     def init_gui(self):
         # repository combobox
-        self.repositoryCombobox.addItem(self.tr("Preset"), REPOSITORY_ENUM["preset"])
+        self.repositoryCombobox.addItem(i18n.tr("Preset"), REPOSITORY_ENUM["preset"])
         self.repositoryCombobox.addItem(
-            self.tr("[Japan]GTFS data repository"), REPOSITORY_ENUM["japanDpf"]
+            i18n.tr("[Japan]GTFS data repository"), REPOSITORY_ENUM["japanDpf"]
         )
 
         # local repository data select combobox
@@ -111,7 +113,7 @@ class GTFSGoDialog(QDialog):
         self.japanDpfResultTableView.setColumnWidth(HEADERS.index("organization"), 110)
         self.japanDpfResultTableView.setColumnWidth(HEADERS.index("feed"), 150)
 
-        self.japanDpfPrefectureCombobox.addItem(self.tr("any"), None)
+        self.japanDpfPrefectureCombobox.addItem(i18n.tr("any"), None)
         for prefname in constants.JAPAN_PREFS_NAME_TO_CODE.keys():
             self.japanDpfPrefectureCombobox.addItem(prefname, prefname)
 
@@ -147,8 +149,8 @@ class GTFSGoDialog(QDialog):
         response = requests.get(url, timeout=DOWNLOAD_TIMEOUT_SEC)
         if response.status_code != 200:
             self.iface.messageBar().pushCritical(
-                self.tr("Error"),
-                self.tr("Failed to download GTFS data from the URL: ") + url,
+                i18n.tr("Error"),
+                i18n.tr("Failed to download GTFS data from the URL: ") + url,
             )
             return None
         data = response.content
@@ -297,7 +299,7 @@ class GTFSGoDialog(QDialog):
             message = feedback.textLog()
         if not ok:
             self.iface.messageBar().pushCritical(
-                self.tr("Error"),
+                i18n.tr("Error"),
                 alg.displayName() + ": " + message,
             )
             return None
@@ -412,7 +414,7 @@ class GTFSGoDialog(QDialog):
             group.insertLayer(0, aggregated_csv_vlayer)
 
         self.iface.messageBar().pushInfo(
-            self.tr("finish"), self.tr("generated geojson files: ")
+            i18n.tr("finish"), i18n.tr("generated geojson files: ")
         )
         self.ui.close()
 
@@ -473,7 +475,7 @@ class GTFSGoDialog(QDialog):
     def japan_dpf_search(self):
         self.ui.pushButton.setEnabled(False)
         self.japanDpfSearchButton.setEnabled(False)
-        self.japanDpfSearchButton.setText(self.tr("Searching..."))
+        self.japanDpfSearchButton.setText(i18n.tr("Searching..."))
 
         extent = self.japanDpfExtentGroupBox.outputExtent()
         pref_name = self.japanDpfPrefectureCombobox.currentData()
@@ -508,7 +510,7 @@ class GTFSGoDialog(QDialog):
                 )
         finally:
             self.japanDpfSearchButton.setEnabled(True)
-            self.japanDpfSearchButton.setText(self.tr("Search"))
+            self.japanDpfSearchButton.setText(i18n.tr("Search"))
             self.refresh()
 
     def japan_dpf_set_table(self, results: list):

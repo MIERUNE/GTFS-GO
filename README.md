@@ -124,11 +124,11 @@ Version2.0.0, in which the frequency aggregating function is added, got technica
 
 ### Translation
 
-1. edit to `gtfs_go.pro` and add `GTFSGO_lang_encoding.ts` inside the `TRANSLATION` variable
-2. cd i18n
-3. generate the translation files with `pylupdate5 ../gtfs_go.pro` on debian you have to install pylupdate with `apt install pyqt5-dev-tools`
-4. edit the newly generated file GTFSGO_lang.ts to contain the new translations
-5. generate qm file with `lrelease GTFSGO_lang_encoding.ts`
+Translations are JSON dictionaries keyed by the English source text (`i18n/<locale>.json`), not Qt .ts/.qm files. See [i18n/README.md](i18n/README.md).
+
+1. wrap a new string with `i18n.tr("...")` in Python (strings in `.ui` files are picked up automatically, except `notr="true"`)
+2. run `python3 i18n/extract.py --locale ja` (and `--locale fr`) to add the new keys with empty translations
+3. fill the translations in `i18n/ja.json` / `i18n/fr.json` (no compilation needed)
 
 ### new data sources
 

@@ -6,8 +6,9 @@ from qgis.core import (
     QgsProcessingParameterFeatureSink,
     QgsProcessingParameterFile,
 )
-from qgis.PyQt.QtCore import QCoreApplication, QMetaType
+from qgis.PyQt.QtCore import QMetaType
 
+import i18n
 from processing_provider.utils import (
     GTFS_FILE_FILTER,
     gtfs_parser,
@@ -33,9 +34,6 @@ class ExtractRoutesAndStopsAlgorithm(QgsProcessingAlgorithm):
     OUTPUT_ROUTES = "OUTPUT_ROUTES"
     OUTPUT_STOPS = "OUTPUT_STOPS"
 
-    def tr(self, string):
-        return QCoreApplication.translate("GTFSGo", string)
-
     def createInstance(self):
         return ExtractRoutesAndStopsAlgorithm()
 
@@ -43,10 +41,10 @@ class ExtractRoutesAndStopsAlgorithm(QgsProcessingAlgorithm):
         return "extractroutesandstops"
 
     def displayName(self):
-        return self.tr("Extract routes and stops")
+        return i18n.tr("Extract routes and stops")
 
     def shortHelpString(self):
-        return self.tr(
+        return i18n.tr(
             "Parse a GTFS feed into simple routes (MultiLineString) and stops (Point).\n"
             "Routes are generated from shapes.txt if it exists, otherwise from stop_times.txt."
         )
@@ -55,7 +53,7 @@ class ExtractRoutesAndStopsAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 self.INPUT,
-                self.tr("GTFS zip file"),
+                i18n.tr("GTFS zip file"),
                 behavior=Qgis.ProcessingFileParameterBehavior.File,
                 fileFilter=GTFS_FILE_FILTER,
             )
@@ -63,28 +61,28 @@ class ExtractRoutesAndStopsAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterBoolean(
                 self.IGNORE_SHAPES,
-                self.tr("ignore shapes.txt"),
+                i18n.tr("ignore shapes.txt"),
                 defaultValue=False,
             )
         )
         self.addParameter(
             QgsProcessingParameterBoolean(
                 self.IGNORE_NO_ROUTE,
-                self.tr("ignore isolated stops"),
+                i18n.tr("ignore isolated stops"),
                 defaultValue=False,
             )
         )
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT_ROUTES,
-                self.tr("Routes"),
+                i18n.tr("Routes"),
                 Qgis.ProcessingSourceType.VectorLine,
             )
         )
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT_STOPS,
-                self.tr("Stops"),
+                i18n.tr("Stops"),
                 Qgis.ProcessingSourceType.VectorPoint,
             )
         )
@@ -97,7 +95,7 @@ class ExtractRoutesAndStopsAlgorithm(QgsProcessingAlgorithm):
         )
         crs = QgsCoordinateReferenceSystem("EPSG:4326")
 
-        feedback.pushInfo(self.tr("Loading GTFS..."))
+        feedback.pushInfo(i18n.tr("Loading GTFS..."))
         gtfs = gtfs_parser.GTFSFactory(gtfs_path)
 
         results = {}

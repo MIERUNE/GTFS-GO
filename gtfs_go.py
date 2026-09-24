@@ -1,9 +1,10 @@
 import os
 
 from qgis.core import QgsApplication
-from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
+
+import i18n
 
 # Import the code for the DockWidget
 from gtfs_go_dialog import GTFSGoDialog
@@ -28,41 +29,17 @@ class GTFSGo:
         self.plugin_dir = os.path.dirname(__file__)
 
         # initialize locale
-        locale = QSettings().value("locale/userLocale")[0:2]
-        locale_path = os.path.join(
-            self.plugin_dir, "i18n", "GTFSGo_{}.qm".format(locale)
-        )
-
-        if os.path.exists(locale_path):
-            self.translator = QTranslator()
-            self.translator.load(locale_path)
-            QCoreApplication.installTranslator(self.translator)
+        i18n.load(QgsApplication.instance().locale())
 
         # Declare instance attributes
         self.actions = []
-        self.menu = self.tr("&GTFS GO")
+        self.menu = "&GTFS GO"
 
         # print "** INITIALIZING GTFSGo"
 
         self.pluginIsActive = False
         self.dialog = None
         self.provider = None
-
-    # noinspection PyMethodMayBeStatic
-
-    def tr(self, message):
-        """Get the translation for a string using Qt translation API.
-
-        We implement this ourselves since we do not inherit QObject.
-
-        :param message: String for translation.
-        :type message: str, QString
-
-        :returns: Translated version of message.
-        :rtype: QString
-        """
-        # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
-        return QCoreApplication.translate("GTFSGo", message)
 
     def add_action(
         self,
@@ -147,7 +124,7 @@ class GTFSGo:
         icon_path = os.path.join(os.path.dirname(__file__), "imgs", "busstop.png")
         self.add_action(
             icon_path,
-            text=self.tr("GTFS GO"),
+            text="GTFS GO",
             callback=self.run,
             parent=self.iface.mainWindow(),
             add_to_menu=True,
@@ -178,7 +155,7 @@ class GTFSGo:
         # print "** UNLOAD GTFSGo"
 
         for action in self.actions:
-            self.iface.removePluginWebMenu(self.tr("&GTFS GO"), action)
+            self.iface.removePluginWebMenu("&GTFS GO", action)
             self.iface.removeToolBarIcon(action)
 
         if self.provider is not None:

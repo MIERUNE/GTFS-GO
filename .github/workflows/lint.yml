@@ -31,5 +31,10 @@ jobs:
             - name: Format with ruff
               run: uv run ruff format . --check --diff
 
+            - name: Check translation keys are up to date
+              run: |
+                  python3 i18n/extract.py --locale ja --check
+                  python3 i18n/extract.py --locale fr --check
+
             - name: Security check with bandit
               run: uv run bandit -c pyproject.toml -l -r .

@@ -35,3 +35,15 @@ def test_japan_dpf_search(qgis_iface, monkeypatch):
     assert row["feed"] == "Feed"
     assert row["pref"] == "北海道"
     assert row["file_url"] == "https://example.com/gtfs.zip"
+
+
+def test_dialog_translated(qgis_iface):
+    import i18n
+
+    i18n.load("ja")
+    try:
+        dialog = GTFSGoDialog(qgis_iface)
+        assert dialog.pushButton.text() == "QGISに読み込む"
+        assert dialog.repositoryCombobox.itemText(0) == "プリセット"
+    finally:
+        i18n.load("en")
