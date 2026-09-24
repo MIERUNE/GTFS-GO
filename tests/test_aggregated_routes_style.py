@@ -9,6 +9,7 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QMetaType
 
+from gtfs_go_labeling import get_labeling_for_aggregated_routes
 from gtfs_go_renderer import make_frequency_renderer
 from gtfs_go_settings import (
     AGGREGATED_ROUTES_MAX_WIDTH_MM,
@@ -51,3 +52,11 @@ def test_make_frequency_renderer():
     for r in ranges:
         for symbol_layer in r.symbol().symbolLayers():
             assert not symbol_layer.dataDefinedProperties().hasActiveProperties()
+
+
+def test_labeling_for_aggregated_routes():
+    labeling = get_labeling_for_aggregated_routes("frequency")
+    settings = labeling.settings()
+    assert settings.fieldName == "frequency"
+    assert settings.placement == Qgis.LabelPlacement.Line
+    assert not settings.dataDefinedProperties().hasActiveProperties()

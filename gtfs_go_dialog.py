@@ -25,7 +25,10 @@ from qgis.PyQt.QtWidgets import QAbstractItemView, QDialog, QLineEdit
 import constants
 import i18n
 import repository
-from gtfs_go_labeling import get_labeling_for_stops
+from gtfs_go_labeling import (
+    get_labeling_for_aggregated_routes,
+    get_labeling_for_stops,
+)
 from gtfs_go_renderer import Renderer, make_frequency_renderer
 from gtfs_go_settings import STOPS_MINIMUM_VISIBLE_SCALE
 from processing_provider.aggregate_frequency import AggregateFrequencyAlgorithm
@@ -370,8 +373,9 @@ class GTFSGoDialog(QDialog):
                 os.path.basename(aggregated_routes_geojson).split(".")[0],
                 "ogr",
             )
-            aggregated_routes_vlayer.loadNamedStyle(
-                os.path.join(os.path.dirname(__file__), "aggregated_routes.qml")
+            aggregated_routes_vlayer.setLabelsEnabled(True)
+            aggregated_routes_vlayer.setLabeling(
+                get_labeling_for_aggregated_routes("frequency")
             )
             aggregated_routes_vlayer.setRenderer(
                 make_frequency_renderer(aggregated_routes_vlayer, "frequency")
