@@ -1,49 +1,5 @@
 <!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
-<qgis styleCategories="Symbology|Labeling" labelsEnabled="1" version="3.16.5-Hannover">
-  <renderer-v2 type="singleSymbol" symbollevels="0" forceraster="0" enableorderby="0">
-    <symbols>
-      <symbol type="line" clip_to_extent="1" name="0" force_rhr="0" alpha="1">
-        <layer enabled="1" pass="0" locked="0" class="SimpleLine">
-          <prop v="0" k="align_dash_pattern"/>
-          <prop v="round" k="capstyle"/>
-          <prop v="5;2" k="customdash"/>
-          <prop v="3x:0,0,0,0,0,0" k="customdash_map_unit_scale"/>
-          <prop v="MM" k="customdash_unit"/>
-          <prop v="0" k="dash_pattern_offset"/>
-          <prop v="3x:0,0,0,0,0,0" k="dash_pattern_offset_map_unit_scale"/>
-          <prop v="MM" k="dash_pattern_offset_unit"/>
-          <prop v="0" k="draw_inside_polygon"/>
-          <prop v="bevel" k="joinstyle"/>
-          <prop v="0,175,32,255" k="line_color"/>
-          <prop v="solid" k="line_style"/>
-          <prop v="0.26" k="line_width"/>
-          <prop v="MM" k="line_width_unit"/>
-          <prop v="0" k="offset"/>
-          <prop v="3x:0,0,0,0,0,0" k="offset_map_unit_scale"/>
-          <prop v="MM" k="offset_unit"/>
-          <prop v="0" k="ring_filter"/>
-          <prop v="0" k="tweak_dash_pattern_on_corners"/>
-          <prop v="0" k="use_custom_dash"/>
-          <prop v="3x:0,0,0,0,0,0" k="width_map_unit_scale"/>
-          <data_defined_properties>
-            <Option type="Map">
-              <Option type="QString" name="name" value=""/>
-              <Option type="Map" name="properties">
-                <Option type="Map" name="outlineWidth">
-                  <Option type="bool" name="active" value="true"/>
-                  <Option type="QString" name="expression" value="0.05 + (&quot;frequency&quot;^0.6) * 0.2"/>
-                  <Option type="int" name="type" value="3"/>
-                </Option>
-              </Option>
-              <Option type="QString" name="type" value="collection"/>
-            </Option>
-          </data_defined_properties>
-        </layer>
-      </symbol>
-    </symbols>
-    <rotation/>
-    <sizescale/>
-  </renderer-v2>
+<qgis styleCategories="Labeling" labelsEnabled="1" version="3.16.5-Hannover">
   <labeling type="simple">
     <settings calloutType="simple">
       <text-style fontWordSpacing="0" isExpression="0" fontWeight="75" blendMode="0" fieldName="frequency" fontUnderline="0" allowHtml="0" fontItalic="0" fontLetterSpacing="0" fontKerning="1" fontSizeUnit="Point" textOrientation="horizontal" multilineHeight="1" fontStrikeout="0" useSubstitutions="0" namedStyle="Normal" textOpacity="1" fontSize="10" capitalization="0" previewBkgrdColor="255,255,255,255" fontFamily="Arial" fontSizeMapUnitScale="3x:0,0,0,0,0,0" textColor="0,0,0,255">

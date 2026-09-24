@@ -26,7 +26,7 @@ import constants
 import i18n
 import repository
 from gtfs_go_labeling import get_labeling_for_stops
-from gtfs_go_renderer import Renderer
+from gtfs_go_renderer import Renderer, make_frequency_renderer
 from gtfs_go_settings import STOPS_MINIMUM_VISIBLE_SCALE
 from processing_provider.aggregate_frequency import AggregateFrequencyAlgorithm
 from processing_provider.extract_routes_stops import ExtractRoutesAndStopsAlgorithm
@@ -372,6 +372,9 @@ class GTFSGoDialog(QDialog):
             )
             aggregated_routes_vlayer.loadNamedStyle(
                 os.path.join(os.path.dirname(__file__), "aggregated_routes.qml")
+            )
+            aggregated_routes_vlayer.setRenderer(
+                make_frequency_renderer(aggregated_routes_vlayer, "frequency")
             )
 
             QgsProject.instance().addMapLayer(aggregated_routes_vlayer, False)

@@ -1,5 +1,8 @@
 from qgis.core import (
+    Qgis,
     QgsCategorizedSymbolRenderer,
+    QgsClassificationJenks,
+    QgsGraduatedSymbolRenderer,
     QgsRendererCategory,
     QgsSimpleMarkerSymbolLayer,
     QgsSingleSymbolRenderer,
@@ -12,6 +15,10 @@ from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QColor
 
 from gtfs_go_settings import (
+    AGGREGATED_ROUTES_CLASS_COUNT,
+    AGGREGATED_ROUTES_COLOR,
+    AGGREGATED_ROUTES_MAX_WIDTH_MM,
+    AGGREGATED_ROUTES_MIN_WIDTH_MM,
     ROUTES_COLOR_LIST,
     ROUTES_LINE_WIDTH_MM,
     ROUTES_OUTLINE_COLOR,
@@ -83,3 +90,22 @@ class Renderer:
             categories = self._make_categories_by()
             renderer = QgsCategorizedSymbolRenderer(self.target_field_name, categories)
         return renderer
+
+
+def make_frequency_renderer(
+    target_layer: QgsVectorLayer, target_field_name: str
+) -> QgsGraduatedSymbolRenderer:
+    """Graduated renderer varying line width by frequency, without expressions"""
+    symbol = QgsSymbol.defaultSymbol(target_layer.geometryType())
+    symbol.setColor(QColor(AGGREGATED_ROUTES_COLOR))
+    symbol.symbolLayer(0).setPenCapStyle(Qt.PenCapStyle.RoundCap)
+
+    renderer = QgsGraduatedSymbolRenderer(target_field_name)
+    renderer.setSourceSymbol(symbol)
+    renderer.setClassificationMethod(QgsClassificationJenks())
+    renderer.updateClasses(target_layer, AGGREGATED_ROUTES_CLASS_COUNT)
+    renderer.setGraduatedMethod(Qgis.GraduatedMethod.Size)
+    renderer.setSymbolSizes(
+        AGGREGATED_ROUTES_MIN_WIDTH_MM, AGGREGATED_ROUTES_MAX_WIDTH_MM
+    )
+    return renderer

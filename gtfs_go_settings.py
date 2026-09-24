@@ -17,6 +17,11 @@ STOPS_SVG_PATH = os.path.join(os.path.dirname(__file__), "imgs", "busstop.svg")
 ROUTES_LINE_WIDTH_MM = 1.2
 ROUTES_OUTLINE_WIDTH_MM = 2.0
 ROUTES_OUTLINE_COLOR = "white"
+
+AGGREGATED_ROUTES_COLOR = "#00af20"
+AGGREGATED_ROUTES_CLASS_COUNT = 5
+AGGREGATED_ROUTES_MIN_WIDTH_MM = 0.3
+AGGREGATED_ROUTES_MAX_WIDTH_MM = 4.0
 ROUTES_COLOR_LIST = [
     # Usable color names are defined in following webpage
     # https://www.w3.org/TR/SVG11/types.html#ColorKeywords
