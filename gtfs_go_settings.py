@@ -17,6 +17,21 @@ STOPS_SVG_PATH = os.path.join(os.path.dirname(__file__), "imgs", "busstop.svg")
 ROUTES_LINE_WIDTH_MM = 1.2
 ROUTES_OUTLINE_WIDTH_MM = 2.0
 ROUTES_OUTLINE_COLOR = "white"
+
+AGGREGATED_ROUTES_COLOR = "#00af20"
+# (upper bound of frequency, line width in mm); the last class has no upper bound.
+# Widths follow the former style expression 0.05 + "frequency"^0.6 * 0.2
+AGGREGATED_ROUTES_WIDTH_CLASSES = [
+    (10, 0.5),
+    (30, 1.2),
+    (60, 2.0),
+    (120, 3.0),
+    (240, 4.5),
+    (None, 6.0),
+]
+AGGREGATED_ROUTES_LABEL_FONT = "Arial"
+AGGREGATED_ROUTES_LABEL_SIZE_PT = 10
+AGGREGATED_ROUTES_LABEL_BUFFER_SIZE_MM = 0.7
 ROUTES_COLOR_LIST = [
     # Usable color names are defined in following webpage
     # https://www.w3.org/TR/SVG11/types.html#ColorKeywords

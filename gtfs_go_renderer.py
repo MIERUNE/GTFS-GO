@@ -3,7 +3,9 @@ from typing import Any, Optional
 from qgis.core import (
     QgsCategorizedSymbolRenderer,
     QgsFeatureRenderer,
+    QgsGraduatedSymbolRenderer,
     QgsRendererCategory,
+    QgsRendererRange,
     QgsSimpleMarkerSymbolLayer,
     QgsSingleSymbolRenderer,
     QgsSvgMarkerSymbolLayer,
@@ -15,6 +17,8 @@ from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QColor
 
 from gtfs_go_settings import (
+    AGGREGATED_ROUTES_COLOR,
+    AGGREGATED_ROUTES_WIDTH_CLASSES,
     ROUTES_COLOR_LIST,
     ROUTES_LINE_WIDTH_MM,
     ROUTES_OUTLINE_COLOR,
@@ -104,3 +108,31 @@ class Renderer:
             categories = self._make_categories_by()
             renderer = QgsCategorizedSymbolRenderer(self.target_field_name, categories)
         return renderer
+
+
+def make_frequency_renderer(
+    target_layer: QgsVectorLayer, target_field_name: str
+) -> QgsGraduatedSymbolRenderer:
+    """Graduated renderer varying line width by frequency, without expressions"""
+    source_symbol = QgsSymbol.defaultSymbol(target_layer.geometryType())
+    source_symbol.setColor(QColor(AGGREGATED_ROUTES_COLOR))
+    source_symbol.symbolLayer(0).setPenCapStyle(Qt.PenCapStyle.RoundCap)
+
+    ranges: list[QgsRendererRange] = []
+    lower = 0
+    for upper, width in AGGREGATED_ROUTES_WIDTH_CLASSES:
+        symbol = source_symbol.clone()
+        symbol.setWidth(width)
+        # frequency is an integer and a range covers lower < value <= upper
+        first = lower + 1 if ranges else lower
+        if upper is None:
+            label = f"{first} -"
+            upper = 2**31 - 1  # max of the Int frequency field
+        else:
+            label = f"{first} - {upper}"
+        ranges.append(QgsRendererRange(lower, upper, symbol, label))
+        lower = upper
+
+    renderer = QgsGraduatedSymbolRenderer(target_field_name, ranges)
+    renderer.setSourceSymbol(source_symbol)
+    return renderer
