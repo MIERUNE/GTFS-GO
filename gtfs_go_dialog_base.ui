@@ -23,7 +23,7 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>GTFS GO</string>
+   <string notr="true">GTFS GO</string>
   </property>
   <property name="windowIcon">
    <iconset>
@@ -399,7 +399,7 @@
            </size>
           </property>
           <property name="text">
-           <string>_</string>
+           <string notr="true">_</string>
           </property>
           <property name="placeholderText">
            <string/>
@@ -438,7 +438,7 @@
            </size>
           </property>
           <property name="text">
-           <string>00:00:00</string>
+           <string notr="true">00:00:00</string>
           </property>
           <property name="placeholderText">
            <string/>
@@ -448,7 +448,7 @@
         <item>
          <widget class="QLabel" name="label_3">
           <property name="text">
-           <string>&lt;=departure_time&lt;</string>
+           <string notr="true">&lt;=departure_time&lt;</string>
           </property>
          </widget>
         </item>
@@ -467,7 +467,7 @@
            </size>
           </property>
           <property name="text">
-           <string>27:00:00</string>
+           <string notr="true">27:00:00</string>
           </property>
           <property name="placeholderText">
            <string/>

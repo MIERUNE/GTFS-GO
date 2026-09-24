@@ -79,12 +79,13 @@ In result.csv, you can see stops unifying result.
 
 ### Processing Toolbox
 
-The conversions are also available as Processing algorithms under the `GTFS-GO` provider, so they can be used in the Processing Toolbox, Graphical Modeler, batch processing and `processing.run()`. Input is a local GTFS zip file.
+The conversions and the repository search are also available as Processing algorithms under the `GTFS-GO` provider, so they can be used in the Processing Toolbox, Graphical Modeler, batch processing and `processing.run()`. Input of the conversions is a local GTFS zip file.
 
 | Algorithm | ID | Outputs |
 | --- | --- | --- |
 | Extract routes and stops | `gtfsgo:extractroutesandstops` | routes, stops |
 | Aggregate traffic frequency | `gtfsgo:aggregatefrequency` | aggregated routes, aggregated stops, stop relations (table) |
+| Search [Japan]GTFS data repository | `gtfsgo:searchjapandpf` | GTFS feeds (table, `file_url` is the URL of the GTFS zip) |
 
 ```python
 processing.run(
@@ -103,6 +104,18 @@ processing.run(
 )
 ```
 
+```python
+processing.run(
+    "gtfsgo:searchjapandpf",
+    {
+        "TARGET_DATE": QDate(2024, 4, 1),
+        "EXTENT": "141.0,144.0,42.0,44.0 [EPSG:4326]",  # optional
+        "PREF": 1,  # optional, prefecture code (1: 北海道 ... 47: 沖縄県), 0: any
+        "OUTPUT": "TEMPORARY_OUTPUT",
+    },
+)
+```
+
 ## Acknowledgements
 
 Version2.0.0, in which the frequency aggregating function is added, got technically and financially supported by [Toyota Mobility Foundation](https://toyotamobilityfoundation.jp/) and [Traffic Brain](https://t-brain.jp/). Thank you for great contributions!
@@ -111,11 +124,11 @@ Version2.0.0, in which the frequency aggregating function is added, got technica
 
 ### Translation
 
-1. edit to `gtfs_go.pro` and add `GTFSGO_lang_encoding.ts` inside the `TRANSLATION` variable
-2. cd i18n
-3. generate the translation files with `pylupdate5 ../gtfs_go.pro` on debian you have to install pylupdate with `apt install pyqt5-dev-tools`
-4. edit the newly generated file GTFSGO_lang.ts to contain the new translations
-5. generate qm file with `lrelease GTFSGO_lang_encoding.ts`
+Translations are JSON dictionaries keyed by the English source text (`i18n/<locale>.json`), not Qt .ts/.qm files. See [i18n/README.md](i18n/README.md).
+
+1. wrap a new string with `i18n.tr("...")` in Python (strings in `.ui` files are picked up automatically, except `notr="true"`)
+2. run `python3 i18n/extract.py --locale ja` (and `--locale fr`) to add the new keys with empty translations
+3. fill the translations in `i18n/ja.json` / `i18n/fr.json` (no compilation needed)
 
 ### new data sources
 

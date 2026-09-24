@@ -13,21 +13,24 @@ from qgis.core import (
     QgsProcessingContext,
     QgsProcessingFeedback,
     QgsProject,
+    QgsReferencedRectangle,
     QgsSymbolLayer,
     QgsVectorLayer,
 )
 from qgis.gui import QgisInterface
 from qgis.PyQt import uic
-from qgis.PyQt.QtCore import QDate, QSortFilterProxyModel, Qt
-from qgis.PyQt.QtWidgets import QAbstractItemView, QDialog, QLineEdit, QMessageBox
+from qgis.PyQt.QtCore import QDate, QSortFilterProxyModel, Qt, QVariant
+from qgis.PyQt.QtWidgets import QAbstractItemView, QDialog, QLineEdit
 
 import constants
+import i18n
 import repository
 from gtfs_go_labeling import get_labeling_for_stops
 from gtfs_go_renderer import Renderer
 from gtfs_go_settings import STOPS_MINIMUM_VISIBLE_SCALE
 from processing_provider.aggregate_frequency import AggregateFrequencyAlgorithm
 from processing_provider.extract_routes_stops import ExtractRoutesAndStopsAlgorithm
+from processing_provider.search_japan_dpf import SearchJapanDpfAlgorithm
 from repository.japan_dpf.table import HEADERS, HEADERS_TO_HIDE
 
 DATALIST_JSON_PATH = os.path.join(os.path.dirname(__file__), "gtfs_go_datalist.json")
@@ -46,17 +49,18 @@ class GTFSGoDialog(QDialog):
         self.ui = uic.loadUi(
             os.path.join(os.path.dirname(__file__), "gtfs_go_dialog_base.ui"), self
         )
+        i18n.translate_widget(self)
         with open(DATALIST_JSON_PATH, encoding="utf-8") as f:
             self.datalist = json.load(f)
         self.iface = iface
-        self.combobox_zip_text = self.tr("---Load local ZipFile---")
+        self.combobox_zip_text = i18n.tr("---Load local ZipFile---")
         self.init_gui()
 
     def init_gui(self):
         # repository combobox
-        self.repositoryCombobox.addItem(self.tr("Preset"), REPOSITORY_ENUM["preset"])
+        self.repositoryCombobox.addItem(i18n.tr("Preset"), REPOSITORY_ENUM["preset"])
         self.repositoryCombobox.addItem(
-            self.tr("[Japan]GTFS data repository"), REPOSITORY_ENUM["japanDpf"]
+            i18n.tr("[Japan]GTFS data repository"), REPOSITORY_ENUM["japanDpf"]
         )
 
         # local repository data select combobox
@@ -109,7 +113,7 @@ class GTFSGoDialog(QDialog):
         self.japanDpfResultTableView.setColumnWidth(HEADERS.index("organization"), 110)
         self.japanDpfResultTableView.setColumnWidth(HEADERS.index("feed"), 150)
 
-        self.japanDpfPrefectureCombobox.addItem(self.tr("any"), None)
+        self.japanDpfPrefectureCombobox.addItem(i18n.tr("any"), None)
         for prefname in constants.JAPAN_PREFS_NAME_TO_CODE.keys():
             self.japanDpfPrefectureCombobox.addItem(prefname, prefname)
 
@@ -145,8 +149,8 @@ class GTFSGoDialog(QDialog):
         response = requests.get(url, timeout=DOWNLOAD_TIMEOUT_SEC)
         if response.status_code != 200:
             self.iface.messageBar().pushCritical(
-                self.tr("Error"),
-                self.tr("Failed to download GTFS data from the URL: ") + url,
+                i18n.tr("Error"),
+                i18n.tr("Failed to download GTFS data from the URL: ") + url,
             )
             return None
         data = response.content
@@ -226,7 +230,7 @@ class GTFSGoDialog(QDialog):
             if self.ui.simpleCheckbox.isChecked():
                 written_files["routes"] = os.path.join(output_dir, "routes.geojson")
                 written_files["stops"] = os.path.join(output_dir, "stops.geojson")
-                ok = self.run_algorithm(
+                results = self.run_algorithm(
                     ExtractRoutesAndStopsAlgorithm(),
                     {
                         "INPUT": feed_info["path"],
@@ -236,7 +240,7 @@ class GTFSGoDialog(QDialog):
                         "OUTPUT_STOPS": written_files["stops"],
                     },
                 )
-                if not ok:
+                if results is None:
                     continue
 
             if self.ui.aggregateCheckbox.isChecked():
@@ -247,7 +251,7 @@ class GTFSGoDialog(QDialog):
                     output_dir, "aggregated_stops.geojson"
                 )
                 written_files["aggregated_csv"] = os.path.join(output_dir, "result.csv")
-                ok = self.run_algorithm(
+                results = self.run_algorithm(
                     AggregateFrequencyAlgorithm(),
                     {
                         "INPUT": feed_info["path"],
@@ -261,7 +265,7 @@ class GTFSGoDialog(QDialog):
                         "OUTPUT_STOP_RELATIONS": written_files["aggregated_csv"],
                     },
                 )
-                if not ok:
+                if results is None:
                     continue
 
             self.show_geojson(
@@ -274,22 +278,32 @@ class GTFSGoDialog(QDialog):
             )
 
     def run_algorithm(
-        self, algorithm: QgsProcessingAlgorithm, parameters: dict
-    ) -> bool:
+        self,
+        algorithm: QgsProcessingAlgorithm,
+        parameters: dict,
+        context: Optional[QgsProcessingContext] = None,
+    ) -> Optional[dict]:
+        """
+        Returns:
+            results of the algorithm, None if failed
+        """
         alg = algorithm.create()
-        context = QgsProcessingContext()
-        context.setProject(QgsProject.instance())
+        if context is None:
+            context = QgsProcessingContext()
+            context.setProject(QgsProject.instance())
         feedback = QgsProcessingFeedback()
         ok, message = alg.checkParameterValues(parameters, context)
+        results = None
         if ok:
-            _, ok = alg.run(parameters, context, feedback)
+            results, ok = alg.run(parameters, context, feedback)
             message = feedback.textLog()
         if not ok:
             self.iface.messageBar().pushCritical(
-                self.tr("Error"),
+                i18n.tr("Error"),
                 alg.displayName() + ": " + message,
             )
-        return ok
+            return None
+        return results
 
     def get_date(self) -> Optional[QDate]:
         if not self.ui.filterByDateCheckBox.isChecked():
@@ -400,7 +414,7 @@ class GTFSGoDialog(QDialog):
             group.insertLayer(0, aggregated_csv_vlayer)
 
         self.iface.messageBar().pushInfo(
-            self.tr("finish"), self.tr("generated geojson files: ")
+            i18n.tr("finish"), i18n.tr("generated geojson files: ")
         )
         self.ui.close()
 
@@ -461,57 +475,49 @@ class GTFSGoDialog(QDialog):
     def japan_dpf_search(self):
         self.ui.pushButton.setEnabled(False)
         self.japanDpfSearchButton.setEnabled(False)
-        self.japanDpfSearchButton.setText(self.tr("Searching..."))
+        self.japanDpfSearchButton.setText(i18n.tr("Searching..."))
 
-        target_date = self.ui.japanDpfTargetDateEdit.date()
-        yyyy = str(target_date.year()).zfill(4)
-        mm = str(target_date.month()).zfill(2)
-        dd = str(target_date.day()).zfill(2)
-
-        extent = (
-            None
-            if self.japanDpfExtentGroupBox.outputExtent().isEmpty()
-            else self.japanDpfExtentGroupBox.outputExtent()
-            .toString()
-            .replace(" : ", ",")
-        )
-
-        pref_code = (
-            None
-            if self.japanDpfPrefectureCombobox.currentData() is None
-            else constants.JAPAN_PREFS_NAME_TO_CODE.get(
-                self.japanDpfPrefectureCombobox.currentData()
-            )
-        )
+        extent = self.japanDpfExtentGroupBox.outputExtent()
+        pref_name = self.japanDpfPrefectureCombobox.currentData()
+        parameters = {
+            "TARGET_DATE": self.ui.japanDpfTargetDateEdit.date(),
+            "EXTENT": None
+            if extent.isEmpty()
+            else QgsReferencedRectangle(
+                extent, self.japanDpfExtentGroupBox.outputCrs()
+            ),
+            "PREF": 0
+            if pref_name is None
+            else constants.JAPAN_PREFS_NAME_TO_CODE[pref_name],
+            "OUTPUT": "memory:",
+        }
 
         try:
-            results = repository.japan_dpf.api.get_feeds(
-                f"{yyyy}-{mm}-{dd}",
-                extent=extent,
-                pref=pref_code,
-            )
-            self.japan_dpf_set_table(results)
-        except Exception as e:
-            QMessageBox.information(
-                self,
-                self.tr("Error"),
-                self.tr(
-                    "Error occured, please check:\n- Internet connection.\n- Repository-server"
+            context = QgsProcessingContext()
+            results = self.run_algorithm(SearchJapanDpfAlgorithm(), parameters, context)
+            if results is not None:
+                layer = context.getMapLayer(results["OUTPUT"])
+                fields = layer.fields().names()
+                self.japan_dpf_set_table(
+                    [
+                        {
+                            # NULL is QVariant in PyQt5
+                            name: None if isinstance(value, QVariant) else value
+                            for name, value in zip(fields, f.attributes())
+                        }
+                        for f in layer.getFeatures()
+                    ]
                 )
-                + "\n\n"
-                + e,
-            )
         finally:
             self.japanDpfSearchButton.setEnabled(True)
-            self.japanDpfSearchButton.setText(self.tr("Search"))
+            self.japanDpfSearchButton.setText(i18n.tr("Search"))
             self.refresh()
 
     def japan_dpf_set_table(self, results: list):
-        # replace pref code to pref name
-        for result in results:
-            result["feed_pref"] = constants.JAPAN_PREFS_CODE_TO_NAME[
-                result["feed_pref_id"]
-            ]
+        """
+        Args:
+            results: list of feeds, output of SearchJapanDpfAlgorithm as dicts
+        """
         model = repository.japan_dpf.table.Model(results)
         proxy_model = QSortFilterProxyModel()
         proxy_model.setDynamicSortFilter(True)

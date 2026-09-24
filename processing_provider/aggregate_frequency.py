@@ -11,8 +11,9 @@ from qgis.core import (
     QgsProcessingParameterFile,
     QgsProcessingParameterString,
 )
-from qgis.PyQt.QtCore import QCoreApplication, QMetaType
+from qgis.PyQt.QtCore import QMetaType
 
+import i18n
 from processing_provider.utils import (
     GTFS_FILE_FILTER,
     gtfs_parser,
@@ -56,9 +57,6 @@ class AggregateFrequencyAlgorithm(QgsProcessingAlgorithm):
     OUTPUT_STOPS = "OUTPUT_STOPS"
     OUTPUT_STOP_RELATIONS = "OUTPUT_STOP_RELATIONS"
 
-    def tr(self, string):
-        return QCoreApplication.translate("GTFSGo", string)
-
     def createInstance(self):
         return AggregateFrequencyAlgorithm()
 
@@ -66,10 +64,10 @@ class AggregateFrequencyAlgorithm(QgsProcessingAlgorithm):
         return "aggregatefrequency"
 
     def displayName(self):
-        return self.tr("Aggregate traffic frequency")
+        return i18n.tr("Aggregate traffic frequency")
 
     def shortHelpString(self):
-        return self.tr(
+        return i18n.tr(
             "Aggregate how many times each path (line between two stops) is used.\n"
             "Similar stops - having same parent_station, same stop_id prefix or "
             "same stop_name and near to each - can be unified into one stop.\n"
@@ -81,7 +79,7 @@ class AggregateFrequencyAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 self.INPUT,
-                self.tr("GTFS zip file"),
+                i18n.tr("GTFS zip file"),
                 behavior=Qgis.ProcessingFileParameterBehavior.File,
                 fileFilter=GTFS_FILE_FILTER,
             )
@@ -89,21 +87,21 @@ class AggregateFrequencyAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterBoolean(
                 self.UNIFY_STOPS,
-                self.tr("unify similar stops"),
+                i18n.tr("unify similar stops"),
                 defaultValue=True,
             )
         )
         self.addParameter(
             QgsProcessingParameterString(
                 self.DELIMITER,
-                self.tr("stop_id delimiter (used when unifying stops)"),
+                i18n.tr("stop_id delimiter (used when unifying stops)"),
                 optional=True,
             )
         )
         self.addParameter(
             QgsProcessingParameterDateTime(
                 self.DATE,
-                self.tr("service date"),
+                i18n.tr("service date"),
                 type=Qgis.ProcessingDateTimeParameterDataType.Date,
                 optional=True,
             )
@@ -111,35 +109,35 @@ class AggregateFrequencyAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterString(
                 self.BEGIN_TIME,
-                self.tr("begin time (hh:mm:ss)"),
+                i18n.tr("begin time (hh:mm:ss)"),
                 optional=True,
             )
         )
         self.addParameter(
             QgsProcessingParameterString(
                 self.END_TIME,
-                self.tr("end time (hh:mm:ss)"),
+                i18n.tr("end time (hh:mm:ss)"),
                 optional=True,
             )
         )
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT_ROUTES,
-                self.tr("Aggregated routes"),
+                i18n.tr("Aggregated routes"),
                 Qgis.ProcessingSourceType.VectorLine,
             )
         )
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT_STOPS,
-                self.tr("Aggregated stops"),
+                i18n.tr("Aggregated stops"),
                 Qgis.ProcessingSourceType.VectorPoint,
             )
         )
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT_STOP_RELATIONS,
-                self.tr("Stop relations"),
+                i18n.tr("Stop relations"),
                 Qgis.ProcessingSourceType.Vector,
             )
         )
@@ -148,10 +146,10 @@ class AggregateFrequencyAlgorithm(QgsProcessingAlgorithm):
         begin_time = self.parameterAsString(parameters, self.BEGIN_TIME, context)
         end_time = self.parameterAsString(parameters, self.END_TIME, context)
         if bool(begin_time) != bool(end_time):
-            return False, self.tr("Both begin time and end time must be set.")
+            return False, i18n.tr("Both begin time and end time must be set.")
         for value in (begin_time, end_time):
             if value and not TIME_PATTERN.match(value):
-                return False, self.tr("Time must be in hh:mm:ss format: ") + value
+                return False, i18n.tr("Time must be in hh:mm:ss format: ") + value
         return super().checkParameterValues(parameters, context)
 
     def processAlgorithm(self, parameters, context, feedback):
@@ -172,14 +170,14 @@ class AggregateFrequencyAlgorithm(QgsProcessingAlgorithm):
         )
         if bool(begin_time) != bool(end_time):
             raise QgsProcessingException(
-                self.tr("Both begin time and end time must be set.")
+                i18n.tr("Both begin time and end time must be set.")
             )
         crs = QgsCoordinateReferenceSystem("EPSG:4326")
 
-        feedback.pushInfo(self.tr("Loading GTFS..."))
+        feedback.pushInfo(i18n.tr("Loading GTFS..."))
         gtfs = gtfs_parser.GTFSFactory(gtfs_path)
 
-        feedback.pushInfo(self.tr("Aggregating..."))
+        feedback.pushInfo(i18n.tr("Aggregating..."))
         aggregator = gtfs_parser.aggregate.Aggregator(
             gtfs,
             no_unify_stops=not unify_stops,
