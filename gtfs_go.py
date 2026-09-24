@@ -1,11 +1,13 @@
 import os
 
+from qgis.core import QgsApplication
 from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
 
 # Import the code for the DockWidget
 from gtfs_go_dialog import GTFSGoDialog
+from processing_provider.provider import GTFSGoProvider
 
 
 class GTFSGo:
@@ -44,6 +46,7 @@ class GTFSGo:
 
         self.pluginIsActive = False
         self.dialog = None
+        self.provider = None
 
     # noinspection PyMethodMayBeStatic
 
@@ -133,8 +136,13 @@ class GTFSGo:
 
         return action
 
+    def initProcessing(self):
+        self.provider = GTFSGoProvider()
+        QgsApplication.processingRegistry().addProvider(self.provider)
+
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
+        self.initProcessing()
 
         icon_path = os.path.join(os.path.dirname(__file__), "imgs", "busstop.png")
         self.add_action(
@@ -172,6 +180,10 @@ class GTFSGo:
         for action in self.actions:
             self.iface.removePluginWebMenu(self.tr("&GTFS GO"), action)
             self.iface.removeToolBarIcon(action)
+
+        if self.provider is not None:
+            QgsApplication.processingRegistry().removeProvider(self.provider)
+            self.provider = None
 
     # --------------------------------------------------------------------------
 

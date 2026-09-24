@@ -1,4 +1,3 @@
-import csv
 import datetime
 import json
 import os
@@ -10,6 +9,9 @@ from typing import Optional
 import requests
 from qgis.core import (
     QgsCoordinateReferenceSystem,
+    QgsProcessingAlgorithm,
+    QgsProcessingContext,
+    QgsProcessingFeedback,
     QgsProject,
     QgsSymbolLayer,
     QgsVectorLayer,
@@ -20,19 +22,12 @@ from qgis.PyQt.QtCore import QDate, QSortFilterProxyModel, Qt
 from qgis.PyQt.QtWidgets import QAbstractItemView, QDialog, QLineEdit, QMessageBox
 
 import constants
-import gtfs_parser
 import repository
 from gtfs_go_labeling import get_labeling_for_stops
 from gtfs_go_renderer import Renderer
 from gtfs_go_settings import STOPS_MINIMUM_VISIBLE_SCALE
-
-# Tweeked to import gtfs_parser for Python 3.11
-try:
-    from gtfs_parser import gtfs_parser
-except ImportError:
-    # Python 3.9 or 3.10
-    import gtfs_parser
-
+from processing_provider.aggregate_frequency import AggregateFrequencyAlgorithm
+from processing_provider.extract_routes_stops import ExtractRoutesAndStopsAlgorithm
 from repository.japan_dpf.table import HEADERS, HEADERS_TO_HIDE
 
 DATALIST_JSON_PATH = os.path.join(os.path.dirname(__file__), "gtfs_go_datalist.json")
@@ -228,58 +223,23 @@ class GTFSGoDialog(QDialog):
                 "aggregated_csv": "",
             }
 
-            gtfs = gtfs_parser.GTFSFactory(feed_info["path"])
-
             if self.ui.simpleCheckbox.isChecked():
-                routes_geojson = {
-                    "type": "FeatureCollection",
-                    "features": gtfs_parser.parse.read_routes(
-                        gtfs, ignore_shapes=self.ui.ignoreShapesCheckbox.isChecked()
-                    ),
-                }
-                stops_geojson = {
-                    "type": "FeatureCollection",
-                    "features": gtfs_parser.parse.read_stops(
-                        gtfs,
-                        ignore_no_route=self.ui.ignoreNoRouteStopsCheckbox.isChecked(),
-                    ),
-                }
-                # write
                 written_files["routes"] = os.path.join(output_dir, "routes.geojson")
                 written_files["stops"] = os.path.join(output_dir, "stops.geojson")
-                with open(
-                    written_files["routes"],
-                    mode="w",
-                    encoding="utf-8",
-                ) as f:
-                    json.dump(routes_geojson, f, ensure_ascii=False)
-
-                with open(
-                    written_files["stops"],
-                    mode="w",
-                    encoding="utf-8",
-                ) as f:
-                    json.dump(stops_geojson, f, ensure_ascii=False)
+                ok = self.run_algorithm(
+                    ExtractRoutesAndStopsAlgorithm(),
+                    {
+                        "INPUT": feed_info["path"],
+                        "IGNORE_SHAPES": self.ui.ignoreShapesCheckbox.isChecked(),
+                        "IGNORE_NO_ROUTE": self.ui.ignoreNoRouteStopsCheckbox.isChecked(),
+                        "OUTPUT_ROUTES": written_files["routes"],
+                        "OUTPUT_STOPS": written_files["stops"],
+                    },
+                )
+                if not ok:
+                    continue
 
             if self.ui.aggregateCheckbox.isChecked():
-                aggregator = gtfs_parser.aggregate.Aggregator(
-                    gtfs,
-                    no_unify_stops=not self.ui.unifyCheckBox.isChecked(),
-                    delimiter=self.get_delimiter(),
-                    yyyymmdd=self.get_yyyymmdd(),
-                    begin_time=self.get_time_filter(self.ui.beginTimeLineEdit),
-                    end_time=self.get_time_filter(self.ui.endTimeLineEdit),
-                )
-                aggregated_routes_geojson = {
-                    "type": "FeatureCollection",
-                    "features": aggregator.read_route_frequency(),
-                }
-                aggregated_stops_geojson = {
-                    "type": "FeatureCollection",
-                    "features": aggregator.read_interpolated_stops(),
-                }
-                stop_relations = aggregator.read_stop_relations()
-                # write
                 written_files["aggregated_routes"] = os.path.join(
                     output_dir, "aggregated_routes.geojson"
                 )
@@ -287,28 +247,22 @@ class GTFSGoDialog(QDialog):
                     output_dir, "aggregated_stops.geojson"
                 )
                 written_files["aggregated_csv"] = os.path.join(output_dir, "result.csv")
-                with open(
-                    written_files["aggregated_stops"],
-                    mode="w",
-                    encoding="utf-8",
-                ) as f:
-                    json.dump(aggregated_stops_geojson, f, ensure_ascii=False)
-                with open(
-                    written_files["aggregated_routes"],
-                    mode="w",
-                    encoding="utf-8",
-                ) as f:
-                    json.dump(aggregated_routes_geojson, f, ensure_ascii=False)
-                with open(
-                    written_files["aggregated_csv"],
-                    mode="w",
-                    encoding="utf-8",
-                    errors="ignore",
-                    newline="",
-                ) as f:
-                    writer = csv.DictWriter(f, fieldnames=stop_relations[0].keys())
-                    writer.writeheader()
-                    writer.writerows(stop_relations)
+                ok = self.run_algorithm(
+                    AggregateFrequencyAlgorithm(),
+                    {
+                        "INPUT": feed_info["path"],
+                        "UNIFY_STOPS": self.ui.unifyCheckBox.isChecked(),
+                        "DELIMITER": self.get_delimiter(),
+                        "DATE": self.get_date(),
+                        "BEGIN_TIME": self.get_time_filter(self.ui.beginTimeLineEdit),
+                        "END_TIME": self.get_time_filter(self.ui.endTimeLineEdit),
+                        "OUTPUT_ROUTES": written_files["aggregated_routes"],
+                        "OUTPUT_STOPS": written_files["aggregated_stops"],
+                        "OUTPUT_STOP_RELATIONS": written_files["aggregated_csv"],
+                    },
+                )
+                if not ok:
+                    continue
 
             self.show_geojson(
                 feed_info["group"],
@@ -319,14 +273,28 @@ class GTFSGoDialog(QDialog):
                 written_files["aggregated_csv"],
             )
 
-    def get_yyyymmdd(self):
+    def run_algorithm(
+        self, algorithm: QgsProcessingAlgorithm, parameters: dict
+    ) -> bool:
+        alg = algorithm.create()
+        context = QgsProcessingContext()
+        context.setProject(QgsProject.instance())
+        feedback = QgsProcessingFeedback()
+        ok, message = alg.checkParameterValues(parameters, context)
+        if ok:
+            _, ok = alg.run(parameters, context, feedback)
+            message = feedback.textLog()
+        if not ok:
+            self.iface.messageBar().pushCritical(
+                self.tr("Error"),
+                alg.displayName() + ": " + message,
+            )
+        return ok
+
+    def get_date(self) -> Optional[QDate]:
         if not self.ui.filterByDateCheckBox.isChecked():
-            return ""
-        date = self.ui.filterByDateDateEdit.date()
-        yyyy = str(date.year()).zfill(4)
-        mm = str(date.month()).zfill(2)
-        dd = str(date.day()).zfill(2)
-        return yyyy + mm + dd
+            return None
+        return self.ui.filterByDateDateEdit.date()
 
     def get_delimiter(self):
         if not self.ui.unifyCheckBox.isChecked():
@@ -338,7 +306,7 @@ class GTFSGoDialog(QDialog):
     def get_time_filter(self, line_edit: QLineEdit):
         if not self.ui.timeFilterCheckBox.isChecked():
             return ""
-        return line_edit.text().replace(":", "")
+        return line_edit.text()
 
     def show_geojson(
         self,

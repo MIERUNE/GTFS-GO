@@ -77,6 +77,32 @@ In result.csv, you can see stops unifying result.
 
 <img src="doc_imgs/resultcsv.png" width="80%">
 
+### Processing Toolbox
+
+The conversions are also available as Processing algorithms under the `GTFS-GO` provider, so they can be used in the Processing Toolbox, Graphical Modeler, batch processing and `processing.run()`. Input is a local GTFS zip file.
+
+| Algorithm | ID | Outputs |
+| --- | --- | --- |
+| Extract routes and stops | `gtfsgo:extractroutesandstops` | routes, stops |
+| Aggregate traffic frequency | `gtfsgo:aggregatefrequency` | aggregated routes, aggregated stops, stop relations (table) |
+
+```python
+processing.run(
+    "gtfsgo:aggregatefrequency",
+    {
+        "INPUT": "/path/to/gtfs.zip",
+        "UNIFY_STOPS": True,
+        "DELIMITER": "",
+        "DATE": QDate(2024, 4, 1),  # optional
+        "BEGIN_TIME": "07:00:00",  # optional, requires END_TIME
+        "END_TIME": "09:00:00",
+        "OUTPUT_ROUTES": "TEMPORARY_OUTPUT",
+        "OUTPUT_STOPS": "TEMPORARY_OUTPUT",
+        "OUTPUT_STOP_RELATIONS": "TEMPORARY_OUTPUT",
+    },
+)
+```
+
 ## Acknowledgements
 
 Version2.0.0, in which the frequency aggregating function is added, got technically and financially supported by [Toyota Mobility Foundation](https://toyotamobilityfoundation.jp/) and [Traffic Brain](https://t-brain.jp/). Thank you for great contributions!
