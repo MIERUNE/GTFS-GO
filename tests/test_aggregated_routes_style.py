@@ -1,4 +1,3 @@
-import pytest
 from qgis.core import (
     Qgis,
     QgsFeature,
@@ -11,10 +10,7 @@ from qgis.PyQt.QtCore import QMetaType
 
 from gtfs_go_labeling import get_labeling_for_aggregated_routes
 from gtfs_go_renderer import make_frequency_renderer
-from gtfs_go_settings import (
-    AGGREGATED_ROUTES_MAX_WIDTH_MM,
-    AGGREGATED_ROUTES_MIN_WIDTH_MM,
-)
+from gtfs_go_settings import AGGREGATED_ROUTES_WIDTH_CLASSES
 
 
 def _make_routes_layer(frequencies):
@@ -39,14 +35,26 @@ def test_make_frequency_renderer():
     renderer = make_frequency_renderer(layer, "frequency")
 
     assert renderer.classAttribute() == "frequency"
-    assert renderer.graduatedMethod() == Qgis.GraduatedMethod.Size
 
     ranges = renderer.ranges()
-    assert len(ranges) > 1
+    assert len(ranges) == len(AGGREGATED_ROUTES_WIDTH_CLASSES)
     widths = [r.symbol().width() for r in ranges]
-    assert widths == sorted(widths)
-    assert widths[0] == pytest.approx(AGGREGATED_ROUTES_MIN_WIDTH_MM)
-    assert widths[-1] == pytest.approx(AGGREGATED_ROUTES_MAX_WIDTH_MM)
+    assert widths == [width for _, width in AGGREGATED_ROUTES_WIDTH_CLASSES]
+    assert ranges[0].lowerValue() == 0
+    for previous, current in zip(ranges, ranges[1:]):
+        assert previous.upperValue() == current.lowerValue()
+
+    assert renderer.symbolForValue(10).width() == widths[0]
+    assert renderer.symbolForValue(11).width() == widths[1]
+    assert renderer.symbolForValue(1000).width() == widths[-1]
+    assert [r.label() for r in ranges] == [
+        "0 - 10",
+        "11 - 30",
+        "31 - 60",
+        "61 - 120",
+        "121 - 240",
+        "241 -",
+    ]
 
     # line width must not rely on data-defined expressions
     for r in ranges:
