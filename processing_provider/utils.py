@@ -1,4 +1,5 @@
 import math
+from typing import Callable
 
 from qgis.core import (
     QgsFeature,
@@ -7,7 +8,10 @@ from qgis.core import (
     QgsFields,
     QgsGeometry,
     QgsPointXY,
+    QgsProcessingContext,
     QgsProcessingFeedback,
+    QgsProcessingLayerPostProcessorInterface,
+    QgsVectorLayer,
 )
 from qgis.PyQt.QtCore import QMetaType
 
@@ -85,3 +89,32 @@ def write_features(
         sink.addFeature(feature, QgsFeatureSink.Flag.FastInsert)
         if total:
             feedback.setProgress(100 * (i + 1) / total)
+
+
+class _StylePostProcessor(QgsProcessingLayerPostProcessorInterface):
+    def __init__(self, style_func: Callable[[QgsVectorLayer], None]):
+        super().__init__()
+        self.style_func = style_func
+
+    def postProcessLayer(self, layer, context, feedback):
+        if isinstance(layer, QgsVectorLayer):
+            self.style_func(layer)
+
+
+# post processors must outlive processAlgorithm(), keep one per style function
+_post_processors: dict = {}
+
+
+def set_style_on_completion(
+    context: QgsProcessingContext,
+    dest_id: str,
+    style_func: Callable[[QgsVectorLayer], None],
+) -> None:
+    """Apply style_func to the output layer when it is loaded on completion"""
+    if not context.willLoadLayerOnCompletion(dest_id):
+        return
+    if style_func not in _post_processors:
+        _post_processors[style_func] = _StylePostProcessor(style_func)
+    context.layerToLoadOnCompletionDetails(dest_id).setPostProcessor(
+        _post_processors[style_func]
+    )

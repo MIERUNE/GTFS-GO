@@ -32,6 +32,7 @@
   "[Japan]GTFS data repository": "[Japon] Dépôt de données GTFS",
   "aggregate route frequency": "Agréger la fréquence des lignes",
   "any": "toutes",
+  "apply style to output layers": "Appliquer le style aux couches de sortie",
   "begin time (hh:mm:ss)": "heure de début (hh:mm:ss)",
   "end time (hh:mm:ss)": "heure de fin (hh:mm:ss)",
   "extent": "emprise",

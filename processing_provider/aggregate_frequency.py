@@ -14,10 +14,15 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QMetaType
 
 import i18n
+from gtfs_go_styles import (
+    style_aggregated_routes_layer,
+    style_aggregated_stops_layer,
+)
 from processing_provider.utils import (
     GTFS_FILE_FILTER,
     gtfs_parser,
     make_fields,
+    set_style_on_completion,
     write_features,
 )
 
@@ -53,6 +58,7 @@ class AggregateFrequencyAlgorithm(QgsProcessingAlgorithm):
     DATE = "DATE"
     BEGIN_TIME = "BEGIN_TIME"
     END_TIME = "END_TIME"
+    APPLY_STYLE = "APPLY_STYLE"
     OUTPUT_ROUTES = "OUTPUT_ROUTES"
     OUTPUT_STOPS = "OUTPUT_STOPS"
     OUTPUT_STOP_RELATIONS = "OUTPUT_STOP_RELATIONS"
@@ -121,6 +127,13 @@ class AggregateFrequencyAlgorithm(QgsProcessingAlgorithm):
             )
         )
         self.addParameter(
+            QgsProcessingParameterBoolean(
+                self.APPLY_STYLE,
+                i18n.tr("apply style to output layers"),
+                defaultValue=True,
+            )
+        )
+        self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT_ROUTES,
                 i18n.tr("Aggregated routes"),
@@ -172,6 +185,7 @@ class AggregateFrequencyAlgorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException(
                 i18n.tr("Both begin time and end time must be set.")
             )
+        apply_style = self.parameterAsBool(parameters, self.APPLY_STYLE, context)
         crs = QgsCoordinateReferenceSystem("EPSG:4326")
 
         feedback.pushInfo(i18n.tr("Loading GTFS..."))
@@ -188,24 +202,27 @@ class AggregateFrequencyAlgorithm(QgsProcessingAlgorithm):
         )
 
         results = {}
-        for output, fields_def, wkb_type, read in (
+        for output, fields_def, wkb_type, read, style_func in (
             (
                 self.OUTPUT_ROUTES,
                 AGGREGATED_ROUTES_FIELDS,
                 Qgis.WkbType.LineString,
                 aggregator.read_route_frequency,
+                style_aggregated_routes_layer,
             ),
             (
                 self.OUTPUT_STOPS,
                 AGGREGATED_STOPS_FIELDS,
                 Qgis.WkbType.Point,
                 aggregator.read_interpolated_stops,
+                style_aggregated_stops_layer,
             ),
             (
                 self.OUTPUT_STOP_RELATIONS,
                 STOP_RELATIONS_FIELDS,
                 Qgis.WkbType.NoGeometry,
                 aggregator.read_stop_relations,
+                None,
             ),
         ):
             if feedback.isCanceled():
@@ -215,6 +232,8 @@ class AggregateFrequencyAlgorithm(QgsProcessingAlgorithm):
                 parameters, output, context, fields, wkb_type, crs
             )
             write_features(sink, fields, read(), feedback)
+            if apply_style and style_func is not None:
+                set_style_on_completion(context, dest_id, style_func)
             results[output] = dest_id
 
         return results
