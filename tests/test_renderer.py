@@ -1,10 +1,21 @@
-from qgis.core import QgsFeature, QgsField, QgsGeometry, QgsPointXY, QgsVectorLayer
+from typing import Optional
+
+from qgis.core import (
+    QgsCategorizedSymbolRenderer,
+    QgsFeature,
+    QgsField,
+    QgsGeometry,
+    QgsPointXY,
+    QgsVectorLayer,
+)
 from qgis.PyQt.QtCore import QVariant
 
 from gtfs_go_renderer import Renderer
 
 
-def _make_route_layer(route_rows, with_color_field=True):
+def _make_route_layer(
+    route_rows: list[tuple[Optional[str], ...]], with_color_field: bool = True
+) -> QgsVectorLayer:
     layer = QgsVectorLayer("LineString?crs=EPSG:4326", "routes", "memory")
     fields = [
         QgsField("route_id", QVariant.String),
@@ -29,20 +40,20 @@ def _make_route_layer(route_rows, with_color_field=True):
     return layer
 
 
-def _route_symbol_color_name(renderer, value):
+def _route_symbol_color_name(renderer: QgsCategorizedSymbolRenderer, value: str) -> str:
     category = next(c for c in renderer.categories() if c.value() == value)
     # symbolLayer(0) is the outline, symbolLayer(1) is the route line
     return category.symbol().symbolLayer(1).color().name().upper()
 
 
-def test_use_gtfs_route_color_when_present():
+def test_use_gtfs_route_color_when_present() -> None:
     layer = _make_route_layer([("A", "Route A", "FF0000")])
     renderer = Renderer(layer, "route_name").make_renderer()
 
     assert _route_symbol_color_name(renderer, "Route A") == "#FF0000"
 
 
-def test_fallback_to_random_when_color_missing_or_invalid():
+def test_fallback_to_random_when_color_missing_or_invalid() -> None:
     layer = _make_route_layer(
         [
             ("A", "Missing", None),
@@ -57,14 +68,14 @@ def test_fallback_to_random_when_color_missing_or_invalid():
         assert _route_symbol_color_name(renderer, value) != "#000000"
 
 
-def test_fallback_to_random_when_color_field_absent():
+def test_fallback_to_random_when_color_field_absent() -> None:
     layer = _make_route_layer([("A", "Route A")], with_color_field=False)
     renderer = Renderer(layer, "route_name").make_renderer()
 
     assert len(renderer.categories()) == 1
 
 
-def test_prefers_valid_gtfs_color_with_duplicate_category_values():
+def test_prefers_valid_gtfs_color_with_duplicate_category_values() -> None:
     layer = _make_route_layer([("A", "Same Name", ""), ("B", "Same Name", "F09EC0")])
     renderer = Renderer(layer, "route_name").make_renderer()
 
@@ -72,7 +83,7 @@ def test_prefers_valid_gtfs_color_with_duplicate_category_values():
     assert _route_symbol_color_name(renderer, "Same Name") == "#F09EC0"
 
 
-def test_keeps_first_valid_gtfs_color_with_duplicate_category_values():
+def test_keeps_first_valid_gtfs_color_with_duplicate_category_values() -> None:
     layer = _make_route_layer(
         [("A", "Same Name", "F09EC0"), ("B", "Same Name", "008000")]
     )
