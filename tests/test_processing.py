@@ -253,6 +253,26 @@ def test_search_japan_dpf(qgis_app, get_feeds, tmp_path):
     assert feed["file_url"] == "https://example.com/gtfs.zip"
 
 
+def test_search_japan_dpf_extent_reprojected(qgis_app, get_feeds):
+    # extent in another CRS is sent to the API in EPSG:4326 (xmin,ymin,xmax,ymax)
+    run(
+        SearchJapanDpfAlgorithm(),
+        {
+            "TARGET_DATE": QDate(2024, 4, 1),
+            "EXTENT": QgsReferencedRectangle(
+                QgsRectangle(15696048.2, 5160979.4, 16030006.7, 5465442.2),
+                QgsCoordinateReferenceSystem("EPSG:3857"),
+            ),
+            "OUTPUT": "memory:",
+        },
+    )
+    xmin, ymin, xmax, ymax = map(float, get_feeds[0]["extent"].split(","))
+    assert xmin == pytest.approx(141.0, abs=1e-3)
+    assert ymin == pytest.approx(42.0, abs=1e-3)
+    assert xmax == pytest.approx(144.0, abs=1e-3)
+    assert ymax == pytest.approx(44.0, abs=1e-3)
+
+
 def test_search_japan_dpf_no_filter(qgis_app, get_feeds):
     run(
         SearchJapanDpfAlgorithm(),

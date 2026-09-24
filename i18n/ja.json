@@ -7,7 +7,7 @@
   "Aggregating...": "集計中…",
   "Both begin time and end time must be set.": "開始時刻と終了時刻の両方を指定してください。",
   "Error": "エラー",
-  "Error occured, please check:\n- Internet connection.\n- Repository-server": "エラーが発生しました、以下を確認してください\n・インターネット接続\n・リポジトリサーバーの稼働状況",
+  "Error occurred, please check:\n- Internet connection.\n- Repository-server": "エラーが発生しました、以下を確認してください\n・インターネット接続\n・リポジトリサーバーの稼働状況",
   "Extract on QGIS": "QGISに読み込む",
   "Extract routes and stops": "経路と停留所を抽出",
   "Failed to download GTFS data from the URL: ": "GTFSデータのダウンロードに失敗しました: ",

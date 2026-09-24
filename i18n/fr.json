@@ -7,7 +7,7 @@
   "Aggregating...": "Agrégation…",
   "Both begin time and end time must be set.": "L'heure de début et l'heure de fin doivent être définies.",
   "Error": "Erreur",
-  "Error occured, please check:\n- Internet connection.\n- Repository-server": "Une erreur s'est produite, veuillez vérifier :\n- la connexion Internet ;\n- le serveur du dépôt.",
+  "Error occurred, please check:\n- Internet connection.\n- Repository-server": "Une erreur s'est produite, veuillez vérifier :\n- la connexion Internet ;\n- le serveur du dépôt.",
   "Extract on QGIS": "Extraire sous QGIS",
   "Extract routes and stops": "Extraire les lignes et les arrêts",
   "Failed to download GTFS data from the URL: ": "Échec du téléchargement des données GTFS depuis l'URL : ",

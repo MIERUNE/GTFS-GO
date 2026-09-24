@@ -134,7 +134,7 @@ class SearchJapanDpfAlgorithm(QgsProcessingAlgorithm):
         except Exception as e:
             raise QgsProcessingException(
                 i18n.tr(
-                    "Error occured, please check:\n- Internet connection.\n- Repository-server"
+                    "Error occurred, please check:\n- Internet connection.\n- Repository-server"
                 )
                 + "\n\n"
                 + str(e)
