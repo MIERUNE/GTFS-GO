@@ -20,8 +20,6 @@ from qgis.PyQt.QtGui import QColor
 from gtfs_go_settings import (
     AGGREGATED_ROUTES_CLASS_COUNT,
     AGGREGATED_ROUTES_COLOR,
-    AGGREGATED_ROUTES_MAX_WIDTH_MM,
-    AGGREGATED_ROUTES_MIN_WIDTH_MM,
     ROUTES_COLOR_LIST,
     ROUTES_LINE_WIDTH_MM,
     ROUTES_OUTLINE_COLOR,
@@ -113,10 +111,20 @@ class Renderer:
         return renderer
 
 
+def frequency_to_width(frequency: float) -> float:
+    """Line width in mm for a frequency, following the former style expression
+    0.05 + "frequency"^0.6 * 0.2"""
+    return 0.05 + max(frequency, 0) ** 0.6 * 0.2
+
+
 def make_frequency_renderer(
     target_layer: QgsVectorLayer, target_field_name: str
 ) -> QgsGraduatedSymbolRenderer:
-    """Graduated renderer varying line width by frequency, without expressions"""
+    """Graduated renderer varying line width by frequency, without expressions.
+
+    Each class gets the mean of frequency_to_width() over its features, which
+    is the closest single width to the continuous expression for that class.
+    """
     symbol = QgsSymbol.defaultSymbol(target_layer.geometryType())
     symbol.setColor(QColor(AGGREGATED_ROUTES_COLOR))
     symbol.symbolLayer(0).setPenCapStyle(Qt.PenCapStyle.RoundCap)
@@ -125,8 +133,28 @@ def make_frequency_renderer(
     renderer.setSourceSymbol(symbol)
     renderer.setClassificationMethod(QgsClassificationJenks())
     renderer.updateClasses(target_layer, AGGREGATED_ROUTES_CLASS_COUNT)
-    renderer.setGraduatedMethod(Qgis.GraduatedMethod.Size)
-    renderer.setSymbolSizes(
-        AGGREGATED_ROUTES_MIN_WIDTH_MM, AGGREGATED_ROUTES_MAX_WIDTH_MM
-    )
+
+    ranges = renderer.ranges()
+    widths_by_class: list[list[float]] = [[] for _ in ranges]
+    for feature in target_layer.getFeatures():
+        value = feature.attribute(target_field_name)
+        if value is None:
+            continue
+        # ranges are sorted and contiguous; the first class includes its lower bound
+        for i, class_range in enumerate(ranges):
+            if value <= class_range.upperValue():
+                widths_by_class[i].append(frequency_to_width(value))
+                break
+
+    for i, class_range in enumerate(ranges):
+        widths = widths_by_class[i]
+        if widths:
+            width = sum(widths) / len(widths)
+        else:
+            width = frequency_to_width(
+                (class_range.lowerValue() + class_range.upperValue()) / 2
+            )
+        class_symbol = class_range.symbol().clone()
+        class_symbol.setWidth(width)
+        renderer.updateRangeSymbol(i, class_symbol)
     return renderer
