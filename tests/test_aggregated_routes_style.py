@@ -10,7 +10,11 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QMetaType
 
 from gtfs_go_labeling import get_labeling_for_aggregated_routes
-from gtfs_go_renderer import frequency_to_width, make_frequency_renderer
+from gtfs_go_renderer import make_frequency_renderer
+from gtfs_go_settings import (
+    AGGREGATED_ROUTES_MAX_WIDTH_MM,
+    AGGREGATED_ROUTES_MIN_WIDTH_MM,
+)
 
 
 def _make_routes_layer(frequencies):
@@ -35,29 +39,19 @@ def test_make_frequency_renderer():
     renderer = make_frequency_renderer(layer, "frequency")
 
     assert renderer.classAttribute() == "frequency"
+    assert renderer.graduatedMethod() == Qgis.GraduatedMethod.Size
 
     ranges = renderer.ranges()
     assert len(ranges) > 1
     widths = [r.symbol().width() for r in ranges]
     assert widths == sorted(widths)
-    # each class width lies within the expression's widths at its bounds
-    for r, width in zip(ranges, widths):
-        assert (
-            frequency_to_width(r.lowerValue())
-            <= width
-            <= frequency_to_width(r.upperValue())
-        )
+    assert widths[0] == pytest.approx(AGGREGATED_ROUTES_MIN_WIDTH_MM)
+    assert widths[-1] == pytest.approx(AGGREGATED_ROUTES_MAX_WIDTH_MM)
 
     # line width must not rely on data-defined expressions
     for r in ranges:
         for symbol_layer in r.symbol().symbolLayers():
             assert not symbol_layer.dataDefinedProperties().hasActiveProperties()
-
-
-def test_frequency_to_width():
-    assert frequency_to_width(0) == pytest.approx(0.05)
-    assert frequency_to_width(1) == pytest.approx(0.25)
-    assert frequency_to_width(100) == pytest.approx(0.05 + 100**0.6 * 0.2)
 
 
 def test_labeling_for_aggregated_routes():
