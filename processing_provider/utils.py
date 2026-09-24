@@ -13,6 +13,7 @@ from qgis.core import (
     QgsProcessingLayerPostProcessorInterface,
     QgsVectorLayer,
 )
+from qgis.PyQt import sip
 from qgis.PyQt.QtCore import QMetaType
 
 # Tweeked to import gtfs_parser for Python 3.11
@@ -101,8 +102,10 @@ class _StylePostProcessor(QgsProcessingLayerPostProcessorInterface):
             self.style_func(layer)
 
 
-# post processors must outlive processAlgorithm(), keep one per style function
-_post_processors: dict = {}
+# The layer details take ownership of a post processor and delete it with the
+# context, but the Python subclass is lost unless Python keeps a reference too.
+# Keep one per call and drop the ones already deleted on the C++ side.
+_post_processors: list = []
 
 
 def set_style_on_completion(
@@ -113,8 +116,7 @@ def set_style_on_completion(
     """Apply style_func to the output layer when it is loaded on completion"""
     if not context.willLoadLayerOnCompletion(dest_id):
         return
-    if style_func not in _post_processors:
-        _post_processors[style_func] = _StylePostProcessor(style_func)
-    context.layerToLoadOnCompletionDetails(dest_id).setPostProcessor(
-        _post_processors[style_func]
-    )
+    _post_processors[:] = [p for p in _post_processors if not sip.isdeleted(p)]
+    post_processor = _StylePostProcessor(style_func)
+    _post_processors.append(post_processor)
+    context.layerToLoadOnCompletionDetails(dest_id).setPostProcessor(post_processor)

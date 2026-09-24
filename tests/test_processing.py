@@ -13,6 +13,7 @@ from qgis.core import (
     QgsReferencedRectangle,
     QgsVectorLayer,
 )
+from qgis.PyQt import sip
 from qgis.PyQt.QtCore import QDate
 
 from processing_provider.aggregate_frequency import AggregateFrequencyAlgorithm
@@ -201,34 +202,54 @@ def test_aggregate_invalid_time(qgis_app, gtfs_zip, begin, end):
     assert not ok
 
 
-def _run_with_post_processors(algorithm, parameters, outputs):
-    """Run with outputs marked to be loaded on completion, return post processors"""
-    alg = algorithm.create()
-    context = QgsProcessingContext()
-    context.setProject(QgsProject.instance())
-    feedback = QgsProcessingFeedback()
-    for output in outputs:
-        context.addLayerToLoadOnCompletion(
-            parameters[output],
-            QgsProcessingContext.LayerDetails(output, QgsProject.instance(), output),
-        )
-    results, ok = alg.run(parameters, context, feedback)
-    assert ok, feedback.textLog()
+@pytest.fixture
+def run_with_post_processors():
+    """Run with outputs marked to be loaded on completion, return post processors
+
+    The context owns the post processors, so keep it alive during the test.
+    """
+    contexts = []
+
+    def _run(algorithm, parameters, outputs):
+        alg = algorithm.create()
+        context = QgsProcessingContext()
+        context.setProject(QgsProject.instance())
+        contexts.append(context)
+        feedback = QgsProcessingFeedback()
+        for output in outputs:
+            context.addLayerToLoadOnCompletion(
+                parameters[output],
+                QgsProcessingContext.LayerDetails(
+                    output, QgsProject.instance(), output
+                ),
+            )
+        results, ok = alg.run(parameters, context, feedback)
+        assert ok, feedback.textLog()
+        return {
+            output: context.layerToLoadOnCompletionDetails(
+                results[output]
+            ).postProcessor()
+            for output in outputs
+        }
+
+    return _run
+
+
+def _extract_parameters(gtfs_zip, tmp_path, apply_style):
     return {
-        output: context.layerToLoadOnCompletionDetails(results[output]).postProcessor()
-        for output in outputs
-    }
-
-
-@pytest.mark.parametrize("apply_style", [True, False])
-def test_extract_apply_style(qgis_app, gtfs_zip, tmp_path, apply_style):
-    parameters = {
         "INPUT": gtfs_zip,
         "APPLY_STYLE": apply_style,
         "OUTPUT_ROUTES": str(tmp_path / "routes.geojson"),
         "OUTPUT_STOPS": str(tmp_path / "stops.geojson"),
     }
-    post_processors = _run_with_post_processors(
+
+
+@pytest.mark.parametrize("apply_style", [True, False])
+def test_extract_apply_style(
+    qgis_app, gtfs_zip, tmp_path, apply_style, run_with_post_processors
+):
+    parameters = _extract_parameters(gtfs_zip, tmp_path, apply_style)
+    post_processors = run_with_post_processors(
         ExtractRoutesAndStopsAlgorithm(), parameters, ["OUTPUT_ROUTES", "OUTPUT_STOPS"]
     )
     for output in ("OUTPUT_ROUTES", "OUTPUT_STOPS"):
@@ -243,8 +264,31 @@ def test_extract_apply_style(qgis_app, gtfs_zip, tmp_path, apply_style):
         assert stops.hasScaleBasedVisibility()
 
 
+def test_apply_style_repeated_runs(
+    qgis_app, gtfs_zip, tmp_path, run_with_post_processors
+):
+    # post processors are owned by each context, never shared between runs
+    outputs = ["OUTPUT_ROUTES", "OUTPUT_STOPS"]
+    first = run_with_post_processors(
+        ExtractRoutesAndStopsAlgorithm(),
+        _extract_parameters(gtfs_zip, tmp_path, True),
+        outputs,
+    )
+    second = run_with_post_processors(
+        ExtractRoutesAndStopsAlgorithm(),
+        _extract_parameters(gtfs_zip, tmp_path, True),
+        outputs,
+    )
+    for output in outputs:
+        assert first[output] is not second[output]
+        assert not sip.isdeleted(first[output])
+        assert not sip.isdeleted(second[output])
+
+
 @pytest.mark.parametrize("apply_style", [True, False])
-def test_aggregate_apply_style(qgis_app, gtfs_zip, tmp_path, apply_style):
+def test_aggregate_apply_style(
+    qgis_app, gtfs_zip, tmp_path, apply_style, run_with_post_processors
+):
     parameters = {
         "INPUT": gtfs_zip,
         "APPLY_STYLE": apply_style,
@@ -253,7 +297,7 @@ def test_aggregate_apply_style(qgis_app, gtfs_zip, tmp_path, apply_style):
         "OUTPUT_STOP_RELATIONS": str(tmp_path / "result.csv"),
     }
     outputs = ["OUTPUT_ROUTES", "OUTPUT_STOPS", "OUTPUT_STOP_RELATIONS"]
-    post_processors = _run_with_post_processors(
+    post_processors = run_with_post_processors(
         AggregateFrequencyAlgorithm(), parameters, outputs
     )
     assert (post_processors["OUTPUT_ROUTES"] is not None) == apply_style
