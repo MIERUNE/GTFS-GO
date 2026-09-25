@@ -35,5 +35,5 @@ def style_aggregated_stops_layer(
 ) -> None:
     layer.loadNamedStyle(os.path.join(_QML_DIR, "aggregated_stops.qml"))
     dd_props = layer.renderer().symbol().symbolLayers()[0].dataDefinedProperties()
-    if dd_props.hasProperty(QgsSymbolLayer.PropertySize):
-        dd_props.property(QgsSymbolLayer.PropertySize).setActive(scale_stop_size)
+    if dd_props.hasProperty(QgsSymbolLayer.Property.Size):
+        dd_props.property(QgsSymbolLayer.Property.Size).setActive(scale_stop_size)
