@@ -28,10 +28,7 @@ def __fetch(url: str) -> dict:
     req = QNetworkRequest(QUrl(url))
     reply = nam.get(req)
     reply.finished.connect(event_loop.quit)
-    if QT_VERSION_INT <= 5:
-        event_loop.exec_()
-    else:
-        event_loop.exec(QEventLoop.ProcessEventsFlag.AllEvents)
+    event_loop.exec()
     if reply.error() == QNetworkReply.NetworkError.NoError:
         text_stream = QTextStream(reply)
         if QT_VERSION_INT <= 5:
