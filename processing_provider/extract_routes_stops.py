@@ -24,6 +24,7 @@ from processing_provider.utils import (
 ROUTES_FIELDS = [
     ("route_id", QMetaType.Type.QString),
     ("route_name", QMetaType.Type.QString),
+    ("route_color", QMetaType.Type.QString),
 ]
 STOPS_FIELDS = [
     ("stop_id", QMetaType.Type.QString),

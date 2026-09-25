@@ -16,6 +16,7 @@ from qgis.core import (
 from qgis.PyQt import sip
 from qgis.PyQt.QtCore import QDate
 
+from gtfs_go_styles import style_routes_layer
 from processing_provider.aggregate_frequency import AggregateFrequencyAlgorithm
 from processing_provider.extract_routes_stops import ExtractRoutesAndStopsAlgorithm
 from processing_provider.provider import GTFSGoProvider
@@ -101,7 +102,21 @@ def test_extract_routes_and_stops(qgis_app, gtfs_zip, tmp_path):
 
     routes = load(routes_path)
     assert routes.featureCount() > 0
-    assert {f.name() for f in routes.fields()} >= {"route_id", "route_name"}
+    assert {f.name() for f in routes.fields()} >= {
+        "route_id",
+        "route_name",
+        "route_color",
+    }
+    route = next(f for f in routes.getFeatures() if f["route_id"] == "12_A")
+    assert route["route_color"] == "FF0000"
+
+    # the route color in GTFS is applied to the routes layer style
+    style_routes_layer(routes)
+    category = next(
+        c for c in routes.renderer().categories() if c.value() == route["route_name"]
+    )
+    # symbolLayer(0) is the outline, symbolLayer(1) is the route line
+    assert category.symbol().symbolLayer(1).color().name().upper() == "#FF0000"
 
 
 def test_extract_ignore_no_route(qgis_app, gtfs_zip, tmp_path):
