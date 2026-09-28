@@ -22,8 +22,10 @@ def gtfs_zip(tmp_path):
 def execute(qgis_iface, gtfs_zip):
     """Run the dialog with a local zip, return added layers by name"""
 
-    def _execute(output_dir=""):
+    def _execute(output_dir="", progress_values=None):
         dialog = GTFSGoDialog(qgis_iface)
+        if progress_values is not None:
+            dialog.progressBar.valueChanged.connect(progress_values.append)
         dialog.zipFileWidget.setFilePath(gtfs_zip)
         dialog.outputDirFileWidget.setFilePath(output_dir)
         dialog.aggregateCheckbox.setChecked(True)
@@ -122,3 +124,14 @@ def test_execution_with_output_dir(execute, tmp_path):
         "routes.geojson",
         "stops.geojson",
     ]
+
+
+def test_execution_progress(execute):
+    progress_values = []
+    execute(progress_values=progress_values)
+
+    # increases up to 100 while running, then is reset on completion
+    assert progress_values[-2:] == [100, 0]
+    running = progress_values[:-1]
+    assert running == sorted(running)
+    assert len(set(running)) > 2

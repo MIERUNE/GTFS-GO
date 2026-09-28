@@ -13,6 +13,7 @@ from qgis.core import (
     QgsProcessingAlgorithm,
     QgsProcessingContext,
     QgsProcessingFeedback,
+    QgsProcessingMultiStepFeedback,
     QgsProject,
     QgsReferencedRectangle,
     QgsVectorLayer,
@@ -20,7 +21,12 @@ from qgis.core import (
 from qgis.gui import QgisInterface
 from qgis.PyQt import uic
 from qgis.PyQt.QtCore import QDate, QSortFilterProxyModel, Qt, QVariant
-from qgis.PyQt.QtWidgets import QAbstractItemView, QDialog, QLineEdit
+from qgis.PyQt.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QDialog,
+    QLineEdit,
+)
 
 import constants
 import i18n
@@ -43,6 +49,7 @@ REPOSITORY_ENUM = {"preset": 0, "japanDpf": 1}
 
 # seconds; (connect, read) timeout for downloading a GTFS zip
 DOWNLOAD_TIMEOUT_SEC = (10, 300)
+DOWNLOAD_CHUNK_SIZE = 1024 * 1024
 
 
 class GTFSGoDialog(QDialog):
@@ -150,18 +157,23 @@ class GTFSGoDialog(QDialog):
         """
         return "[" + data["country"] + "]" + "[" + data["region"] + "]" + data["name"]
 
-    def download_zip(self, url: str) -> Optional[str]:
-        response = requests.get(url, timeout=DOWNLOAD_TIMEOUT_SEC)
-        if response.status_code != 200:
-            self.iface.messageBar().pushCritical(
-                i18n.tr("Error"),
-                i18n.tr("Failed to download GTFS data from the URL: ") + url,
-            )
-            return None
-        data = response.content
+    def download_zip(self, url: str, feedback: QgsProcessingFeedback) -> Optional[str]:
         download_path = os.path.join(TEMP_DIR, str(uuid.uuid4()) + ".zip")
-        with open(download_path, mode="wb") as f:
-            f.write(data)
+        with requests.get(url, timeout=DOWNLOAD_TIMEOUT_SEC, stream=True) as response:
+            if response.status_code != 200:
+                self.iface.messageBar().pushCritical(
+                    i18n.tr("Error"),
+                    i18n.tr("Failed to download GTFS data from the URL: ") + url,
+                )
+                return None
+            total = int(response.headers.get("Content-Length", 0))
+            downloaded = 0
+            with open(download_path, mode="wb") as f:
+                for chunk in response.iter_content(DOWNLOAD_CHUNK_SIZE):
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    if total:
+                        feedback.setProgress(100 * downloaded / total)
 
         return download_path
 
@@ -209,13 +221,48 @@ class GTFSGoDialog(QDialog):
         return feed_infos
 
     def execution(self):
+        # prevent re-execution while running, as events are processed to show progress
+        self.ui.pushButton.setEnabled(False)
+        try:
+            loaded = self.execute_feeds()
+        finally:
+            self.refresh()
+        if loaded:
+            self.ui.progressBar.setValue(0)
+            self.iface.messageBar().pushInfo(
+                i18n.tr("finish"), i18n.tr("GTFS data has been loaded.")
+            )
+            self.ui.close()
+
+    def execute_feeds(self) -> bool:
+        """
+        Returns:
+            True if any feed is loaded
+        """
         if os.path.exists(TEMP_DIR):
             shutil.rmtree(TEMP_DIR)
         os.makedirs(TEMP_DIR, exist_ok=True)
 
-        for feed_info in self.get_target_feed_infos():
+        feed_infos = self.get_target_feed_infos()
+        algorithm_count = int(self.ui.simpleCheckbox.isChecked()) + int(
+            self.ui.aggregateCheckbox.isChecked()
+        )
+        # steps for each feed: downloading if needed, and running each algorithm
+        feed_steps = [
+            int(feed_info["path"].startswith("http")) + algorithm_count
+            for feed_info in feed_infos
+        ]
+        # keep a reference to the base feedback while the multi-step one uses it
+        feedback = self.make_progress_feedback()
+        progress = QgsProcessingMultiStepFeedback(sum(feed_steps), feedback)
+        loaded = False
+
+        for i, feed_info in enumerate(feed_infos):
+            step = sum(feed_steps[:i])
             if feed_info["path"].startswith("http"):
-                feed_info["path"] = self.download_zip(feed_info["path"])
+                progress.setCurrentStep(step)
+                step += 1
+                feed_info["path"] = self.download_zip(feed_info["path"], progress)
                 if feed_info["path"] is None:
                     continue
 
@@ -233,6 +280,8 @@ class GTFSGoDialog(QDialog):
             outputs = []
 
             if self.ui.simpleCheckbox.isChecked():
+                progress.setCurrentStep(step)
+                step += 1
                 results = self.run_algorithm(
                     ExtractRoutesAndStopsAlgorithm(),
                     {
@@ -243,6 +292,7 @@ class GTFSGoDialog(QDialog):
                         "OUTPUT_STOPS": self.destination(output_dir, "stops.geojson"),
                     },
                     context,
+                    progress,
                 )
                 if results is None:
                     continue
@@ -252,6 +302,8 @@ class GTFSGoDialog(QDialog):
                 ]
 
             if self.ui.aggregateCheckbox.isChecked():
+                progress.setCurrentStep(step)
+                step += 1
                 results = self.run_algorithm(
                     AggregateFrequencyAlgorithm(),
                     {
@@ -272,6 +324,7 @@ class GTFSGoDialog(QDialog):
                         ),
                     },
                     context,
+                    progress,
                 )
                 if results is None:
                     continue
@@ -303,6 +356,22 @@ class GTFSGoDialog(QDialog):
                     for name, output_id, style_func in outputs
                 ],
             )
+            loaded = True
+
+        return loaded
+
+    def make_progress_feedback(self) -> QgsProcessingFeedback:
+        """Feedback to show its progress on the progress bar"""
+        self.ui.progressBar.setValue(0)
+        feedback = QgsProcessingFeedback()
+
+        def on_progress_changed(value: float):
+            self.ui.progressBar.setValue(int(value))
+            # repaint while running on the main thread
+            QApplication.processEvents()
+
+        feedback.progressChanged.connect(on_progress_changed)
+        return feedback
 
     @staticmethod
     def destination(output_dir: Optional[str], filename: str) -> str:
@@ -329,8 +398,11 @@ class GTFSGoDialog(QDialog):
         algorithm: QgsProcessingAlgorithm,
         parameters: dict,
         context: Optional[QgsProcessingContext] = None,
+        progress: Optional[QgsProcessingFeedback] = None,
     ) -> Optional[dict]:
         """
+        Args:
+            progress: feedback to forward the progress of the algorithm to
         Returns:
             results of the algorithm, None if failed
         """
@@ -339,6 +411,8 @@ class GTFSGoDialog(QDialog):
             context = QgsProcessingContext()
             context.setProject(QgsProject.instance())
         feedback = QgsProcessingFeedback()
+        if progress is not None:
+            feedback.progressChanged.connect(progress.setProgress)
         ok, message = alg.checkParameterValues(parameters, context)
         results = None
         if ok:
@@ -382,11 +456,6 @@ class GTFSGoDialog(QDialog):
             style_func(layer)
             QgsProject.instance().addMapLayer(layer, False)
             group.insertLayer(0, layer)
-
-        self.iface.messageBar().pushInfo(
-            i18n.tr("finish"), i18n.tr("GTFS data has been loaded.")
-        )
-        self.ui.close()
 
     def refresh(self):
         self.localDataSelectAreaWidget.setVisible(

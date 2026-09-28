@@ -2,6 +2,7 @@ from qgis.core import (
     Qgis,
     QgsCoordinateReferenceSystem,
     QgsProcessingAlgorithm,
+    QgsProcessingMultiStepFeedback,
     QgsProcessingParameterBoolean,
     QgsProcessingParameterFeatureSink,
     QgsProcessingParameterFile,
@@ -110,6 +111,8 @@ class ExtractRoutesAndStopsAlgorithm(QgsProcessingAlgorithm):
         apply_style = self.parameterAsBool(parameters, self.APPLY_STYLE, context)
         crs = QgsCoordinateReferenceSystem("EPSG:4326")
 
+        # step 0 is loading GTFS, then a step for each output
+        feedback = QgsProcessingMultiStepFeedback(3, feedback)
         feedback.pushInfo(i18n.tr("Loading GTFS..."))
         gtfs = gtfs_parser.GTFSFactory(gtfs_path)
 
@@ -134,6 +137,7 @@ class ExtractRoutesAndStopsAlgorithm(QgsProcessingAlgorithm):
                 style_stops_layer,
             ),
         ):
+            feedback.setCurrentStep(len(results) + 1)
             if feedback.isCanceled():
                 break
             fields = make_fields(fields_def)
