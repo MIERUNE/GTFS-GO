@@ -3,6 +3,7 @@ import shutil
 
 import pytest
 from qgis.core import QgsProject
+from qgis.PyQt.QtCore import QDate
 
 from gtfs_go_dialog import GTFSGoDialog
 
@@ -26,6 +27,8 @@ def execute(qgis_iface, gtfs_zip):
         dialog.zipFileWidget.setFilePath(gtfs_zip)
         dialog.outputDirFileWidget.setFilePath(output_dir)
         dialog.aggregateCheckbox.setChecked(True)
+        # date filter is on by default (today), use a service day of the fixture
+        dialog.filterByDateDateEdit.setDate(QDate(2021, 8, 2))
         dialog.refresh()
         assert dialog.pushButton.isEnabled()
         dialog.execution()
