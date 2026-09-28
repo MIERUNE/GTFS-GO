@@ -1,4 +1,40 @@
+import os
+import shutil
+
+import pytest
+from qgis.core import QgsProject
+
 from gtfs_go_dialog import GTFSGoDialog
+
+FIXTURE_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), "gtfs_parser", "tests", "fixture"
+)
+LAYER_NAMES = {"routes", "stops", "aggregated_routes", "aggregated_stops", "result"}
+
+
+@pytest.fixture
+def gtfs_zip(tmp_path):
+    return shutil.make_archive(str(tmp_path / "gtfs"), "zip", FIXTURE_DIR)
+
+
+@pytest.fixture
+def execute(qgis_iface, gtfs_zip):
+    """Run the dialog with a local zip, return added layers by name"""
+
+    def _execute(output_dir=""):
+        dialog = GTFSGoDialog(qgis_iface)
+        dialog.zipFileWidget.setFilePath(gtfs_zip)
+        dialog.outputDirFileWidget.setFilePath(output_dir)
+        dialog.aggregateCheckbox.setChecked(True)
+        dialog.refresh()
+        assert dialog.pushButton.isEnabled()
+        dialog.execution()
+        return {
+            layer.name(): layer for layer in QgsProject.instance().mapLayers().values()
+        }
+
+    yield _execute
+    QgsProject.instance().clear()
 
 
 def test_dialog(qgis_iface):
@@ -47,3 +83,39 @@ def test_dialog_translated(qgis_iface):
         assert dialog.repositoryCombobox.itemText(0) == "プリセット"
     finally:
         i18n.load("en")
+
+
+def test_execution_without_output_dir(execute):
+    layers = execute()
+
+    assert set(layers) == LAYER_NAMES
+    for layer in layers.values():
+        assert layer.isValid()
+        assert layer.providerType() == "memory"
+        assert layer.featureCount() > 0
+    group = QgsProject.instance().layerTreeRoot().findGroup("gtfs")
+    assert [child.name() for child in group.children()] == [
+        "result",
+        "aggregated_stops",
+        "aggregated_routes",
+        "stops",
+        "routes",
+    ]
+
+
+def test_execution_with_output_dir(execute, tmp_path):
+    output_dir = tmp_path / "output"
+    layers = execute(str(output_dir))
+
+    assert set(layers) == LAYER_NAMES
+    for layer in layers.values():
+        assert layer.isValid()
+        assert layer.providerType() == "ogr"
+        assert layer.featureCount() > 0
+    assert sorted(os.listdir(output_dir / "gtfs")) == [
+        "aggregated_routes.geojson",
+        "aggregated_stops.geojson",
+        "result.csv",
+        "routes.geojson",
+        "stops.geojson",
+    ]

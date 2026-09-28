@@ -1,4 +1,5 @@
 import datetime
+import functools
 import json
 import os
 import shutil
@@ -75,7 +76,9 @@ class GTFSGoDialog(QDialog):
 
         # set refresh event on some ui
         self.ui.repositoryCombobox.currentIndexChanged.connect(self.refresh)
-        self.ui.outputDirFileWidget.fileChanged.connect(self.refresh)
+        self.ui.outputDirFileWidget.lineEdit().setPlaceholderText(
+            i18n.tr("[Create temporary layers]")
+        )
         self.ui.unifyCheckBox.stateChanged.connect(self.refresh)
         self.ui.timeFilterCheckBox.stateChanged.connect(self.refresh)
         self.ui.simpleCheckbox.clicked.connect(self.refresh)
@@ -216,43 +219,39 @@ class GTFSGoDialog(QDialog):
                 if feed_info["path"] is None:
                     continue
 
-            output_dir = os.path.join(
-                self.outputDirFileWidget.filePath(), feed_info["dir"]
-            )
-            os.makedirs(output_dir, exist_ok=True)
+            # without output directory, outputs are temporary (memory) layers
+            output_dir = None
+            if self.outputDirFileWidget.filePath():
+                output_dir = os.path.join(
+                    self.outputDirFileWidget.filePath(), feed_info["dir"]
+                )
+                os.makedirs(output_dir, exist_ok=True)
 
-            written_files = {
-                "routes": "",
-                "stops": "",
-                "aggregated_routes": "",
-                "aggregated_stops": "",
-                "aggregated_csv": "",
-            }
+            context = QgsProcessingContext()
+            context.setProject(QgsProject.instance())
+            # list of (layer name, output id, style function)
+            outputs = []
 
             if self.ui.simpleCheckbox.isChecked():
-                written_files["routes"] = os.path.join(output_dir, "routes.geojson")
-                written_files["stops"] = os.path.join(output_dir, "stops.geojson")
                 results = self.run_algorithm(
                     ExtractRoutesAndStopsAlgorithm(),
                     {
                         "INPUT": feed_info["path"],
                         "IGNORE_SHAPES": self.ui.ignoreShapesCheckbox.isChecked(),
                         "IGNORE_NO_ROUTE": self.ui.ignoreNoRouteStopsCheckbox.isChecked(),
-                        "OUTPUT_ROUTES": written_files["routes"],
-                        "OUTPUT_STOPS": written_files["stops"],
+                        "OUTPUT_ROUTES": self.destination(output_dir, "routes.geojson"),
+                        "OUTPUT_STOPS": self.destination(output_dir, "stops.geojson"),
                     },
+                    context,
                 )
                 if results is None:
                     continue
+                outputs += [
+                    ("routes", results["OUTPUT_ROUTES"], style_routes_layer),
+                    ("stops", results["OUTPUT_STOPS"], style_stops_layer),
+                ]
 
             if self.ui.aggregateCheckbox.isChecked():
-                written_files["aggregated_routes"] = os.path.join(
-                    output_dir, "aggregated_routes.geojson"
-                )
-                written_files["aggregated_stops"] = os.path.join(
-                    output_dir, "aggregated_stops.geojson"
-                )
-                written_files["aggregated_csv"] = os.path.join(output_dir, "result.csv")
                 results = self.run_algorithm(
                     AggregateFrequencyAlgorithm(),
                     {
@@ -262,22 +261,68 @@ class GTFSGoDialog(QDialog):
                         "DATE": self.get_date(),
                         "BEGIN_TIME": self.get_time_filter(self.ui.beginTimeLineEdit),
                         "END_TIME": self.get_time_filter(self.ui.endTimeLineEdit),
-                        "OUTPUT_ROUTES": written_files["aggregated_routes"],
-                        "OUTPUT_STOPS": written_files["aggregated_stops"],
-                        "OUTPUT_STOP_RELATIONS": written_files["aggregated_csv"],
+                        "OUTPUT_ROUTES": self.destination(
+                            output_dir, "aggregated_routes.geojson"
+                        ),
+                        "OUTPUT_STOPS": self.destination(
+                            output_dir, "aggregated_stops.geojson"
+                        ),
+                        "OUTPUT_STOP_RELATIONS": self.destination(
+                            output_dir, "result.csv"
+                        ),
                     },
+                    context,
                 )
                 if results is None:
                     continue
+                outputs += [
+                    (
+                        "aggregated_routes",
+                        results["OUTPUT_ROUTES"],
+                        style_aggregated_routes_layer,
+                    ),
+                    (
+                        "aggregated_stops",
+                        results["OUTPUT_STOPS"],
+                        functools.partial(
+                            style_aggregated_stops_layer,
+                            scale_stop_size=self.ui.scaleStopSizeCheckBox.isChecked(),
+                        ),
+                    ),
+                    (
+                        "result",
+                        results["OUTPUT_STOP_RELATIONS"],
+                        lambda layer: layer.setProviderEncoding("UTF-8"),
+                    ),
+                ]
 
-            self.show_geojson(
+            self.show_layers(
                 feed_info["group"],
-                written_files["stops"],
-                written_files["routes"],
-                written_files["aggregated_stops"],
-                written_files["aggregated_routes"],
-                written_files["aggregated_csv"],
+                [
+                    (self.take_result_layer(context, output_id, name), style_func)
+                    for name, output_id, style_func in outputs
+                ],
             )
+
+    @staticmethod
+    def destination(output_dir: Optional[str], filename: str) -> str:
+        if output_dir is None:
+            return "memory:"
+        return os.path.join(output_dir, filename)
+
+    @staticmethod
+    def take_result_layer(
+        context: QgsProcessingContext, output_id: str, name: str
+    ) -> QgsVectorLayer:
+        """
+        Args:
+            output_id: layer id of a temporary layer, or path of a written file
+        """
+        layer = context.takeResultLayer(output_id)
+        if layer is None:
+            layer = QgsVectorLayer(output_id, name, "ogr")
+        layer.setName(name)
+        return layer
 
     def run_algorithm(
         self,
@@ -324,75 +369,22 @@ class GTFSGoDialog(QDialog):
             return ""
         return line_edit.text()
 
-    def show_geojson(
-        self,
-        group_name: str,
-        stops_geojson: str,
-        routes_geojson: str,
-        aggregated_stops_geojson: str,
-        aggregated_routes_geojson: str,
-        aggregated_csv: str,
-    ):
+    def show_layers(self, group_name: str, layers: list):
+        """
+        Args:
+            layers: list of (QgsVectorLayer, style function), from bottom to top
+        """
         root = QgsProject().instance().layerTreeRoot()
         group = root.insertGroup(0, group_name)
         group.setExpanded(True)
 
-        if routes_geojson != "":
-            routes_vlayer = QgsVectorLayer(
-                routes_geojson, os.path.basename(routes_geojson).split(".")[0], "ogr"
-            )
-            style_routes_layer(routes_vlayer)
-
-            QgsProject.instance().addMapLayer(routes_vlayer, False)
-            group.insertLayer(0, routes_vlayer)
-
-        if stops_geojson != "":
-            stops_vlayer = QgsVectorLayer(
-                stops_geojson, os.path.basename(stops_geojson).split(".")[0], "ogr"
-            )
-            style_stops_layer(stops_vlayer)
-
-            QgsProject.instance().addMapLayer(stops_vlayer, False)
-            group.insertLayer(0, stops_vlayer)
-
-        if aggregated_routes_geojson != "":
-            aggregated_routes_vlayer = QgsVectorLayer(
-                aggregated_routes_geojson,
-                os.path.basename(aggregated_routes_geojson).split(".")[0],
-                "ogr",
-            )
-            style_aggregated_routes_layer(aggregated_routes_vlayer)
-
-            QgsProject.instance().addMapLayer(aggregated_routes_vlayer, False)
-            group.insertLayer(0, aggregated_routes_vlayer)
-
-        if aggregated_stops_geojson != "":
-            aggregated_stops_vlayer = QgsVectorLayer(
-                aggregated_stops_geojson,
-                os.path.basename(aggregated_stops_geojson).split(".")[0],
-                "ogr",
-            )
-            style_aggregated_stops_layer(
-                aggregated_stops_vlayer,
-                scale_stop_size=self.ui.scaleStopSizeCheckBox.isChecked(),
-            )
-
-            QgsProject.instance().addMapLayer(aggregated_stops_vlayer, False)
-            group.insertLayer(0, aggregated_stops_vlayer)
-
-        if aggregated_csv != "":
-            aggregated_csv_vlayer = QgsVectorLayer(
-                aggregated_csv,
-                os.path.basename(aggregated_csv).split(".")[0],
-                "ogr",
-            )
-            aggregated_csv_vlayer.setProviderEncoding("UTF-8")
-
-            QgsProject.instance().addMapLayer(aggregated_csv_vlayer, False)
-            group.insertLayer(0, aggregated_csv_vlayer)
+        for layer, style_func in layers:
+            style_func(layer)
+            QgsProject.instance().addMapLayer(layer, False)
+            group.insertLayer(0, layer)
 
         self.iface.messageBar().pushInfo(
-            i18n.tr("finish"), i18n.tr("generated geojson files: ")
+            i18n.tr("finish"), i18n.tr("GTFS data has been loaded.")
         )
         self.ui.close()
 
@@ -415,7 +407,6 @@ class GTFSGoDialog(QDialog):
         # set executable
         self.ui.pushButton.setEnabled(
             (len(self.get_target_feed_infos()) > 0)
-            and (self.ui.outputDirFileWidget.filePath() != "")
             and (
                 self.ui.simpleCheckbox.isChecked()
                 or self.ui.aggregateCheckbox.isChecked()
