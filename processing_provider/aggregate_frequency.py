@@ -5,6 +5,7 @@ from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsProcessingAlgorithm,
     QgsProcessingException,
+    QgsProcessingMultiStepFeedback,
     QgsProcessingParameterBoolean,
     QgsProcessingParameterDateTime,
     QgsProcessingParameterFeatureSink,
@@ -188,6 +189,8 @@ class AggregateFrequencyAlgorithm(QgsProcessingAlgorithm):
         apply_style = self.parameterAsBool(parameters, self.APPLY_STYLE, context)
         crs = QgsCoordinateReferenceSystem("EPSG:4326")
 
+        # step 0 is loading GTFS, then a step for each output
+        feedback = QgsProcessingMultiStepFeedback(4, feedback)
         feedback.pushInfo(i18n.tr("Loading GTFS..."))
         gtfs = gtfs_parser.GTFSFactory(gtfs_path)
 
@@ -225,6 +228,7 @@ class AggregateFrequencyAlgorithm(QgsProcessingAlgorithm):
                 None,
             ),
         ):
+            feedback.setCurrentStep(len(results) + 1)
             if feedback.isCanceled():
                 break
             fields = make_fields(fields_def)

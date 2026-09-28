@@ -1,4 +1,56 @@
+import os
+import shutil
+import time
+
+import pytest
+from qgis.core import QgsApplication, QgsProject
+from qgis.PyQt.QtCore import QDate
+
 from gtfs_go_dialog import GTFSGoDialog
+
+FIXTURE_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), "gtfs_parser", "tests", "fixture"
+)
+LAYER_NAMES = {"routes", "stops", "aggregated_routes", "aggregated_stops", "result"}
+
+
+def wait_for_task(dialog, timeout_sec=60):
+    deadline = time.monotonic() + timeout_sec
+    while dialog.task is not None:
+        assert time.monotonic() < deadline, "task did not finish"
+        QgsApplication.processEvents()
+        time.sleep(0.01)
+
+
+@pytest.fixture
+def gtfs_zip(tmp_path):
+    return shutil.make_archive(str(tmp_path / "gtfs"), "zip", FIXTURE_DIR)
+
+
+@pytest.fixture
+def execute(qgis_iface, gtfs_zip):
+    """Run the dialog with a local zip, return added layers by name"""
+
+    def _execute(output_dir="", progress_values=None):
+        dialog = GTFSGoDialog(qgis_iface)
+        if progress_values is not None:
+            dialog.progressBar.valueChanged.connect(progress_values.append)
+        dialog.zipFileWidget.setFilePath(gtfs_zip)
+        dialog.outputDirFileWidget.setFilePath(output_dir)
+        dialog.aggregateCheckbox.setChecked(True)
+        # date filter is on by default (today), use a service day of the fixture
+        dialog.filterByDateDateEdit.setDate(QDate(2021, 8, 2))
+        dialog.refresh()
+        assert dialog.pushButton.isEnabled()
+        dialog.execution()
+        assert not dialog.pushButton.isEnabled()
+        wait_for_task(dialog)
+        return {
+            layer.name(): layer for layer in QgsProject.instance().mapLayers().values()
+        }
+
+    yield _execute
+    QgsProject.instance().clear()
 
 
 def test_dialog(qgis_iface):
@@ -47,3 +99,62 @@ def test_dialog_translated(qgis_iface):
         assert dialog.repositoryCombobox.itemText(0) == "プリセット"
     finally:
         i18n.load("en")
+
+
+def test_execution_without_output_dir(execute):
+    layers = execute()
+
+    assert set(layers) == LAYER_NAMES
+    for layer in layers.values():
+        assert layer.isValid()
+        assert layer.providerType() == "memory"
+        assert layer.featureCount() > 0
+    group = QgsProject.instance().layerTreeRoot().findGroup("gtfs")
+    assert [child.name() for child in group.children()] == [
+        "result",
+        "aggregated_stops",
+        "aggregated_routes",
+        "stops",
+        "routes",
+    ]
+
+
+def test_execution_with_output_dir(execute, tmp_path):
+    output_dir = tmp_path / "output"
+    layers = execute(str(output_dir))
+
+    assert set(layers) == LAYER_NAMES
+    for layer in layers.values():
+        assert layer.isValid()
+        assert layer.providerType() == "ogr"
+        assert layer.featureCount() > 0
+    assert sorted(os.listdir(output_dir / "gtfs")) == [
+        "aggregated_routes.geojson",
+        "aggregated_stops.geojson",
+        "result.csv",
+        "routes.geojson",
+        "stops.geojson",
+    ]
+
+
+def test_execution_progress(execute):
+    progress_values = []
+    execute(progress_values=progress_values)
+
+    # increases up to 100 while running, then is reset on completion
+    assert progress_values[-2:] == [100, 0]
+    running = progress_values[:-1]
+    assert running == sorted(running)
+    assert len(set(running)) > 2
+
+
+def test_execution_canceled(qgis_iface, gtfs_zip):
+    dialog = GTFSGoDialog(qgis_iface)
+    dialog.zipFileWidget.setFilePath(gtfs_zip)
+    dialog.refresh()
+    dialog.execution()
+    dialog.task.cancel()
+    wait_for_task(dialog)
+
+    assert QgsProject.instance().mapLayers() == {}
+    assert dialog.pushButton.isEnabled()
