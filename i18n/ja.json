@@ -17,6 +17,7 @@
   "GTFS feeds": "GTFSフィード",
   "GTFS zip file": "GTFS zipファイル",
   "GTFS-Datasource": "GTFSデータを選択",
+  "Loading GTFS data": "GTFSデータを読み込み中",
   "Loading GTFS...": "GTFSを読み込み中…",
   "Output directory": "出力先フォルダ",
   "Parse a GTFS feed into simple routes (MultiLineString) and stops (Point).\nRoutes are generated from shapes.txt if it exists, otherwise from stop_times.txt.": "GTFSフィードをシンプルな経路（MultiLineString）と停留所（Point）に変換します。\n経路はshapes.txtがあればそこから、なければstop_times.txtから生成します。",

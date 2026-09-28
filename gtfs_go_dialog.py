@@ -4,16 +4,14 @@ import json
 import os
 import shutil
 import tempfile
-import uuid
 from typing import Optional
 
-import requests
 from qgis.core import (
+    QgsApplication,
     QgsCoordinateReferenceSystem,
     QgsProcessingAlgorithm,
     QgsProcessingContext,
     QgsProcessingFeedback,
-    QgsProcessingMultiStepFeedback,
     QgsProject,
     QgsReferencedRectangle,
     QgsVectorLayer,
@@ -21,12 +19,7 @@ from qgis.core import (
 from qgis.gui import QgisInterface
 from qgis.PyQt import uic
 from qgis.PyQt.QtCore import QDate, QSortFilterProxyModel, Qt, QVariant
-from qgis.PyQt.QtWidgets import (
-    QAbstractItemView,
-    QApplication,
-    QDialog,
-    QLineEdit,
-)
+from qgis.PyQt.QtWidgets import QAbstractItemView, QDialog, QLineEdit
 
 import constants
 import i18n
@@ -37,6 +30,7 @@ from gtfs_go_styles import (
     style_routes_layer,
     style_stops_layer,
 )
+from gtfs_go_task import AlgorithmJob, GTFSGoTask
 from processing_provider.aggregate_frequency import AggregateFrequencyAlgorithm
 from processing_provider.extract_routes_stops import ExtractRoutesAndStopsAlgorithm
 from processing_provider.search_japan_dpf import SearchJapanDpfAlgorithm
@@ -46,10 +40,6 @@ DATALIST_JSON_PATH = os.path.join(os.path.dirname(__file__), "gtfs_go_datalist.j
 TEMP_DIR = os.path.join(tempfile.gettempdir(), "GTFSGo")
 
 REPOSITORY_ENUM = {"preset": 0, "japanDpf": 1}
-
-# seconds; (connect, read) timeout for downloading a GTFS zip
-DOWNLOAD_TIMEOUT_SEC = (10, 300)
-DOWNLOAD_CHUNK_SIZE = 1024 * 1024
 
 
 class GTFSGoDialog(QDialog):
@@ -63,6 +53,7 @@ class GTFSGoDialog(QDialog):
         with open(DATALIST_JSON_PATH, encoding="utf-8") as f:
             self.datalist = json.load(f)
         self.iface = iface
+        self.task: Optional[GTFSGoTask] = None
         self.combobox_zip_text = i18n.tr("---Load local ZipFile---")
         self.init_gui()
 
@@ -157,26 +148,6 @@ class GTFSGoDialog(QDialog):
         """
         return "[" + data["country"] + "]" + "[" + data["region"] + "]" + data["name"]
 
-    def download_zip(self, url: str, feedback: QgsProcessingFeedback) -> Optional[str]:
-        download_path = os.path.join(TEMP_DIR, str(uuid.uuid4()) + ".zip")
-        with requests.get(url, timeout=DOWNLOAD_TIMEOUT_SEC, stream=True) as response:
-            if response.status_code != 200:
-                self.iface.messageBar().pushCritical(
-                    i18n.tr("Error"),
-                    i18n.tr("Failed to download GTFS data from the URL: ") + url,
-                )
-                return None
-            total = int(response.headers.get("Content-Length", 0))
-            downloaded = 0
-            with open(download_path, mode="wb") as f:
-                for chunk in response.iter_content(DOWNLOAD_CHUNK_SIZE):
-                    f.write(chunk)
-                    downloaded += len(chunk)
-                    if total:
-                        feedback.setProgress(100 * downloaded / total)
-
-        return download_path
-
     def get_target_feed_infos(self):
         feed_infos = []
         if self.repositoryCombobox.currentData() == REPOSITORY_ENUM["preset"]:
@@ -221,163 +192,115 @@ class GTFSGoDialog(QDialog):
         return feed_infos
 
     def execution(self):
-        # prevent re-execution while running, as events are processed to show progress
-        self.ui.pushButton.setEnabled(False)
-        try:
-            loaded = self.execute_feeds()
-        finally:
-            self.refresh()
-        if loaded:
-            self.ui.progressBar.setValue(0)
-            self.iface.messageBar().pushInfo(
-                i18n.tr("finish"), i18n.tr("GTFS data has been loaded.")
-            )
-            self.ui.close()
-
-    def execute_feeds(self) -> bool:
-        """
-        Returns:
-            True if any feed is loaded
-        """
         if os.path.exists(TEMP_DIR):
             shutil.rmtree(TEMP_DIR)
         os.makedirs(TEMP_DIR, exist_ok=True)
 
-        feed_infos = self.get_target_feed_infos()
-        algorithm_count = int(self.ui.simpleCheckbox.isChecked()) + int(
-            self.ui.aggregateCheckbox.isChecked()
+        self.ui.progressBar.setValue(0)
+        self.task = GTFSGoTask(
+            self.get_target_feed_infos(),
+            self.make_algorithm_jobs(),
+            self.outputDirFileWidget.filePath(),
+            TEMP_DIR,
+            self.on_task_finished,
         )
-        # steps for each feed: downloading if needed, and running each algorithm
-        feed_steps = [
-            int(feed_info["path"].startswith("http")) + algorithm_count
-            for feed_info in feed_infos
-        ]
-        # keep a reference to the base feedback while the multi-step one uses it
-        feedback = self.make_progress_feedback()
-        progress = QgsProcessingMultiStepFeedback(sum(feed_steps), feedback)
-        loaded = False
+        self.task.progressChanged.connect(self.on_task_progress)
+        QgsApplication.taskManager().addTask(self.task)
+        # prevent re-execution while running
+        self.refresh()
 
-        for i, feed_info in enumerate(feed_infos):
-            step = sum(feed_steps[:i])
-            if feed_info["path"].startswith("http"):
-                progress.setCurrentStep(step)
-                step += 1
-                feed_info["path"] = self.download_zip(feed_info["path"], progress)
-                if feed_info["path"] is None:
-                    continue
-
-            # without output directory, outputs are temporary (memory) layers
-            output_dir = None
-            if self.outputDirFileWidget.filePath():
-                output_dir = os.path.join(
-                    self.outputDirFileWidget.filePath(), feed_info["dir"]
-                )
-                os.makedirs(output_dir, exist_ok=True)
-
-            context = QgsProcessingContext()
-            context.setProject(QgsProject.instance())
-            # list of (layer name, output id, style function)
-            outputs = []
-
-            if self.ui.simpleCheckbox.isChecked():
-                progress.setCurrentStep(step)
-                step += 1
-                results = self.run_algorithm(
+    def make_algorithm_jobs(self) -> list:
+        """Read the options on the main thread, to be used in the task"""
+        jobs = []
+        if self.ui.simpleCheckbox.isChecked():
+            jobs.append(
+                AlgorithmJob(
                     ExtractRoutesAndStopsAlgorithm(),
                     {
-                        "INPUT": feed_info["path"],
                         "IGNORE_SHAPES": self.ui.ignoreShapesCheckbox.isChecked(),
                         "IGNORE_NO_ROUTE": self.ui.ignoreNoRouteStopsCheckbox.isChecked(),
-                        "OUTPUT_ROUTES": self.destination(output_dir, "routes.geojson"),
-                        "OUTPUT_STOPS": self.destination(output_dir, "stops.geojson"),
                     },
-                    context,
-                    progress,
+                    [
+                        (
+                            "OUTPUT_ROUTES",
+                            "routes.geojson",
+                            "routes",
+                            style_routes_layer,
+                        ),
+                        ("OUTPUT_STOPS", "stops.geojson", "stops", style_stops_layer),
+                    ],
                 )
-                if results is None:
-                    continue
-                outputs += [
-                    ("routes", results["OUTPUT_ROUTES"], style_routes_layer),
-                    ("stops", results["OUTPUT_STOPS"], style_stops_layer),
-                ]
-
-            if self.ui.aggregateCheckbox.isChecked():
-                progress.setCurrentStep(step)
-                step += 1
-                results = self.run_algorithm(
+            )
+        if self.ui.aggregateCheckbox.isChecked():
+            jobs.append(
+                AlgorithmJob(
                     AggregateFrequencyAlgorithm(),
                     {
-                        "INPUT": feed_info["path"],
                         "UNIFY_STOPS": self.ui.unifyCheckBox.isChecked(),
                         "DELIMITER": self.get_delimiter(),
                         "DATE": self.get_date(),
                         "BEGIN_TIME": self.get_time_filter(self.ui.beginTimeLineEdit),
                         "END_TIME": self.get_time_filter(self.ui.endTimeLineEdit),
-                        "OUTPUT_ROUTES": self.destination(
-                            output_dir, "aggregated_routes.geojson"
-                        ),
-                        "OUTPUT_STOPS": self.destination(
-                            output_dir, "aggregated_stops.geojson"
-                        ),
-                        "OUTPUT_STOP_RELATIONS": self.destination(
-                            output_dir, "result.csv"
-                        ),
                     },
-                    context,
-                    progress,
-                )
-                if results is None:
-                    continue
-                outputs += [
-                    (
-                        "aggregated_routes",
-                        results["OUTPUT_ROUTES"],
-                        style_aggregated_routes_layer,
-                    ),
-                    (
-                        "aggregated_stops",
-                        results["OUTPUT_STOPS"],
-                        functools.partial(
-                            style_aggregated_stops_layer,
-                            scale_stop_size=self.ui.scaleStopSizeCheckBox.isChecked(),
+                    [
+                        (
+                            "OUTPUT_ROUTES",
+                            "aggregated_routes.geojson",
+                            "aggregated_routes",
+                            style_aggregated_routes_layer,
                         ),
-                    ),
-                    (
-                        "result",
-                        results["OUTPUT_STOP_RELATIONS"],
-                        lambda layer: layer.setProviderEncoding("UTF-8"),
-                    ),
-                ]
+                        (
+                            "OUTPUT_STOPS",
+                            "aggregated_stops.geojson",
+                            "aggregated_stops",
+                            functools.partial(
+                                style_aggregated_stops_layer,
+                                scale_stop_size=self.ui.scaleStopSizeCheckBox.isChecked(),
+                            ),
+                        ),
+                        (
+                            "OUTPUT_STOP_RELATIONS",
+                            "result.csv",
+                            "result",
+                            lambda layer: layer.setProviderEncoding("UTF-8"),
+                        ),
+                    ],
+                )
+            )
+        return jobs
 
+    def on_task_progress(self, value: float):
+        # ignore the progress queued after the task finished
+        if self.task is not None:
+            self.ui.progressBar.setValue(int(value))
+
+    def on_task_finished(self, task: GTFSGoTask, result: bool):
+        """Called on the main thread when the task is finished or canceled"""
+        self.task = None
+        self.ui.progressBar.setValue(0)
+        self.refresh()
+
+        for error in task.errors:
+            self.iface.messageBar().pushCritical(i18n.tr("Error"), error)
+        if not result:
+            return
+
+        for feed_result in task.results:
             self.show_layers(
-                feed_info["group"],
+                feed_result.group,
                 [
-                    (self.take_result_layer(context, output_id, name), style_func)
-                    for name, output_id, style_func in outputs
+                    (
+                        self.take_result_layer(feed_result.context, output_id, name),
+                        style_func,
+                    )
+                    for name, output_id, style_func in feed_result.outputs
                 ],
             )
-            loaded = True
-
-        return loaded
-
-    def make_progress_feedback(self) -> QgsProcessingFeedback:
-        """Feedback to show its progress on the progress bar"""
-        self.ui.progressBar.setValue(0)
-        feedback = QgsProcessingFeedback()
-
-        def on_progress_changed(value: float):
-            self.ui.progressBar.setValue(int(value))
-            # repaint while running on the main thread
-            QApplication.processEvents()
-
-        feedback.progressChanged.connect(on_progress_changed)
-        return feedback
-
-    @staticmethod
-    def destination(output_dir: Optional[str], filename: str) -> str:
-        if output_dir is None:
-            return "memory:"
-        return os.path.join(output_dir, filename)
+        if task.results:
+            self.iface.messageBar().pushInfo(
+                i18n.tr("finish"), i18n.tr("GTFS data has been loaded.")
+            )
+            self.ui.close()
 
     @staticmethod
     def take_result_layer(
@@ -398,11 +321,8 @@ class GTFSGoDialog(QDialog):
         algorithm: QgsProcessingAlgorithm,
         parameters: dict,
         context: Optional[QgsProcessingContext] = None,
-        progress: Optional[QgsProcessingFeedback] = None,
     ) -> Optional[dict]:
         """
-        Args:
-            progress: feedback to forward the progress of the algorithm to
         Returns:
             results of the algorithm, None if failed
         """
@@ -411,8 +331,6 @@ class GTFSGoDialog(QDialog):
             context = QgsProcessingContext()
             context.setProject(QgsProject.instance())
         feedback = QgsProcessingFeedback()
-        if progress is not None:
-            feedback.progressChanged.connect(progress.setProgress)
         ok, message = alg.checkParameterValues(parameters, context)
         results = None
         if ok:
@@ -475,7 +393,8 @@ class GTFSGoDialog(QDialog):
 
         # set executable
         self.ui.pushButton.setEnabled(
-            (len(self.get_target_feed_infos()) > 0)
+            self.task is None
+            and (len(self.get_target_feed_infos()) > 0)
             and (
                 self.ui.simpleCheckbox.isChecked()
                 or self.ui.aggregateCheckbox.isChecked()

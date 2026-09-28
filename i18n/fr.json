@@ -17,6 +17,7 @@
   "GTFS feeds": "Flux GTFS",
   "GTFS zip file": "Fichier zip GTFS",
   "GTFS-Datasource": "Source de données GTFS",
+  "Loading GTFS data": "Chargement des données GTFS",
   "Loading GTFS...": "Chargement du GTFS…",
   "Output directory": "Répertoire de sortie",
   "Parse a GTFS feed into simple routes (MultiLineString) and stops (Point).\nRoutes are generated from shapes.txt if it exists, otherwise from stop_times.txt.": "Convertit un flux GTFS en lignes simples (MultiLineString) et arrêts (Point).\nLes lignes sont générées à partir de shapes.txt s'il existe, sinon à partir de stop_times.txt.",

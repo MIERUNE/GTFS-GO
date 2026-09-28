@@ -1,8 +1,9 @@
 import os
 import shutil
+import time
 
 import pytest
-from qgis.core import QgsProject
+from qgis.core import QgsApplication, QgsProject
 from qgis.PyQt.QtCore import QDate
 
 from gtfs_go_dialog import GTFSGoDialog
@@ -11,6 +12,14 @@ FIXTURE_DIR = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "gtfs_parser", "tests", "fixture"
 )
 LAYER_NAMES = {"routes", "stops", "aggregated_routes", "aggregated_stops", "result"}
+
+
+def wait_for_task(dialog, timeout_sec=60):
+    deadline = time.monotonic() + timeout_sec
+    while dialog.task is not None:
+        assert time.monotonic() < deadline, "task did not finish"
+        QgsApplication.processEvents()
+        time.sleep(0.01)
 
 
 @pytest.fixture
@@ -34,6 +43,8 @@ def execute(qgis_iface, gtfs_zip):
         dialog.refresh()
         assert dialog.pushButton.isEnabled()
         dialog.execution()
+        assert not dialog.pushButton.isEnabled()
+        wait_for_task(dialog)
         return {
             layer.name(): layer for layer in QgsProject.instance().mapLayers().values()
         }
@@ -135,3 +146,15 @@ def test_execution_progress(execute):
     running = progress_values[:-1]
     assert running == sorted(running)
     assert len(set(running)) > 2
+
+
+def test_execution_canceled(qgis_iface, gtfs_zip):
+    dialog = GTFSGoDialog(qgis_iface)
+    dialog.zipFileWidget.setFilePath(gtfs_zip)
+    dialog.refresh()
+    dialog.execution()
+    dialog.task.cancel()
+    wait_for_task(dialog)
+
+    assert QgsProject.instance().mapLayers() == {}
+    assert dialog.pushButton.isEnabled()
